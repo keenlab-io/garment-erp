@@ -1,0 +1,29 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+build/
+.next/
+
+# turbo
+.turbo/
+
+# typescript incremental
+*.tsbuildinfo
+
+# test
+coverage/
+
+# env
+.env
+.env.local
+*.local
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# os
+.DS_Store

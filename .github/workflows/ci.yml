@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # needed for affected diff vs origin/main
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Affected-only: build/test only what changed vs main (spec §10.1).
+      - run: pnpm turbo run lint typecheck test build --filter=...[origin/main]
+
+      # --- Turborepo remote cache (disabled — MR-Q1, local cache only for now) ---
+      # To enable later, set repo/org secrets and uncomment:
+      # env:
+      #   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      #   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
