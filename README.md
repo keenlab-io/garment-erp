@@ -1,4 +1,4 @@
-# garment-factory-manager
+# garment-erp
 
 Integrated Manufacturing & Sales ERP — a **pnpm + Turborepo monorepo**.
 

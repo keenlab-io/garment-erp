@@ -1,0 +1,47 @@
+# Self-contained dev stack for the Dev Container: app workspace + its own Postgres.
+# Mirrors infra/docker-compose.yml (postgres:16-alpine, erp/erp/erp) so the
+# container is isolated from anything else on the host.
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Keep the container alive; VS Code attaches and runs commands inside it.
+    command: sleep infinity
+    volumes:
+      - ../..:/workspaces:cached
+      # Named volume for node_modules / pnpm store keeps installs off the host FS
+      # and avoids clobbering host-built native modules.
+      - pnpm-store:/home/node/.local/share/pnpm
+    environment:
+      # The api reads these once db:migrate is real; harmless now.
+      DATABASE_URL: postgres://erp:erp@postgres:5432/erp
+      POSTGRES_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - erp
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: erp
+      POSTGRES_DB: erp
+    volumes:
+      - erp-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erp
+
+volumes:
+  erp-pgdata:
+  pnpm-store:
+
+networks:
+  erp:
