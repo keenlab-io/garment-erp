@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "echo \"no tests yet\" && exit 0",
-    "db:migrate": "echo \"[stub] db:migrate — wire a real migration tool (e.g. drizzle/prisma) later\" && exit 0"
+    "db:migrate": "pnpm --filter @erp/db db:migrate"
   },
   "dependencies": {
     "@erp/contracts": "workspace:*",

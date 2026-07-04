@@ -64,4 +64,16 @@ export const contractsBoundaries = banImports(
   "@erp/contracts must be framework-agnostic — only zod / ts-rest / @erp/utils allowed (spec §6.2).",
 );
 
+/**
+ * @erp/db must not import @erp/contracts (would create a cycle once contracts
+ * reference DB-derived types) nor any NestJS package (drizzle-kit, migrate/seed
+ * scripts, and integration tests must import the schema without booting Nest).
+ * Enums shared with contracts are duplicated as $type unions and kept in sync
+ * by a parity test — see M0-foundation plan §3 / design R5.
+ */
+export const dbBoundaries = banImports(
+  ["@erp/contracts", "@nestjs/common", "@nestjs/core", "@nestjs"],
+  "@erp/db must be framework-agnostic — no @erp/contracts, no @nestjs/* (spec §6, M0 design D1).",
+);
+
 export default base;
