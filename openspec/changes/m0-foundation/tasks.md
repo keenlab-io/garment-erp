@@ -12,18 +12,18 @@
 
 ## 2. `@erp/db` package
 
-- [ ] 2.1 Scaffold `packages/db` — `package.json` (deps `drizzle-orm`, `postgres`, `@erp/utils`, `argon2`; dev `drizzle-kit`, `@erp/config`, `@types/node`, `tsx`), tsconfig extending the shared base, and an ESLint config with a `dbBoundaries` rule banning `@erp/contracts` and `@nestjs/*` imports
-- [ ] 2.2 Implement `src/base-columns.ts` — `citext` customType, `auditColumns` (uuid PK `gen_random_uuid()`, created/updated/deleted timestamps, createdBy/updatedBy with no FK in the helper), `versionColumn`, `money`/`qty`/`rate` numeric helpers (18,4 / 18,6 / 9,6), `notDeleted`; note `isNull` imports from `drizzle-orm`, not `pg-core`
-- [ ] 2.3 Implement `src/schema/enums.ts` — `$type` string-unions (`UserStatus`, `AuditAction`, ...) mirroring `@erp/contracts` enums
-- [ ] 2.4 Implement `src/client.ts` — `createDb(url)` returning `{ db, queryClient }` with `casing: "snake_case"`, export `Db` and `Tx` types
-- [ ] 2.5 Implement platform schema files under `src/schema/platform/` — `users` (citext username/email unique, passwordHash, status default PENDING, permissionsVersion default 1, isSuperAdmin, failedLoginCount, lockedUntil, lastLoginAt, audit + version columns), `sessions` (userId FK, tokenId, permissionsVersion snapshot, ip inet, userAgent, expiresAt, revokedAt, partial index `WHERE revoked_at IS NULL`), `audit-log`, `document-sequence` (`unique(key, year_scope)`, single row per key), `idempotency-key` (PK `(key, user_id)`, requestHash, responseStatus, responseBody jsonb, expiresAt)
-- [ ] 2.6 Add `src/schema/index.ts` and `src/index.ts` re-exports (`.js` specifiers) — client, base-columns, and schema (also as `schema`)
-- [ ] 2.7 Add `drizzle.config.ts` — `schema: "./dist/schema/index.js"` (compiled output), `out: "../../tooling/drizzle"`, `casing: "snake_case"`; wire `db:generate` as `tsc --build && drizzle-kit generate` and run it
-- [ ] 2.8 Hand-edit migration `0000` to prepend `CREATE EXTENSION IF NOT EXISTS "pgcrypto";` and `CREATE EXTENSION IF NOT EXISTS "citext";`
-- [ ] 2.9 Generate a custom migration (`drizzle-kit generate --custom --name=audit_append_only`) with the `audit_log_no_mutate()` trigger function and `BEFORE UPDATE OR DELETE` trigger enforcing append-only
-- [ ] 2.10 Implement `src/migrate.ts` (postgres-js migrator resolving `tooling/drizzle` from `dist`) and idempotent `src/seed/seed.ts` (upsert argon2id super-admin; `onConflictDoNothing` base `document_sequence` rows)
-- [ ] 2.11 Wire scripts — `@erp/db` `db:generate`/`db:migrate`/`db:seed`/`db:studio`, `apps/api` and root `db:*` delegating via `pnpm --filter @erp/db`, and `turbo.json` `db:*` tasks as `cache: false` (studio also `persistent`)
-- [ ] 2.12 Run `pnpm db:migrate && pnpm db:seed` against the dev Postgres and confirm tables, trigger, super-admin, and sequences exist; verify `pnpm build && pnpm typecheck && pnpm lint`
+- [x] 2.1 Scaffold `packages/db` — `package.json` (deps `drizzle-orm`, `postgres`, `@erp/utils`, `argon2`; dev `drizzle-kit`, `@erp/config`, `@types/node`, `tsx`), tsconfig extending the shared base, and an ESLint config with a `dbBoundaries` rule banning `@erp/contracts` and `@nestjs/*` imports
+- [x] 2.2 Implement `src/base-columns.ts` — `citext` customType, `auditColumns` (uuid PK `gen_random_uuid()`, created/updated/deleted timestamps, createdBy/updatedBy with no FK in the helper), `versionColumn`, `money`/`qty`/`rate` numeric helpers (18,4 / 18,6 / 9,6), `notDeleted`; note `isNull` imports from `drizzle-orm`, not `pg-core`
+- [x] 2.3 Implement `src/schema/enums.ts` — `$type` string-unions (`UserStatus`, `AuditAction`, ...) mirroring `@erp/contracts` enums
+- [x] 2.4 Implement `src/client.ts` — `createDb(url)` returning `{ db, queryClient }` with `casing: "snake_case"`, export `Db` and `Tx` types
+- [x] 2.5 Implement platform schema files under `src/schema/platform/` — `users` (citext username/email unique, passwordHash, status default PENDING, permissionsVersion default 1, isSuperAdmin, failedLoginCount, lockedUntil, lastLoginAt, audit + version columns), `sessions` (userId FK, tokenId, permissionsVersion snapshot, ip inet, userAgent, expiresAt, revokedAt, partial index `WHERE revoked_at IS NULL`), `audit-log`, `document-sequence` (`unique(key, year_scope)`, single row per key), `idempotency-key` (PK `(key, user_id)`, requestHash, responseStatus, responseBody jsonb, expiresAt)
+- [x] 2.6 Add `src/schema/index.ts` and `src/index.ts` re-exports (`.js` specifiers) — client, base-columns, and schema (also as `schema`)
+- [x] 2.7 Add `drizzle.config.ts` — `schema: "./dist/schema/index.js"` (compiled output), `out: "../../tooling/drizzle"`, `casing: "snake_case"`; wire `db:generate` as `tsc --build && drizzle-kit generate` and run it
+- [x] 2.8 Hand-edit migration `0000` to prepend `CREATE EXTENSION IF NOT EXISTS "pgcrypto";` and `CREATE EXTENSION IF NOT EXISTS "citext";`
+- [x] 2.9 Generate a custom migration (`drizzle-kit generate --custom --name=audit_append_only`) with the `audit_log_no_mutate()` trigger function and `BEFORE UPDATE OR DELETE` trigger enforcing append-only
+- [x] 2.10 Implement `src/migrate.ts` (postgres-js migrator resolving `tooling/drizzle` from `dist`) and idempotent `src/seed/seed.ts` (upsert argon2id super-admin; `onConflictDoNothing` base `document_sequence` rows)
+- [x] 2.11 Wire scripts — `@erp/db` `db:generate`/`db:migrate`/`db:seed`/`db:studio`, `apps/api` and root `db:*` delegating via `pnpm --filter @erp/db`, and `turbo.json` `db:*` tasks as `cache: false` (studio also `persistent`)
+- [x] 2.12 Run `pnpm db:migrate && pnpm db:seed` against the dev Postgres and confirm tables, trigger, super-admin, and sequences exist; verify `pnpm build && pnpm typecheck && pnpm lint`
 
 ## 3. NestJS cross-cutting infrastructure (`apps/api`)
 

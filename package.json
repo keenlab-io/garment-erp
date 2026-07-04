@@ -11,7 +11,10 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "db:migrate": "pnpm --filter @erp/api db:migrate"
+    "db:generate": "pnpm --filter @erp/db db:generate",
+    "db:migrate": "pnpm --filter @erp/db db:migrate",
+    "db:seed": "pnpm --filter @erp/db db:seed",
+    "db:studio": "pnpm --filter @erp/db db:studio"
   },
   "devDependencies": {
     "turbo": "^2.3.3",

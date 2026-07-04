@@ -23,6 +23,7 @@ apps/web/            Vite + React + Ant Design — consumes the same contract (t
 packages/contracts/  ★ source of truth: zod schemas + ts-rest contracts + enums + permissions
 packages/config/     shared tsconfig base + ESLint preset (dependency-boundary rules)
 packages/utils/      framework-agnostic helpers (decimal money/qty)
+packages/db/         drizzle schema + Postgres client + migrate/seed (no Nest/contracts)
 infra/               docker-compose.yml (dev Postgres only)
 tooling/             db migrate/seed/codegen scripts (placeholder)
 ```
