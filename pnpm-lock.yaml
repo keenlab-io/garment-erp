@@ -153,6 +153,9 @@ importers:
       '@erp/config':
         specifier: workspace:*
         version: link:../config
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.0
       eslint:
         specifier: ^9.17.0
         version: 9.39.4
