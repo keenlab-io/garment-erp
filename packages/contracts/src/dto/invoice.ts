@@ -2,6 +2,7 @@ import { z } from "zod";
 import { initContract } from "@ts-rest/core";
 import { moneyString, qtyString } from "../money/index.js";
 import { VatMode } from "../enums/index.js";
+import { API_PREFIX, withErrors } from "./_shared.js";
 
 const c = initContract();
 
@@ -34,19 +35,19 @@ export const invoiceContract = c.router(
       method: "POST",
       path: "/invoices",
       body: InvoiceCreate,
-      responses: {
+      responses: withErrors({
         201: z.object({ id: z.string().uuid(), number: z.string() }),
-      },
+      }),
       summary: "Create an invoice",
     },
     list: {
       method: "GET",
       path: "/invoices",
-      responses: {
+      responses: withErrors({
         200: z.object({ items: z.array(Invoice) }),
-      },
+      }),
       summary: "List invoices",
     },
   },
-  { pathPrefix: "/api" },
+  { pathPrefix: API_PREFIX },
 );

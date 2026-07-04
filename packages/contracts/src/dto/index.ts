@@ -2,6 +2,7 @@ import { initContract } from "@ts-rest/core";
 import { healthContract } from "./health.js";
 import { invoiceContract } from "./invoice.js";
 
+export * from "./_shared.js";
 export * from "./health.js";
 export * from "./invoice.js";
 
