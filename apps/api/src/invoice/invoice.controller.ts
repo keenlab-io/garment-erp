@@ -3,6 +3,7 @@ import { Controller } from "@nestjs/common";
 import { TsRestHandler, tsRestHandler } from "@ts-rest/nest";
 import { asMoney, contract, type Invoice } from "@erp/contracts";
 import { lineTotal, sumMoney } from "@erp/utils";
+import { Public } from "../auth/decorators/public.decorator.js";
 
 /**
  * In-memory demo store — proves the contract end-to-end. Replace with a real
@@ -11,6 +12,8 @@ import { lineTotal, sumMoney } from "@erp/utils";
 const invoices: Invoice[] = [];
 let seq = 1;
 
+// Demo endpoints stay @Public (class level) until M5 owns real sales auth.
+@Public()
 @Controller()
 export class InvoiceController {
   @TsRestHandler(contract.invoices)

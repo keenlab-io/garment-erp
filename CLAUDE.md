@@ -12,8 +12,12 @@ package, so cross-stack changes are atomic and type-checked end-to-end.
 - What was built & why (decisions/deviations): [`docs/MONOREPO_IMPLEMENTATION_PLAN.md`](docs/MONOREPO_IMPLEMENTATION_PLAN.md)
 - Domain spec: `docs/ERP_Implementation_Spec_v1.0.docx`
 
-Current state: **runnable skeleton** — apps run and are wired through one contract, but
-there is no real DB yet (invoice store is in-memory; `db:migrate` is a stub).
+Current state: **runnable skeleton with foundation in place** — apps run and are wired
+through one contract. The `@erp/db` persistence layer (platform schema + real
+migrations/seed) and the `apps/api` cross-cutting infrastructure (config, DbModule +
+UnitOfWork, uniform errors, auth + guards, events, audit, sequencing, idempotency,
+queue/storage/pdf/realtime) are implemented. The demo invoice endpoints still use an
+in-memory store — real repositories land with the business modules (M1–M6).
 
 ## Layout
 
@@ -29,6 +33,34 @@ tooling/             db migrate/seed/codegen scripts (placeholder)
 ```
 
 Internal packages are scoped `@erp/*`, `private: true`, linked via `workspace:*`.
+
+## `apps/api` cross-cutting infrastructure (M0)
+
+Every business module (M1–M6) inherits these — never reimplement them. See
+`docs/plans/M0-foundation.md` §4 and `openspec/changes/m0-foundation/design.md`.
+
+- `config/` — `env.schema.ts` zod-validates env at boot (fail-fast); global `ConfigModule`.
+- `db/` — global `DbModule` (`DB` token from `@erp/db`'s `createDb`); `tx-context.ts`
+  (`txContext` ALS, `currentExecutor(db)`, `onCommit`); `UnitOfWork.withTransaction`
+  (nested calls join the caller's tx; onCommit hooks flush only after COMMIT). Run all
+  writes through `currentExecutor(db)` so they honor the ambient transaction.
+- `common/errors/` — throw `AppException` subclasses (`NotFoundError`, `StateConflictError`,
+  `BusinessRuleError`, …); the global `AllExceptionsFilter` renders the uniform
+  `{ code, message, details }` envelope. Never build error bodies in handlers.
+- `common/concurrency/` (`assertVersion` for `If-Match`), `common/pagination/` (`buildPage`),
+  `common/idempotency/` (interceptor + service).
+- `auth/` — global `JwtGuard` (protected by default; `@Public()` **at class level** on
+  ts-rest controllers) + `PermissionsGuard`. ts-rest endpoints authorize **in-handler**
+  via `assertPermissions(user, "module.resource.action")` — the guards can't read
+  method-level metadata on ts-rest handlers. M0's `PERMISSION_RESOLVER` returns the empty
+  set (super-admins bypass); M1 rebinds that seam.
+- `events/` — `EventBusService.publishInTransaction` (atomic, awaited in-tx) vs
+  `publishAfterCommit` (deferred to onCommit). `audit/` writes append-only rows.
+- `sequence/` — `SequenceService.next(key)` for race-safe document numbers.
+- `queue/` (BullMQ), `storage/` (S3/MinIO), `pdf/` (puppeteer), `realtime/` (Socket.IO).
+
+Requires `DATABASE_URL`, `REDIS_URL`, `JWT_*`, and `S3_*` env vars (validated by
+`env.schema.ts`). Redis + MinIO dev services land with the M0-D test/infra work.
 
 ## Commands
 
