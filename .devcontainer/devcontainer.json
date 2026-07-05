@@ -5,12 +5,15 @@
   "workspaceFolder": "/workspaces/garment-erp",
   "remoteUser": "node",
 
-  // api :3000, web :5173, postgres :5432
-  "forwardPorts": [3000, 5173, 5432],
+  // api :3000, web :5173, postgres :5432, redis :6379, minio :9000/:9001
+  "forwardPorts": [3000, 5173, 5432, 6379, 9000, 9001],
   "portsAttributes": {
     "3000": { "label": "api (NestJS)" },
     "5173": { "label": "web (Vite)" },
-    "5432": { "label": "postgres" }
+    "5432": { "label": "postgres" },
+    "6379": { "label": "redis" },
+    "9000": { "label": "minio (S3 API)" },
+    "9001": { "label": "minio (console)" }
   },
 
   // Install workspace deps once the container is created.

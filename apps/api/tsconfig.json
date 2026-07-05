@@ -7,12 +7,16 @@
     "emitDecoratorMetadata": true,
     "target": "ES2022",
     "outDir": "dist",
-    "rootDir": "src",
     "composite": false,
     "declaration": false,
     "declarationMap": false,
     "sourceMap": true
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*",
+    "test/**/*",
+    "vitest.config.ts",
+    "vitest.integration.config.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }
