@@ -22,7 +22,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Affected-only: build/test only what changed vs main (spec §10.1).
+      # Affected-only: build/test only what changed vs main (spec §10.1). The `test`
+      # task runs the unit vitest suite; integration specs self-skip here (no
+      # DATABASE_URL_TEST) and run in the dedicated `integration` job below.
       - run: pnpm turbo run lint typecheck test build --filter=...[origin/main]
 
       # --- Turborepo remote cache (disabled — MR-Q1, local cache only for now) ---
@@ -30,3 +32,26 @@ jobs:
       # env:
       #   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       #   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+  # Integration tests boot a throwaway Postgres via Testcontainers (Docker is
+  # available on ubuntu-latest — no `services:` block needed), apply the committed
+  # migrations, and exercise sequence concurrency + audit append-only against it.
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Build @erp/api's workspace deps (@erp/db, @erp/contracts, @erp/utils, …) so
+      # the specs resolve their compiled output.
+      - run: pnpm --filter "@erp/api..." build
+
+      - run: pnpm --filter @erp/api test:integration

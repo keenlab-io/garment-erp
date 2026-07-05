@@ -18,5 +18,40 @@ services:
       timeout: 5s
       retries: 5
 
+  # BullMQ broker (queue module).
+  redis:
+    image: redis:7-alpine
+    container_name: erp-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - erp-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # S3-compatible object storage (storage module). Console on :9001.
+  minio:
+    image: minio/minio
+    container_name: erp-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - erp-miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 volumes:
   erp-pgdata:
+  erp-redisdata:
+  erp-miniodata:

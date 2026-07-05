@@ -9,16 +9,33 @@ services:
     # Keep the container alive; VS Code attaches and runs commands inside it.
     command: sleep infinity
     volumes:
-      - ../..:/workspaces:cached
-      # Named volume for node_modules / pnpm store keeps installs off the host FS
-      # and avoids clobbering host-built native modules.
-      - pnpm-store:/home/node/.local/share/pnpm
+      # Mount the repo itself at the workspace folder. Independent of where the
+      # repo lives on the host, so moving it doesn't break the container.
+      - ..:/workspaces/garment-erp:cached
+      # Persist the pnpm store across rebuilds. Mounted at a dedicated path (NOT
+      # under ~/.local) so it can't leave ~/.local root-owned. store-dir points
+      # here via /home/node/.npmrc (see Dockerfile).
+      - pnpm-store:/home/node/.pnpm-store
     environment:
-      # The api reads these once db:migrate is real; harmless now.
+      # Connection settings for every runtime dependency, validated by env.schema.ts
+      # at API boot. Secrets here are dev-only placeholders.
       DATABASE_URL: postgres://erp:erp@postgres:5432/erp
       POSTGRES_HOST: postgres
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadmin
+      S3_BUCKET: erp-dev
+      S3_FORCE_PATH_STYLE: "true"
+      JWT_ACCESS_SECRET: dev-access-secret-change-me
+      JWT_REFRESH_SECRET: dev-refresh-secret-change-me
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     networks:
       - erp
@@ -39,8 +56,38 @@ services:
     networks:
       - erp
 
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - erp-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erp
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - erp-miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erp
+
 volumes:
   erp-pgdata:
+  erp-redisdata:
+  erp-miniodata:
   pnpm-store:
 
 networks:

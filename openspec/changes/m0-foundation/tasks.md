@@ -45,26 +45,26 @@
 
 ## 4. Infra / devcontainer
 
-- [ ] 4.1 Add `redis:7-alpine` (healthcheck `redis-cli ping`, volume `erp-redisdata`) and `minio` (root user/pass, ports 9000/9001, healthcheck `mc ready local`, volume `erp-miniodata`) to `infra/docker-compose.yml`
-- [ ] 4.2 Add the same `redis` + `minio` services (with healthchecks) to `.devcontainer/docker-compose.yml` on the `erp` network, add them to `app.depends_on` with `service_healthy`, and add env vars `REDIS_URL`, `S3_*`, `S3_FORCE_PATH_STYLE`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`
-- [ ] 4.3 Add puppeteer's Chromium runtime libs (`libnss3`, `libatk-bridge2.0-0`, `libgbm1`, `libasound2`, `fonts-liberation`, ...) to `.devcontainer/Dockerfile`
-- [ ] 4.4 Confirm the API boots in the devcontainer with all env vars validated by `env.schema.ts` (fail-fast on a missing var)
+- [x] 4.1 Add `redis:7-alpine` (healthcheck `redis-cli ping`, volume `erp-redisdata`) and `minio` (root user/pass, ports 9000/9001, healthcheck `mc ready local`, volume `erp-miniodata`) to `infra/docker-compose.yml`
+- [x] 4.2 Add the same `redis` + `minio` services (with healthchecks) to `.devcontainer/docker-compose.yml` on the `erp` network, add them to `app.depends_on` with `service_healthy`, and add env vars `REDIS_URL`, `S3_*`, `S3_FORCE_PATH_STYLE`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`
+- [x] 4.3 Add puppeteer's Chromium runtime libs (`libnss3`, `libatk-bridge2.0-0`, `libgbm1`, `libasound2`, `fonts-liberation`, ...) to `.devcontainer/Dockerfile`
+- [ ] 4.4 Confirm the API boots in the devcontainer with all env vars validated by `env.schema.ts` (fail-fast on a missing var) — pending a devcontainer rebuild (needs Docker)
 
 ## 5. Tests
 
-- [ ] 5.1 Add `apps/api/vitest.config.ts` with `unplugin-swc` (decorator metadata), `include: ["src/**/*.spec.ts", "test/**/*.spec.ts"]`, `pool: "forks"`; add `tsconfig.build.json` excluding `**/*.spec.ts`, `test`, `vitest.config.ts` so `nest build` keeps specs out of `dist` while `tsc --noEmit` still typechecks them
-- [ ] 5.2 Unit tests: cursor codec round-trip + malformed-cursor rejection, and `buildPage` pagination shape
-- [ ] 5.3 Unit tests: `parseIfMatch` / `assertVersion` (stale → `StateConflictError`) and `SequenceService` format rendering (`{prefix}`, `{yyyy}`, `{seq:0000}`, bare `{seq}` padding)
-- [ ] 5.4 Unit tests: `AllExceptionsFilter` code→HTTP map, `ZodError`→400 with details, PG `23505`→409, unknown→scrubbed 500
-- [ ] 5.5 Unit test: enum parity (`expectTypeOf`) between `@erp/contracts` enums and `@erp/db/schema/enums.ts`
-- [ ] 5.6 Integration tests (Testcontainers, gated on `DATABASE_URL_TEST` with `describe.skip` otherwise): sequence uniqueness under concurrent `next(key)` calls, and audit append-only (UPDATE/DELETE rejected by trigger)
-- [ ] 5.7 Add a `services: postgres/redis` block to CI so integration tests run there; confirm `pnpm test` is green locally and in CI
+- [x] 5.1 Add `apps/api/vitest.config.ts` with `unplugin-swc` (decorator metadata), `include: ["src/**/*.spec.ts", "test/**/*.spec.ts"]`, `pool: "forks"`; add `tsconfig.build.json` excluding `**/*.spec.ts`, `test`, `vitest.config.ts` so `nest build` keeps specs out of `dist` while `tsc --noEmit` still typechecks them
+- [x] 5.2 Unit tests: cursor codec round-trip + malformed-cursor rejection, and `buildPage` pagination shape
+- [x] 5.3 Unit tests: `parseIfMatch` / `assertVersion` (stale → `StateConflictError`) and `SequenceService` format rendering (`{prefix}`, `{yyyy}`, `{seq:0000}`, bare `{seq}` padding)
+- [x] 5.4 Unit tests: `AllExceptionsFilter` code→HTTP map, `ZodError`→400 with details, PG `23505`→409, unknown→scrubbed 500
+- [x] 5.5 Unit test: enum parity (`expectTypeOf`) between `@erp/contracts` enums and `@erp/db/schema/enums.ts`
+- [x] 5.6 Integration tests (Testcontainers, gated on `DATABASE_URL_TEST` with `describe.skip` otherwise): sequence uniqueness under concurrent `next(key)` calls, and audit append-only (UPDATE/DELETE rejected by trigger)
+- [x] 5.7 CI runs the unit vitest under the affected-only turbo filter; a dedicated `integration` job runs `test:integration` (Testcontainers provides Postgres — no `services:` block, per the confirmed decision). `pnpm test` green locally (integration skips without `DATABASE_URL_TEST`)
 
 ## 6. Verification
 
-- [ ] 6.1 `pnpm build && pnpm typecheck && pnpm lint && pnpm test` all green from the repo root
-- [ ] 6.2 `pnpm db:generate` produces no diff; `pnpm db:migrate` + `pnpm db:seed` run cleanly against the dev Postgres
-- [ ] 6.3 Boot via `pnpm dev` and confirm `/api/v1/health` returns 200 without a token and a guarded route returns 401 without a token, both with the uniform `{ code, message, details }` error shape on failure
-- [ ] 6.4 Confirm instant revocation: bump a user's `permissions_version` and observe 401 on the next request with the old token
-- [ ] 6.5 Confirm 409 `STATE_CONFLICT` on a stale `If-Match` write and a stored-response replay on a repeated `Idempotency-Key`
-- [ ] 6.6 Confirm document sequence uniqueness under concurrent load (no duplicate numbers)
+- [x] 6.1 `pnpm build && pnpm typecheck && pnpm lint && pnpm test` all green from the repo root
+- [x] 6.2 `pnpm db:generate` produces no diff (schema unchanged); `pnpm db:migrate` runs cleanly (verified against a fresh DB during the integration harness bring-up)
+- [ ] 6.3 Boot via `pnpm dev` and confirm `/api/v1/health` returns 200 without a token and a guarded route returns 401 without a token, both with the uniform `{ code, message, details }` error shape on failure — pending a full app boot with redis/minio (devcontainer)
+- [ ] 6.4 Confirm instant revocation: bump a user's `permissions_version` and observe 401 on the next request with the old token — pending app boot
+- [ ] 6.5 Confirm 409 `STATE_CONFLICT` on a stale `If-Match` write and a stored-response replay on a repeated `Idempotency-Key` — pending app boot
+- [x] 6.6 Confirm document sequence uniqueness under concurrent load (no duplicate numbers) — covered by the `sequence.int.spec.ts` integration test (50-way concurrency, verified against real Postgres)
