@@ -16,6 +16,11 @@ services:
       # under ~/.local) so it can't leave ~/.local root-owned. store-dir points
       # here via /home/node/.npmrc (see Dockerfile).
       - pnpm-store:/home/node/.pnpm-store
+      # Persist Claude Code state (sessions, auth, memory) across container
+      # rebuilds — otherwise ~/.claude lives in the container FS and is wiped.
+      # The Dockerfile pre-creates ~/.claude node-owned so this fresh volume
+      # mounts node-owned, not root:root. Separate from ~/.local (no shadowing).
+      - claude-home:/home/node/.claude
     environment:
       # Connection settings for every runtime dependency, validated by env.schema.ts
       # at API boot. Secrets here are dev-only placeholders.
@@ -89,6 +94,7 @@ volumes:
   erp-redisdata:
   erp-miniodata:
   pnpm-store:
+  claude-home:
 
 networks:
   erp:
