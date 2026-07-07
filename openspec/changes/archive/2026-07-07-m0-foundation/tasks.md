@@ -48,7 +48,7 @@
 - [x] 4.1 Add `redis:7-alpine` (healthcheck `redis-cli ping`, volume `erp-redisdata`) and `minio` (root user/pass, ports 9000/9001, healthcheck `mc ready local`, volume `erp-miniodata`) to `infra/docker-compose.yml`
 - [x] 4.2 Add the same `redis` + `minio` services (with healthchecks) to `.devcontainer/docker-compose.yml` on the `erp` network, add them to `app.depends_on` with `service_healthy`, and add env vars `REDIS_URL`, `S3_*`, `S3_FORCE_PATH_STYLE`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`
 - [x] 4.3 Add puppeteer's Chromium runtime libs (`libnss3`, `libatk-bridge2.0-0`, `libgbm1`, `libasound2`, `fonts-liberation`, ...) to `.devcontainer/Dockerfile`
-- [ ] 4.4 Confirm the API boots in the devcontainer with all env vars validated by `env.schema.ts` (fail-fast on a missing var) — pending a devcontainer rebuild (needs Docker)
+- [x] 4.4 Confirm the API boots in the devcontainer with all env vars validated by `env.schema.ts` (fail-fast on a missing var) — verified 2026-07-07: boots cleanly against the devcontainer's postgres/redis/minio services (`/api/v1/health` → 200); missing/malformed vars abort at `ConfigModule.forRoot` before any provider wires, exit 1, listing every failing field
 
 ## 5. Tests
 
@@ -64,7 +64,7 @@
 
 - [x] 6.1 `pnpm build && pnpm typecheck && pnpm lint && pnpm test` all green from the repo root
 - [x] 6.2 `pnpm db:generate` produces no diff (schema unchanged); `pnpm db:migrate` runs cleanly (verified against a fresh DB during the integration harness bring-up)
-- [ ] 6.3 Boot via `pnpm dev` and confirm `/api/v1/health` returns 200 without a token and a guarded route returns 401 without a token, both with the uniform `{ code, message, details }` error shape on failure — pending a full app boot with redis/minio (devcontainer)
-- [ ] 6.4 Confirm instant revocation: bump a user's `permissions_version` and observe 401 on the next request with the old token — pending app boot
-- [ ] 6.5 Confirm 409 `STATE_CONFLICT` on a stale `If-Match` write and a stored-response replay on a repeated `Idempotency-Key` — pending app boot
+- [x] 6.3 Boot via `pnpm dev` and confirm `/api/v1/health` returns 200 without a token and a guarded route returns 401 without a token, both with the uniform `{ code, message, details }` error shape on failure — verified 2026-07-07 against a live boot: health→200 no token; a temporary guarded route→401 `UNAUTHENTICATED` (no token / garbage token), valid token→200. No shipping guarded route exists yet (both controllers are `@Public`), so this was driven via a throwaway `_verify` controller wired into the real AppModule, then reverted
+- [x] 6.4 Confirm instant revocation: bump a user's `permissions_version` and observe 401 on the next request with the old token — verified 2026-07-07: seeded super-admin + session, old token→200; after `permissions_version` 1→2 the same token→401 `UNAUTHENTICATED` (guard asserts `user.permissionsVersion === claims.pv`)
+- [x] 6.5 Confirm 409 `STATE_CONFLICT` on a stale `If-Match` write and a stored-response replay on a repeated `Idempotency-Key` — verified 2026-07-07: `If-Match: 1`(current)→200, stale `If-Match: 2` & malformed→409 `STATE_CONFLICT`; repeated `Idempotency-Key` replayed the stored response with identical server nonce + `X-Idempotent-Replay: true`, and key-reuse with a different body→409. Driven via the same temporary guarded `_verify` route (mutating + authenticated, which the global `IdempotencyInterceptor` requires), then reverted
 - [x] 6.6 Confirm document sequence uniqueness under concurrent load (no duplicate numbers) — covered by the `sequence.int.spec.ts` integration test (50-way concurrency, verified against real Postgres)
