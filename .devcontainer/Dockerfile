@@ -37,6 +37,10 @@ RUN apt-get update \
 
 # Bake Claude Code into the image (installed as `node` → ~/.local/bin/claude) so
 # it survives rebuilds and is on PATH. Update later from inside with `claude update`.
+# Pre-create ~/.claude node-owned so the `claude-home` named volume (see
+# docker-compose.yml) inherits node ownership on first mount instead of the
+# default root:root — otherwise the `node` user couldn't write its own sessions.
 USER node
-RUN curl -fsSL https://claude.ai/install.sh | bash
+RUN curl -fsSL https://claude.ai/install.sh | bash \
+    && mkdir -p /home/node/.claude
 USER root
