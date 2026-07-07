@@ -2,15 +2,15 @@
 
 ## 1. `@erp/design-tokens` — token source + pipeline
 
-- [ ] 1.1 Scaffold `packages/design-tokens` — `package.json` (`@erp/design-tokens`, `private: true`, `type: module`, dev deps `style-dictionary`, `@erp/config`, `typescript`), tsconfig extending the shared base, eslint config banning framework imports
-- [ ] 1.2 Transcribe the locked primitives (PartA_Direction_Tokens_LOCKED §5.1) into Style Dictionary source — substrate, ink, press-cyan, magenta, status inks (green/amber/rubine/violet)
-- [ ] 1.3 Add the light semantic layer (§5.2) and the Ink-Chip token group (§5.3) — brand/accent/spot, surfaces (incl. `--color-bg-paper`), text, borders, semantic status trios, seven chip tokens with glyph/label metadata
-- [ ] 1.4 Add the dark semantic layer (§6) as a `data-theme="dark"` override set — lifted accents, lightness-based elevation surfaces, desaturated status/chip values, `--color-bg-paper` pinned to `#FFFFFF` in both themes
-- [ ] 1.5 Add typography (Bai Jamjuree display / Plex Sans Thai / Plex Mono / numeric tabular-nums, A5.4 scale, leading 1.35/1.6/1.75), radius (3/6/10/full), ink-tinted elevation, motion (150/200/300 + reduced-motion collapse), z-index, and breakpoint tokens
-- [ ] 1.6 Add the three density token sets (Comfortable/Compact/Touch per A5.6) scoped to `data-density` attribute selectors
-- [ ] 1.7 Implement the Style Dictionary build emitting `dist/css/tokens.css` (`:root` light + `[data-theme="dark"]` + `[data-density="…"]` + reduced-motion block) and `dist/tailwind/` preset exposing **semantic names only** as `var(--…)` references
-- [ ] 1.8 Add a unit test asserting locked values in the built output (canvas `#FAF8F4`, accent `#0A6E83`, danger `#C23341`, chip set, radius 6/3, density 40/32/64 rows, paper white in dark)
-- [ ] 1.9 Wire the package into `turbo.json` (`build` with outputs cached; `ui` and `web` depend on it via `^build`) and verify `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 1.1 Scaffold `packages/design-tokens` — `package.json` (`@erp/design-tokens`, `private: true`, `type: module`, dev deps `style-dictionary`, `@erp/config`, `typescript`), tsconfig extending the shared base, eslint config banning framework imports
+- [x] 1.2 Transcribe the locked primitives (PartA_Direction_Tokens_LOCKED §5.1) into Style Dictionary source — substrate, ink, press-cyan, magenta, status inks (green/amber/rubine/violet)
+- [x] 1.3 Add the light semantic layer (§5.2) and the Ink-Chip token group (§5.3) — brand/accent/spot, surfaces (incl. `--color-bg-paper`), text, borders, semantic status trios, seven chip tokens with glyph/label metadata
+- [x] 1.4 Add the dark semantic layer (§6) as a `data-theme="dark"` override set — lifted accents, lightness-based elevation surfaces, desaturated status/chip values, `--color-bg-paper` pinned to `#FFFFFF` in both themes
+- [x] 1.5 Add typography (Bai Jamjuree display / Plex Sans Thai / Plex Mono / numeric tabular-nums, A5.4 scale, leading 1.35/1.6/1.75), radius (3/6/10/full), ink-tinted elevation, motion (150/200/300 + reduced-motion collapse), z-index, and breakpoint tokens
+- [x] 1.6 Add the three density token sets (Comfortable/Compact/Touch per A5.6) scoped to `data-density` attribute selectors
+- [x] 1.7 Implement the Style Dictionary build emitting `dist/css/tokens.css` (`:root` light + `[data-theme="dark"]` + `[data-density="…"]` + reduced-motion block) and `dist/tailwind/` preset exposing **semantic names only** as `var(--…)` references
+- [x] 1.8 Add a unit test asserting locked values in the built output (canvas `#FAF8F4`, accent `#0A6E83`, danger `#C23341`, chip set, radius 6/3, density 40/32/64 rows, paper white in dark)
+- [x] 1.9 Wire the package into `turbo.json` (`build` with outputs cached; `ui` and `web` depend on it via `^build`) and verify `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 2. `@erp/ui` — package scaffold + workbench
 

@@ -28,11 +28,37 @@ packages/contracts/  ★ source of truth: zod schemas + ts-rest contracts + enum
 packages/config/     shared tsconfig base + ESLint preset (dependency-boundary rules)
 packages/utils/      framework-agnostic helpers (decimal money/qty)
 packages/db/         drizzle schema + Postgres client + migrate/seed (no Nest/contracts)
+packages/design-tokens/ Style Dictionary token source → tokens.css + Tailwind v4 preset (no framework)
 infra/               docker-compose.yml (dev Postgres only)
 tooling/             db migrate/seed/codegen scripts (placeholder)
 ```
 
 Internal packages are scoped `@erp/*`, `private: true`, linked via `workspace:*`.
+
+## `@erp/design-tokens` — the token pipeline (M0 frontend)
+
+Single source of truth for the **locked "Ink & Substrate" design system**
+(`docs/PartA_Direction_Tokens_LOCKED.md` — that doc's hex/type/radius values win over the
+older `docs/UX_UI_SPEC_M1-M6.md` A4/A5 proposals). Never hand-duplicate a token value in
+component code or Tailwind config; edit the source and rebuild.
+
+- **Source**: `src/tokens/*.ts` — plain Style Dictionary token tree (`primitives`, `semantic`
+  light+dark+chips, `scale`, `density`). Semantic tokens *reference* primitives (`{cyan.700}`),
+  which is why dark mode is a token swap only.
+- **Build** (`src/build-tokens.ts`, run via `tsx`): a custom SD format emits one
+  `dist/css/tokens.css` with `:root` (light) + `[data-theme="dark"]` + `[data-density="…"]`
+  blocks + a reduced-motion collapse, plus a Tailwind v4 `@theme inline` preset
+  (`dist/tailwind/preset.css`, JS shim `preset.js`) exposing **semantic names only** —
+  primitives (`--ink-*`, `--cyan-*`, `--substrate-*`) are never in the preset (lint will also
+  ban them in `@erp/ui`/`apps/web` styles, task 2).
+- **Consume**: `@erp/design-tokens/css` (the CSS vars), `@erp/design-tokens/tailwind.css` (v4
+  preset), `@erp/design-tokens/tailwind` (JS shim), and `@erp/design-tokens` (Ink-Chip
+  glyph/label metadata + `THEMES`/`DENSITIES`). Theme/density are pure attribute flips.
+- Framework-agnostic (ESLint-enforced `designTokensBoundaries`): no React/Nest/Tailwind/other
+  `@erp/*` runtime deps, so `apps/api` can later take the token CSS for M5 PDF templates
+  without pulling React. Regenerating drift is guarded by `src/build-tokens.spec.ts`.
+
+**Wireframes** `docs/wireframes/*.html` are the visual reference for all frontend work.
 
 ## `apps/api` cross-cutting infrastructure (M0)
 

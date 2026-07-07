@@ -76,4 +76,26 @@ export const dbBoundaries = banImports(
   "@erp/db must be framework-agnostic — no @erp/contracts, no @nestjs/* (spec §6, M0 design D1).",
 );
 
+/**
+ * @erp/design-tokens must stay a framework-agnostic token source: it emits CSS and a
+ * Tailwind preset but depends on no UI framework, no other @erp/* package, and not Tailwind
+ * itself at runtime — so the API can consume the token CSS for PDF templates without pulling
+ * React (M0 frontend design D2/D9).
+ */
+export const designTokensBoundaries = banImports(
+  [
+    "react",
+    "react-dom",
+    "tailwindcss",
+    "@nestjs/common",
+    "@nestjs/core",
+    "@nestjs",
+    "@erp/contracts",
+    "@erp/ui",
+    "@erp/web",
+    "@erp/api",
+  ],
+  "@erp/design-tokens must be framework-agnostic — token source only, no framework or @erp/* runtime deps (M0 frontend design D2/D9).",
+);
+
 export default base;
