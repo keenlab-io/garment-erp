@@ -17,7 +17,7 @@ foundation. No backend/API surface is added.
 - **Real auth**: a login screen that acquires the JWT, stores it, attaches it to the
   `@ts-rest/react-query` client, refreshes it, and forces re-login when `permissions_version`
   changes — replacing M0's placeholder login route + session seam.
-- **Admin & Access module** (Super-Admin only, bottom-anchored nav): Users, Roles, Role
+- **Admin & Access module** (nav `⚿ Admin & Access`, Super-Admin only, bottom-anchored): Users, Roles, Role
   templates, Audit log, and Excel Import screens, registered as TanStack Router routes gated by
   the `iam.*` permissions.
 - Reuses M0's `InkChip`, `DataTable`, `ConfirmDialog` (guarded presets), `MaskedValue`, and the

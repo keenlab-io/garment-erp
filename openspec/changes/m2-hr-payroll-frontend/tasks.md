@@ -16,7 +16,8 @@
 
 ## 3. Module components
 
-- [ ] 3.1 **PayrollWizard** stepper (Inputs/Calculate/Review/Approve) + missing-data gate
+- [ ] 3.1 **PayrollWizard** (Inputs/Calculate/Review/Approve + missing-data gate) built on the
+  shared `@erp/ui` **Wizard/Stepper** primitive (from M3), not a bespoke stepper
 - [ ] 3.2 **PayslipBreakdownDrawer** (formula line-by-line, read-only, masked)
 - [ ] 3.3 **CashAdvanceApprovalCard** (mobile, ceiling-check badge, re-auth)
 - [ ] 3.4 **AttendanceMonthGrid**; **CeilingCheckBadge**; **DocumentVaultRow** (signed-URL)

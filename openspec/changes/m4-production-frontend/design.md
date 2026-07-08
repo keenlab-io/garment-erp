@@ -54,8 +54,9 @@ A by-department **bottleneck board** shows backlog columns; the subcontract trac
 
 ## Sequencing
 
-After `m0-frontend-foundation` + backend `m4-production`. Reuses the status tokens and scan-field
-groundwork proven in M3.
+After `m0-frontend-foundation` + backend `m4-production`. **Reuses the shared `ScanField` and
+`Wizard`/`Stepper` primitives M3 promotes to `@erp/ui`** (kiosk scan + create-WO wizard) plus the
+production status tokens — no re-implementation.
 
 ## Open Questions
 

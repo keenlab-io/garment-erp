@@ -50,6 +50,14 @@ disables movement.
 Stock-card / valuation / low-stock / dead-stock reads (cost columns masked). Items list carries a
 **low-stock health chip** and bulk barcode printing (a label job → job-toast).
 
+### MD6. M3 owns the shared `ScanField` and `Wizard`/`Stepper`
+M0 built the foundation subset but deferred the **scan field** and a **multi-step wizard** to the
+modules. M3 is the first consumer of both in the UX Part C build order (goods-issue needs the scan
+field; goods-receipt needs the wizard), so M3 **promotes both to `@erp/ui`** as shared primitives
+— `ScanField` (persistent input, last-5 + undo, camera/HID, qty stepper) and `Wizard`/`Stepper`
+(steps + per-step validation + review). **M4** reuses `ScanField` (kiosk) and `Wizard` (create-WO);
+**M2** reuses `Wizard` (payroll run). This avoids three divergent scan fields / steppers.
+
 ## Risks / Trade-offs
 
 - **Handheld scanners** emit keystrokes + Enter — the scan field must debounce and not lose focus.

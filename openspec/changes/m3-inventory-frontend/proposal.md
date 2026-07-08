@@ -16,8 +16,9 @@ module is where Touch density and the immutable-ledger pattern are proven (UX Pa
 - **Inventory module** routes (nav `▣ Inventory`): Items, Goods receipt, Goods issue, Stock
   count, Stock adjustment, Barcode printing, Reports.
 - The **stock-card ledger** view, **scan-first** issue (Touch), **landed-cost allocator** wizard.
-- Reuses M0 `DataTable`, `InkChip` (stock-health), `MaskedValue` (cost gating), the scan-field
-  primitive groundwork, `ConfirmDialog`, job-toast (barcode/label jobs).
+- Reuses M0 `DataTable`, `InkChip` (stock-health), `MaskedValue` (cost gating), `ConfirmDialog`,
+  job-toast (barcode/label jobs). As the first scan/wizard consumer, M3 **promotes a shared
+  `ScanField` and a `Wizard`/`Stepper` to `@erp/ui`** (M0 deferred both) for M4/M2 to reuse.
 
 ## Capabilities
 

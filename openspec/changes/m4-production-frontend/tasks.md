@@ -23,7 +23,8 @@
 
 - [ ] 3.1 **GanttTimelineRow** (interactive bars, production-status dots) + **AlertRail**
 - [ ] 3.2 **StepDrawer** (assigned/machine/elapsed vs standard/defects → reassign/hold/subcontract)
-- [ ] 3.3 **KioskCard** (WO card + two giant START/FINISH buttons + status edge color)
+- [ ] 3.3 **KioskCard** (WO card + two giant START/FINISH buttons + status edge color), using the
+  shared `@erp/ui` **ScanField** (from M3) for the routing-card scan; create-WO wizard uses the shared **Wizard/Stepper** (from M3)
 - [ ] 3.4 **DefectTilePicker** + qty stepper; **SubcontractSlaChip** (countdown); **OfflineScanQueue** (local store + sync badge)
 
 ## 4. Screens / flows
