@@ -23,17 +23,17 @@
 
 ## 3. Primitives (atoms + molecules)
 
-- [ ] 3.1 Button — primary/secondary/ghost/destructive/icon-only variants; default/hover/active/focus/disabled/loading states; density-token sizing; `aria-busy` on loading; icon-only requires `aria-label` at the type level
-- [ ] 3.2 Input (text, number-tabular, password, search), Checkbox/Radio/Toggle (with indeterminate), Select/Combobox (single/multi/async-search with loading + no-results states) on Radix primitives
-- [ ] 3.3 FormField — label + control + help + error + required marker with automatic `id`/`aria-describedby`/`aria-invalid` wiring; on-blur error display support
-- [ ] 3.4 InkChip — chip-token swatch + glyph + label for `RoutingStatus` (from `@erp/contracts`) and the semantic statuses (hold, outsourced, document lifecycle incl. void = muted + strikethrough); oversized Touch variant; `--chip-active-state` magenta selected state; story proving grayscale legibility
-- [ ] 3.5 MoneyCell / QtyCell — `--font-numeric` tabular, right-aligned, currency/unit adjacent, formatting via `@erp/utils` (string in, no float), negatives in danger + parentheses
-- [ ] 3.6 Tooltip, Badge, Avatar, Skeleton (line/block/table-row with shimmer)
-- [ ] 3.7 Toast system — icon + message + action + dismiss, job-toast variant ("Generating…" → completion notification), shell-level region at `--z-toast`
-- [ ] 3.8 Dialog + ConfirmDialog — consequence text with record id, optional required-reason field (blank blocks submit), optional re-auth password variant, destructive weighting
-- [ ] 3.9 Drawer — header + scrolling body + sticky footer at `--z-drawer`
-- [ ] 3.10 Icon set integration (lucide-react at the 24px grid, sized by `--density-icon`)
-- [ ] 3.11 Stories + unit tests for every primitive across theme × density; a11y addon passes (focus rings, contrast, labels, ≥44/56px targets)
+- [x] 3.1 Button — primary/secondary/ghost/destructive/icon-only variants; default/hover/active/focus/disabled/loading states; density-token sizing; `aria-busy` on loading; icon-only requires `aria-label` at the type level
+- [x] 3.2 Input (text, number-tabular, password, search), Checkbox/Radio/Toggle (with indeterminate), Select/Combobox (single/multi/async-search with loading + no-results states) on Radix primitives
+- [x] 3.3 FormField — label + control + help + error + required marker with automatic `id`/`aria-describedby`/`aria-invalid` wiring; on-blur error display support
+- [x] 3.4 InkChip — chip-token swatch + glyph + label for `RoutingStatus` (from `@erp/contracts`) and the semantic statuses (hold, outsourced, document lifecycle incl. void = muted + strikethrough); oversized Touch variant; `--chip-active-state` magenta selected state; story proving grayscale legibility
+- [x] 3.5 MoneyCell / QtyCell — `--font-numeric` tabular, right-aligned, currency/unit adjacent, formatting via `@erp/utils` (string in, no float), negatives in danger + parentheses
+- [x] 3.6 Tooltip, Badge, Avatar, Skeleton (line/block/table-row with shimmer)
+- [x] 3.7 Toast system — icon + message + action + dismiss, job-toast variant ("Generating…" → completion notification), shell-level region at `--z-toast`
+- [x] 3.8 Dialog + ConfirmDialog — consequence text with record id, optional required-reason field (blank blocks submit), optional re-auth password variant, destructive weighting
+- [x] 3.9 Drawer — header + scrolling body + sticky footer at `--z-drawer`
+- [x] 3.10 Icon set integration (lucide-react at the 24px grid, sized by `--density-icon`)
+- [x] 3.11 Stories + unit tests for every primitive across theme × density; a11y addon passes (focus rings, contrast, labels, ≥44/56px targets)
 
 ## 4. App shell (`apps/web`)
 

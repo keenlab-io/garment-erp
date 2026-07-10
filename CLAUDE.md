@@ -64,13 +64,27 @@ component code or Tailwind config; edit the source and rebuild.
 
 The shared React component package (Radix + Tailwind, shadcn-style **owned source**) styled
 **only** through the `@erp/design-tokens` semantic Tailwind preset. Group 2 shipped the scaffold
-+ verification workbench; the primitives themselves (Button, InkChip, DataTable, …) land in the
-later M0 groups. See `openspec/changes/m0-frontend-foundation` §2 and design D1/D2/D10.
++ verification workbench; Group 3 shipped the **primitive inventory** (see below). The DataTable and
+higher-level compositions land in later M0 groups. See `openspec/changes/m0-frontend-foundation`
+§2–3 and design D1/D2/D10.
+
+- **Primitives (Group 3)** live under `src/components/<name>/` — each as `<name>.tsx` +
+  `<name>.stories.tsx` + `<name>.test.tsx`, re-exported from `src/index.ts`. Shipped: `Icon`
+  (lucide, sized by `--density-icon`), `Button` (icon-only requires `aria-label` **at the type
+  level**), `Input`/`Checkbox`/`RadioGroup`/`Switch`/`Select`/`Combobox`, `FormField` (auto-wires
+  `id`/`aria-describedby`/`aria-invalid`), `InkChip` (the status signature — `ChipStatus` bridges
+  `RoutingStatus` + design-only lifecycle/stock statuses via `routingStatusToChip`; **void = muted +
+  strikethrough**, magenta `--chip-active-state`), `MoneyCell`/`QtyCell` (format via `@erp/utils`,
+  string in — never a float), `Tooltip`/`Badge`/`Avatar`/`Skeleton`, the `ToastProvider`/`useToast`
+  system (job-toast variant), `Dialog`/`ConfirmDialog` (consequence + required-reason + re-auth), and
+  `Drawer`. Radix packages + `lucide-react` are dependencies; overlays layer via the `--z-*` tokens.
+- Radix needs a few DOM APIs jsdom lacks — `vitest.setup.ts` polyfills `ResizeObserver`,
+  `hasPointerCapture`, and `scrollIntoView`.
 
 - **Consume the styles once**: `@erp/ui/styles.css` (Tailwind entry — imports `tailwindcss`, the
   token CSS, and the semantic preset) and `@erp/ui/fonts` (self-hosted `@fontsource` faces: Bai
-  Jamjuree, IBM Plex Sans Thai, IBM Plex Mono). `@erp/ui` (barrel) exports `cn()` + the `cva`
-  variant helper for now.
+  Jamjuree, IBM Plex Sans Thai, IBM Plex Mono). `@erp/ui` (barrel) exports `cn()`/`cva` plus every
+  Group 3 primitive and its public types.
 - **Semantic tokens only** — raw hex and primitive var names (`--ink-*`/`--cyan-*`/`--substrate-*`/
   `--magenta-*`) are **lint-banned** in `@erp/ui`/`apps/web` style strings via the new
   `styleTokenBoundaries` (a `no-restricted-syntax` regex rule) in `packages/config/eslint-preset.js`.
