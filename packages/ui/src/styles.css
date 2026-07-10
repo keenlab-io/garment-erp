@@ -1,0 +1,12 @@
+/*
+ * @erp/ui Tailwind entry — the single stylesheet consumers (apps/web, Storybook) import.
+ * Order matters: Tailwind core, then the token custom properties, then the semantic-only
+ * Tailwind preset that maps utilities to `var(--…)` references. Components style exclusively
+ * through those semantic utilities (primitive names + raw hex are lint-banned).
+ */
+@import "tailwindcss";
+@import "@erp/design-tokens/css";
+@import "@erp/design-tokens/tailwind.css";
+
+/* Scan this package's own source so component/story utility classes are generated. */
+@source "./";

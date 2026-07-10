@@ -14,12 +14,12 @@
 
 ## 2. `@erp/ui` — package scaffold + workbench
 
-- [ ] 2.1 Scaffold `packages/ui` — `package.json` (`@erp/ui`, `private: true`, deps `@erp/design-tokens`, `@erp/contracts`, `@erp/utils`, Radix packages, `class-variance-authority`, `clsx`, `@tanstack/react-table`; peers `react`/`react-dom`), tsconfig (jsx, bundler resolution) extending the shared base
-- [ ] 2.2 Extend `packages/config` eslint preset — ban `antd` workspace-wide; `@erp/ui` boundary (no `apps/*`, no `@ts-rest/*`, no router imports); ban primitive token names and raw hex colors in `@erp/ui`/`apps/web` styles
-- [ ] 2.3 Wire Tailwind in `@erp/ui` using the `@erp/design-tokens` preset; add shared `cn()`/variant utilities
-- [ ] 2.4 Add self-hosted fonts via `@fontsource` (Bai Jamjuree, IBM Plex Sans Thai, IBM Plex Mono) exported as a single font entrypoint
-- [ ] 2.5 Set up Storybook (Vite builder) with toolbar switches for theme (`data-theme`) × density (`data-density`) × locale, plus `addon-a11y`; add an example story proving the matrix works
-- [ ] 2.6 Add component test harness (Vitest + Testing Library + jsdom) wired into `pnpm test`; verify workspace build/typecheck/lint green
+- [x] 2.1 Scaffold `packages/ui` — `package.json` (`@erp/ui`, `private: true`, deps `@erp/design-tokens`, `@erp/contracts`, `@erp/utils`, Radix packages, `class-variance-authority`, `clsx`, `@tanstack/react-table`; peers `react`/`react-dom`), tsconfig (jsx, bundler resolution) extending the shared base
+- [x] 2.2 Extend `packages/config` eslint preset — ban `antd` workspace-wide; `@erp/ui` boundary (no `apps/*`, no `@ts-rest/*`, no router imports); ban primitive token names and raw hex colors in `@erp/ui`/`apps/web` styles
+- [x] 2.3 Wire Tailwind in `@erp/ui` using the `@erp/design-tokens` preset; add shared `cn()`/variant utilities
+- [x] 2.4 Add self-hosted fonts via `@fontsource` (Bai Jamjuree, IBM Plex Sans Thai, IBM Plex Mono) exported as a single font entrypoint
+- [x] 2.5 Set up Storybook (Vite builder) with toolbar switches for theme (`data-theme`) × density (`data-density`) × locale, plus `addon-a11y`; add an example story proving the matrix works
+- [x] 2.6 Add component test harness (Vitest + Testing Library + jsdom) wired into `pnpm test`; verify workspace build/typecheck/lint green
 
 ## 3. Primitives (atoms + molecules)
 

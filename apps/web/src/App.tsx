@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-restricted-imports -- legacy antd demo; removed in M0 task 8.2
 import { Alert, Card, Spin, Table, Typography } from "antd";
 import type { Invoice } from "@erp/contracts";
 import { api } from "./api/client";
