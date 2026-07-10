@@ -60,6 +60,34 @@ component code or Tailwind config; edit the source and rebuild.
 
 **Wireframes** `docs/wireframes/*.html` are the visual reference for all frontend work.
 
+## `@erp/ui` — owned component layer + workbench (M0 frontend, Group 2)
+
+The shared React component package (Radix + Tailwind, shadcn-style **owned source**) styled
+**only** through the `@erp/design-tokens` semantic Tailwind preset. Group 2 shipped the scaffold
++ verification workbench; the primitives themselves (Button, InkChip, DataTable, …) land in the
+later M0 groups. See `openspec/changes/m0-frontend-foundation` §2 and design D1/D2/D10.
+
+- **Consume the styles once**: `@erp/ui/styles.css` (Tailwind entry — imports `tailwindcss`, the
+  token CSS, and the semantic preset) and `@erp/ui/fonts` (self-hosted `@fontsource` faces: Bai
+  Jamjuree, IBM Plex Sans Thai, IBM Plex Mono). `@erp/ui` (barrel) exports `cn()` + the `cva`
+  variant helper for now.
+- **Semantic tokens only** — raw hex and primitive var names (`--ink-*`/`--cyan-*`/`--substrate-*`/
+  `--magenta-*`) are **lint-banned** in `@erp/ui`/`apps/web` style strings via the new
+  `styleTokenBoundaries` (a `no-restricted-syntax` regex rule) in `packages/config/eslint-preset.js`.
+  `antd` is now banned **workspace-wide** (folded into `base` + every `banImports` boundary);
+  `apps/web`'s two legacy antd imports are grandfathered with `eslint-disable` until task 8.2.
+  `uiBoundaries` keeps `@erp/ui` presentational (no `apps/*`, no `@ts-rest/*`/`@tanstack` query
+  clients, no router).
+- **Two resolution modes** in one package: shipped source (`src/index.ts`, `lib/`, `fonts.ts`) is
+  built by `tsc --build` under **NodeNext** → uses explicit `.js` relative specifiers and emits to
+  `dist/`. Bundler-only source (`.storybook/`, `*.stories.tsx`, `src/showcase/**`) is typechecked
+  by `tsconfig.storybook.json` under **Bundler** resolution and uses **extensionless** imports —
+  it never enters `dist`. `pnpm typecheck` runs both configs.
+- **Workbench**: `pnpm --filter @erp/ui storybook` (Storybook 10 + Vite, `@tailwindcss/vite` via
+  `viteFinal`, `addon-a11y`). Toolbar switches theme × density × locale flip `data-theme` /
+  `data-density` / `<html lang>`; `src/showcase/TokenMatrix.stories.tsx` proves the matrix
+  re-resolves via tokens alone. Component tests: Vitest + Testing Library + jsdom (`vitest.config.ts`).
+
 ## `apps/api` cross-cutting infrastructure (M0)
 
 Every business module (M1–M6) inherits these — never reimplement them. See

@@ -1,0 +1,16 @@
+{
+  "extends": "@erp/config/tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src/**/*", ".storybook/**/*"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}

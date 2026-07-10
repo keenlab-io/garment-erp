@@ -9,10 +9,19 @@ import tseslint from "typescript-eslint";
  * works regardless of where a package lives on disk, unlike path-based plugins.
  */
 
+const ANTD_BAN_MESSAGE =
+  "Ant Design is banned — @erp/ui is the owned Radix + token component layer; antd cannot reach the locked Ink & Substrate tokens/density (M0 frontend design D1).";
+
+/**
+ * The antd restricted-import pattern, shared by `base` and every `banImports` boundary so the
+ * ban stays workspace-wide even in packages whose boundary config replaces `no-restricted-imports`.
+ */
+const ANTD_PATTERN = { group: ["antd", "antd/*"], message: ANTD_BAN_MESSAGE };
+
 /** Base TypeScript config every package extends. */
 export const base = tseslint.config(
   {
-    ignores: ["dist/**", "build/**", ".next/**", "coverage/**", "node_modules/**"],
+    ignores: ["dist/**", "build/**", ".next/**", "coverage/**", "node_modules/**", "storybook-static/**"],
   },
   ...tseslint.configs.recommended,
   {
@@ -21,12 +30,15 @@ export const base = tseslint.config(
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
+      "no-restricted-imports": ["error", { patterns: [ANTD_PATTERN] }],
     },
   },
 );
 
 /**
- * Build a boundary rule that bans importing the given package names.
+ * Build a boundary rule that bans importing the given package names. The antd ban is always
+ * folded in so a package applying a boundary can't accidentally drop it (a later flat-config
+ * entry fully replaces `no-restricted-imports` rather than merging it).
  * @param {string[]} forbidden package names that must not be imported
  * @param {string} message explanation shown on violation
  */
@@ -36,10 +48,13 @@ function banImports(forbidden, message) {
       "no-restricted-imports": [
         "error",
         {
-          patterns: forbidden.map((name) => ({
-            group: [name, `${name}/*`],
-            message,
-          })),
+          patterns: [
+            ANTD_PATTERN,
+            ...forbidden.map((name) => ({
+              group: [name, `${name}/*`],
+              message,
+            })),
+          ],
         },
       ],
     },
@@ -97,5 +112,60 @@ export const designTokensBoundaries = banImports(
   ],
   "@erp/design-tokens must be framework-agnostic — token source only, no framework or @erp/* runtime deps (M0 frontend design D2/D9).",
 );
+
+/**
+ * @erp/ui is the presentational component layer: it may import @erp/design-tokens, @erp/contracts,
+ * @erp/utils, Radix and utility libs — but never app code, data-fetching clients, or the router.
+ * Keeping data/routing out preserves reusability and the apps-never-import-each-other rule
+ * (M0 frontend design D2/D9).
+ */
+export const uiBoundaries = banImports(
+  [
+    "@erp/web",
+    "@erp/api",
+    "@ts-rest/core",
+    "@ts-rest/react-query",
+    "@ts-rest/nest",
+    "@tanstack/react-query",
+    "@tanstack/react-router",
+  ],
+  "@erp/ui must stay presentational — no apps/*, no data-fetching clients (@ts-rest/@tanstack query), no router (M0 frontend design D2/D9).",
+);
+
+/**
+ * Styling in @erp/ui and apps/web must consume the design system through **semantic** token
+ * names only. Raw hex colors and primitive token names (`--ink-*`, `--cyan-*`, `--substrate-*`,
+ * `--magenta-*`) bypass the Tailwind preset and break the "dark is a token swap only" contract,
+ * so they are banned in string/template literals (className strings, style values) — M0 frontend
+ * design D3 and the semantic-only enforcement risk mitigation. esquery matches the literal value
+ * against a regex.
+ */
+export const styleTokenBoundaries = {
+  rules: {
+    "no-restricted-syntax": [
+      "error",
+      {
+        selector: "Literal[value=/#[0-9A-Fa-f]{3,8}\\b/]",
+        message:
+          "Raw hex colors are banned in @erp/ui/apps/web styles — use a semantic token utility from the @erp/design-tokens preset (M0 frontend design D3).",
+      },
+      {
+        selector: "TemplateElement[value.raw=/#[0-9A-Fa-f]{3,8}\\b/]",
+        message:
+          "Raw hex colors are banned in @erp/ui/apps/web styles — use a semantic token utility from the @erp/design-tokens preset (M0 frontend design D3).",
+      },
+      {
+        selector: "Literal[value=/--(?:ink|cyan|substrate|magenta)-/]",
+        message:
+          "Primitive token names (--ink-/--cyan-/--substrate-/--magenta-) are banned in styles — reference a semantic token instead (M0 frontend design D3).",
+      },
+      {
+        selector: "TemplateElement[value.raw=/--(?:ink|cyan|substrate|magenta)-/]",
+        message:
+          "Primitive token names (--ink-/--cyan-/--substrate-/--magenta-) are banned in styles — reference a semantic token instead (M0 frontend design D3).",
+      },
+    ],
+  },
+};
 
 export default base;
