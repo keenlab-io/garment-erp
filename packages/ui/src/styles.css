@@ -10,3 +10,39 @@
 
 /* Scan this package's own source so component/story utility classes are generated. */
 @source "./";
+
+/*
+ * Skeleton shimmer — a highlight sweep over a sunken base. Used instead of spinners for content
+ * loading. Collapses to a static block under reduced-motion.
+ */
+@keyframes erp-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.erp-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--color-bg-sunken);
+}
+
+.erp-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-bg-surface-raised),
+    transparent
+  );
+  animation: erp-shimmer 1.6s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .erp-skeleton::after {
+    animation: none;
+  }
+}

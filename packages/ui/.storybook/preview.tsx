@@ -33,7 +33,8 @@ const withMatrix: Decorator = (Story, context) => {
 const preview: Preview = {
   parameters: {
     controls: { matchers: { color: /(background|color)$/i, date: /Date$/i } },
-    a11y: { test: "todo" },
+    // Enforce the WCAG 2.1 AA baseline — a11y violations surface as errors, not TODOs.
+    a11y: { test: "error" },
   },
   initialGlobals: {
     theme: "light",
