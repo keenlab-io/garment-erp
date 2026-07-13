@@ -1,3 +1,3 @@
-import { base, webBoundaries } from "@erp/config/eslint-preset";
+import { base, webBoundaries, styleTokenBoundaries } from "@erp/config/eslint-preset";
 
-export default [...base, webBoundaries];
+export default [...base, webBoundaries, styleTokenBoundaries];

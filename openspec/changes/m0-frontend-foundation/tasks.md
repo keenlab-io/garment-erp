@@ -37,15 +37,15 @@
 
 ## 4. App shell (`apps/web`)
 
-- [ ] 4.1 Add `apps/web` deps (`@erp/ui`, `@erp/design-tokens`, `tailwindcss`, `@tanstack/react-router`, `cmdk`, i18n deps) and wire Tailwind + token CSS + fonts into the Vite build
-- [ ] 4.2 Mount TanStack Router with a typed route tree supporting per-route metadata (title/breadcrumb, kiosk flag, required `Permission` for module entry)
-- [ ] 4.3 Session context — `AuthUser` shape (identity, `isSuperAdmin`, `Permission[]`), provider consumed by shell/nav/palette/gating; placeholder login route rendered when no session (real auth wiring lands with M1)
-- [ ] 4.4 Shell layout — ink-chrome sidebar + top bar (breadcrumb, search entry, notifications, TH/EN toggle, avatar menu) + content outlet + toast region; shell persists across navigation
-- [ ] 4.5 Role-filtered nav — items declare required permissions; unpermitted items absent from the DOM; Admin & Access bottom-anchored, super-admin only
-- [ ] 4.6 Theme provider — `data-theme` from `prefers-color-scheme` default, user toggle override, persisted
-- [ ] 4.7 Density provider — `data-density` with persisted Comfortable/Compact toggle; Touch auto-applied on kiosk-flagged routes and coarse-pointer devices (route flag not overridable); Touch behavior flag (no hover-only affordances) exposed via context
-- [ ] 4.8 Command palette (cmdk) — Ctrl/Cmd-K, grouped module/action entries built from route metadata, permission-filtered; `/` focuses search, `Esc` closes
-- [ ] 4.9 Responsive collapse — below `--bp-md`: bottom tab bar + drawer nav, single-column content; tablet collapsible sidebar
+- [x] 4.1 Add `apps/web` deps (`@erp/ui`, `@erp/design-tokens`, `tailwindcss`, `@tanstack/react-router`, `cmdk`, i18n deps) and wire Tailwind + token CSS + fonts into the Vite build
+- [x] 4.2 Mount TanStack Router with a typed route tree supporting per-route metadata (title/breadcrumb, kiosk flag, required `Permission` for module entry)
+- [x] 4.3 Session context — `AuthUser` shape (identity, `isSuperAdmin`, `Permission[]`), provider consumed by shell/nav/palette/gating; placeholder login route rendered when no session (real auth wiring lands with M1)
+- [x] 4.4 Shell layout — ink-chrome sidebar + top bar (breadcrumb, search entry, notifications, TH/EN toggle, avatar menu) + content outlet + toast region; shell persists across navigation
+- [x] 4.5 Role-filtered nav — items declare required permissions; unpermitted items absent from the DOM; Admin & Access bottom-anchored, super-admin only
+- [x] 4.6 Theme provider — `data-theme` from `prefers-color-scheme` default, user toggle override, persisted
+- [x] 4.7 Density provider — `data-density` with persisted Comfortable/Compact toggle; Touch auto-applied on kiosk-flagged routes and coarse-pointer devices (route flag not overridable); Touch behavior flag (no hover-only affordances) exposed via context
+- [x] 4.8 Command palette (cmdk) — Ctrl/Cmd-K, grouped module/action entries built from route metadata, permission-filtered; `/` focuses search, `Esc` closes
+- [x] 4.9 Responsive collapse — below `--bp-md`: bottom tab bar + drawer nav, single-column content; tablet collapsible sidebar
 
 ## 5. Data Table organism
 

@@ -1,0 +1,36 @@
+/*
+ * apps/web Tailwind entry. Pulls in the whole styling chain transitively from @erp/ui
+ * (tailwindcss core + the @erp/design-tokens token CSS + the semantic-only preset), then
+ * declares this app's own source so Tailwind v4 generates the utilities used in apps/web/src.
+ * Never re-import tailwindcss or the token CSS here — that would double-emit the token layer.
+ */
+@import "@erp/ui/styles.css";
+
+/* Scan this app's source so shell/nav/page utility classes are generated. */
+@source "./";
+
+/*
+ * Command palette (cmdk) structural styling. cmdk sets these attributes on its Radix dialog parts;
+ * positioning and the command z-layer come from tokens here (CSS can reference token vars directly).
+ * Visual surface styling lives on the Command root className in CommandPalette.tsx.
+ */
+[cmdk-overlay] {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-command);
+}
+
+[cmdk-dialog] {
+  position: fixed;
+  left: 50%;
+  top: 12vh;
+  z-index: var(--z-command);
+  width: min(36rem, calc(100vw - 2rem));
+  transform: translateX(-50%);
+}
+
+[cmdk-group-heading] {
+  padding: 0.5rem 0.75rem 0.25rem;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-muted);
+}
