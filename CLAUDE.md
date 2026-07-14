@@ -102,6 +102,42 @@ higher-level compositions land in later M0 groups. See `openspec/changes/m0-fron
   `data-density` / `<html lang>`; `src/showcase/TokenMatrix.stories.tsx` proves the matrix
   re-resolves via tokens alone. Component tests: Vitest + Testing Library + jsdom (`vitest.config.ts`).
 
+## `apps/web` app shell (M0 frontend, Group 4)
+
+The application frame every M1–M6 screen lives inside — built in `apps/web` from `@erp/ui`
+primitives (there is no shell/nav component in `@erp/ui`). Consumes the design system once via
+`@erp/ui/styles.css` + `@erp/ui/fonts`; `src/styles.css` re-imports that and adds `@source "./"`
+so Tailwind v4 generates apps/web utilities. `@tailwindcss/vite` is in the Vite config; ESLint adds
+`styleTokenBoundaries` (semantic tokens only — primitives/raw-hex banned in style strings).
+
+- **Attributes live on `<html>`**: `ThemeProvider` (`src/theme/`) writes `data-theme`, `DensityProvider`
+  (`src/density/`) writes `data-density`, `LocaleProvider` (`src/i18n/`) writes `lang`. On the document
+  root (not a shell wrapper) so Radix-portaled overlays (Dialog/Drawer/Toast, cmdk) inherit them.
+  There is **no** `prefers-color-scheme` rule in `tokens.css` — `ThemeProvider` reads `matchMedia` in
+  JS. Pure resolvers (`resolve-theme.ts`, `resolve-density.ts`) hold the precedence logic and are unit-tested.
+- **Ink chrome via nested `data-theme="dark"`**: the sidebar/drawer are ink-900 in *both* app themes.
+  Wrapping them in `data-theme="dark"` re-resolves their semantic colors to light-on-dark — zero theme
+  logic, semantic tokens only (do **not** reach for `--color-text-inverse` on the chrome; it flips to ink in dark).
+- **One nav registry is the source of truth**: `src/nav/registry.ts` (a typed `ModuleDescriptor[]`) drives the
+  route tree (`src/router/route-tree.tsx`), sidebar, mobile tab bar, drawer, and command palette. `filterNav`
+  (`src/nav/filter.ts`, pure) gates by any-of module permissions (from `@erp/contracts`) with super-admin bypass;
+  unpermitted modules are **absent** from the DOM, `superAdminOnly` (Admin & Access) is bottom-anchored.
+- **Routing** is code-based TanStack Router (no codegen). Per-route metadata (`title`/`kiosk`/`permissions`/`navKey`)
+  is typed via `StaticDataRouteOption` augmentation (`src/router/static-data.d.ts`) and read generically through
+  `useMatches` (breadcrumb, kiosk density). `beforeLoad` guards redirect (`src/router/guards.ts`); the live
+  session is injected into router `context` by `InnerRouter` in `main.tsx` so guards read it synchronously.
+- **Session** (`src/session/`) is an in-memory stub (`AuthUser` = identity + `isSuperAdmin` + `Permission[]`);
+  real login lands with M1 (`api/client.ts` `baseHeaders` is the token seam). `VITE_DEV_PERMISSIONS` shapes the
+  dev user (`*`/unset = super admin, `none` = nothing, CSV = exactly those) to demo role-filtering.
+- **Command palette** (`src/command-palette/`) is cmdk; entries come from `filterNav`. One `window` keydown
+  (`useCommandKeymap`) toggles on ⌘/Ctrl-K and opens on `/` (the search lives in the palette); **Esc is left to
+  cmdk's Radix dialog**. cmdk positioning/z-layer are styled in `src/styles.css` via `[cmdk-*]` (token vars).
+- **Responsive** is pure CSS `md:` (the token `--bp-md`): `Sidebar` is `hidden md:flex`, `MobileTabBar`
+  `md:hidden`, `NavDrawer` (@erp/ui `Drawer`) is the mobile overflow. `Shell` (root-route component) never
+  remounts on navigation; only the `<Outlet/>` does. i18n is minimal i18next (`th` default + `en`, one `shell`
+  namespace) — Group 7 extends it (module namespaces, typed keys, CI completeness). Tests: Vitest + RTL
+  (`src/test/render.tsx` wraps a memory router + providers; `await` it — the router loads before render).
+
 ## `apps/api` cross-cutting infrastructure (M0)
 
 Every business module (M1–M6) inherits these — never reimplement them. See
