@@ -32,6 +32,13 @@ export const envSchema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((v) => v === "true"),
+
+  // Inventory — when false (default), issuing more than on-hand is a 422 before any
+  // ledger write; when true, the OUT posts and on-hand may go negative (M3 design D7).
+  INVENTORY_ALLOW_NEGATIVE_STOCK: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
 });
 
 export type Env = z.infer<typeof envSchema>;

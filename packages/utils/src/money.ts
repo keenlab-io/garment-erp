@@ -52,6 +52,79 @@ export function sumMoney(values: DecimalInput[]): string {
   );
 }
 
+/** Divide `a / b` at money scale (rounds half-up). Throws on divide-by-zero. */
+export function divideMoney(a: DecimalInput, b: DecimalInput): string {
+  const divisor = toDecimal(b);
+  if (divisor.isZero()) throw new Error("Division by zero");
+  return formatMoney(toDecimal(a).dividedBy(divisor));
+}
+
+/** Divide `a / b` at quantity scale (rounds half-up). Throws on divide-by-zero. */
+export function divideQty(a: DecimalInput, b: DecimalInput): string {
+  const divisor = toDecimal(b);
+  if (divisor.isZero()) throw new Error("Division by zero");
+  return formatQty(toDecimal(a).dividedBy(divisor));
+}
+
+/**
+ * Moving-average unit cost after an IN posting (spec §3.4):
+ *   `new_avg = (qtyOnHand·avgCost + inQty·inCost) / (qtyOnHand + inQty)`
+ * Returned at money scale. When the resulting on-hand is zero there is no meaningful
+ * average, so the incoming unit cost is returned unchanged.
+ */
+export function movingAverage(
+  qtyOnHand: DecimalInput,
+  avgCost: DecimalInput,
+  inQty: DecimalInput,
+  inCost: DecimalInput,
+): string {
+  const onHand = toDecimal(qtyOnHand);
+  const incoming = toDecimal(inQty);
+  const total = onHand.plus(incoming);
+  if (total.isZero()) return formatMoney(inCost);
+  const value = onHand
+    .times(toDecimal(avgCost))
+    .plus(incoming.times(toDecimal(inCost)));
+  return formatMoney(value.dividedBy(total));
+}
+
+/**
+ * Proportionally split `total` across `weights`, returned as money-scale strings that
+ * sum **exactly** to `formatMoney(total)`. Each part is `total·weight/Σweights` rounded
+ * half-up; the rounding remainder (`total − Σparts`) is assigned to the largest-weight
+ * part so the parts always reconcile to the total. When every weight is zero (or the
+ * list is a single element) the split is even by count, remainder to the first part.
+ */
+export function allocate(total: DecimalInput, weights: DecimalInput[]): string[] {
+  const n = weights.length;
+  if (n === 0) return [];
+
+  const totalDec = toDecimal(total);
+  const weightDecs = weights.map((w) => toDecimal(w));
+  const weightSum = weightDecs.reduce((acc, w) => acc.plus(w), new Decimal(0));
+
+  const parts = weightSum.isZero()
+    ? weightDecs.map(() => totalDec.dividedBy(n))
+    : weightDecs.map((w) => totalDec.times(w).dividedBy(weightSum));
+
+  const rounded = parts.map((p) => new Decimal(formatMoney(p)));
+  const roundedSum = rounded.reduce((acc, p) => acc.plus(p), new Decimal(0));
+  const remainder = new Decimal(formatMoney(totalDec)).minus(roundedSum);
+
+  if (!remainder.isZero()) {
+    let target = 0;
+    for (let i = 1; i < n; i++) {
+      const wi = weightDecs[i];
+      const wt = weightDecs[target];
+      if (wi && wt && wi.greaterThan(wt)) target = i;
+    }
+    const current = rounded[target];
+    if (current) rounded[target] = current.plus(remainder);
+  }
+
+  return rounded.map((r) => formatMoney(r));
+}
+
 /** True if the string is a valid decimal with at most `scale` fractional digits. */
 export function isValidScaled(value: string, scale: number): boolean {
   if (!/^-?\d+(\.\d+)?$/.test(value)) return false;
