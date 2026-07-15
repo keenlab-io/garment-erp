@@ -12,6 +12,7 @@ import { DbModule } from "./db/db.module.js";
 import { EventsModule } from "./events/events.module.js";
 import { HealthController } from "./health/health.controller.js";
 import { IamModule } from "./iam/iam.module.js";
+import { InventoryModule } from "./inventory/inventory.module.js";
 import { InvoiceController } from "./invoice/invoice.controller.js";
 import { PdfModule } from "./pdf/pdf.module.js";
 import { QueueModule } from "./queue/queue.module.js";
@@ -35,6 +36,7 @@ import { StorageModule } from "./storage/storage.module.js";
     // IamModule imported after AuthModule so its PERMISSION_RESOLVER binding
     // (RolePermissionResolver) overrides M0's empty-set default (design D1).
     IamModule,
+    InventoryModule,
     SequenceModule,
     IdempotencyModule,
     QueueModule,

@@ -21,10 +21,10 @@
 
 ## 2. `@erp/utils` — costing helpers
 
-- [ ] 2.1 Add `divideMoney(a,b)`, `divideQty(a,b)`, `movingAverage(qtyOnHand, avgCost, inQty,
+- [x] 2.1 Add `divideMoney(a,b)`, `divideQty(a,b)`, `movingAverage(qtyOnHand, avgCost, inQty,
   inCost)`, and `allocate(total, weights[])` (proportional split; rounding remainder assigned
   to the largest weight so parts sum exactly to `total`) to `money.ts`; export from the barrel
-- [ ] 2.2 Unit-test division rounding (half-up) and `allocate` sum-preservation
+- [x] 2.2 Unit-test division rounding (half-up) and `allocate` sum-preservation
 
 ## 3. DB schema — `packages/db/src`
 
@@ -54,61 +54,61 @@
 
 ## 4. Config & deps
 
-- [ ] 4.1 Add `INVENTORY_ALLOW_NEGATIVE_STOCK` to `config/env.schema.ts`
+- [x] 4.1 Add `INVENTORY_ALLOW_NEGATIVE_STOCK` to `config/env.schema.ts`
   (`z.enum(["true","false"]).default("false").transform(v => v === "true")`) + compose/devcontainer env
-- [ ] 4.2 Add `bwip-js` to `apps/api` deps
+- [x] 4.2 Add `bwip-js` to `apps/api` deps
 
 ## 5. Nest module — `apps/api/src/inventory`
 
-- [ ] 5.1 `ItemService` / `UomService` — item create (emp-code-style `code` via SequenceService
+- [x] 5.1 `ItemService` / `UomService` — item create (emp-code-style `code` via SequenceService
   `ITEM`), SKUs, UOM conversions; base-UOM conversion helper
-- [ ] 5.2 `CostingService` — MAV (movingAverage), FIFO (lot consumption oldest-first, split
+- [x] 5.2 `CostingService` — MAV (movingAverage), FIFO (lot consumption oldest-first, split
   movements per lot), STANDARD (standard_cost + variance delta); landed-cost `allocate`
-- [ ] 5.3 `LedgerService` — post `stock_movement` (converted to base UOM) + update
+- [x] 5.3 `LedgerService` — post `stock_movement` (converted to base UOM) + update
   `stock_balance` in the same tx; `rebuildBalance(item, warehouse)` replay routine
-- [ ] 5.4 `GoodsReceiptService` — `create`/`confirm` (landed alloc)/`post` (ledger IN + lots),
+- [x] 5.4 `GoodsReceiptService` — `create`/`confirm` (landed alloc)/`post` (ledger IN + lots),
   emit `GoodsReceiptPosted`
-- [ ] 5.5 `GoodsIssueService` — `create`/`post` (ledger OUT), negative-stock check → 422, emit
+- [x] 5.5 `GoodsIssueService` — `create`/`post` (ledger OUT), negative-stock check → 422, emit
   `GoodsIssued`
-- [ ] 5.6 `BomService` — create + recursive read-only `rollup` (no ledger writes)
-- [ ] 5.7 `BackflushService` — `@OnEvent("WorkOrderCompleted")`; one-tx FG IN + RM OUT per
+- [x] 5.6 `BomService` — create + recursive read-only `rollup` (no ledger writes)
+- [x] 5.7 `BackflushService` — `@OnEvent("WorkOrderCompleted")`; one-tx FG IN + RM OUT per
   active BOM; idempotent on `wo_id` (skip if a `BACKFLUSH` movement references it); emit
   `BackflushPosted`
-- [ ] 5.7b `SalesStockSubscriber` — dormant `@OnEvent("InvoiceIssued")` /
+- [x] 5.7b `SalesStockSubscriber` — dormant `@OnEvent("InvoiceIssued")` /
   `@OnEvent("DeliveryNoteIssued")` post an optional stock OUT per stocked line at current cost,
   and `@OnEvent("DocumentVoided")` posts a compensating IN when an OUT was posted; idempotent on
   `(event, correlation_id)` (no emitter until M5)
-- [ ] 5.8 `StockCountService` — open (snapshot `system_qty`) / lines / reconcile (draft
+- [x] 5.8 `StockCountService` — open (snapshot `system_qty`) / lines / reconcile (draft
   adjustment for diffs)
-- [ ] 5.9 `StockAdjustmentService` — `requireReason` → 400 else; `approve`/`post` (ledger
+- [x] 5.9 `StockAdjustmentService` — `requireReason` → 400 else; `approve`/`post` (ledger
   ADJUST); audit block (actor + reason + before/after); emit `StockAdjusted`
-- [ ] 5.10 `ReportService` — stock-card, valuation, low-stock, dead-stock; cost columns gated
+- [x] 5.10 `ReportService` — stock-card, valuation, low-stock, dead-stock; cost columns gated
   by `inventory.cost.view`; emit `LowStockReached` when on-hand crosses `min_stock`
-- [ ] 5.11 `BarcodeService` + label `@Processor('pdf')` worker — bwip-js → data-URI in label
+- [x] 5.11 `BarcodeService` + label `@Processor('pdf')` worker — bwip-js → data-URI in label
   HTML → `PdfService.renderHtml` → `StorageService.put` → 202 `{ job_id }`
-- [ ] 5.12 ts-rest `InventoryController`(s) — in-handler `assertPermissions(user,
+- [x] 5.12 ts-rest `InventoryController`(s) — in-handler `assertPermissions(user,
   "inventory.…")`; wrap mutations in `uow.withTransaction`; `InventoryModule` imports
   Pdf/Storage/Queue; wire into `app.module.ts`
-- [ ] 5.13 Verify: `pnpm build && pnpm typecheck && pnpm lint` green; API boots and maps the
+- [x] 5.13 Verify: `pnpm build && pnpm typecheck && pnpm lint` green; API boots and maps the
   new `/api/v1` inventory routes
 
 ## 6. Tests (spec §3.8)
 
-- [ ] 6.1 Receive 20kg roll, issue 5kg ⇒ lot `qty_remaining=15`, ledger IN 20 + OUT 5,
+- [x] 6.1 Receive 20kg roll, issue 5kg ⇒ lot `qty_remaining=15`, ledger IN 20 + OUT 5,
   `stock_balance.qty_on_hand=15`
-- [ ] 6.2 MAV: receive 10@฿100 then 10@฿120 ⇒ `avg_cost=110`; issuing 5 posts OUT @110
-- [ ] 6.3 Backflush producing 100 FG ⇒ FG +100 and each RM −(bom_qty×100×(1+scrap)) at current
+- [x] 6.2 MAV: receive 10@฿100 then 10@฿120 ⇒ `avg_cost=110`; issuing 5 posts OUT @110
+- [x] 6.3 Backflush producing 100 FG ⇒ FG +100 and each RM −(bom_qty×100×(1+scrap)) at current
   cost, all atomic; a duplicate `WorkOrderCompleted` does not double-post (idempotent on wo_id)
-- [ ] 6.4 Replaying `stock_movement` reproduces `stock_balance` exactly (`rebuildBalance`)
-- [ ] 6.5 Adjustment without `reason` ⇒ 400; with reason ⇒ one `audit_log` row (actor + reason
+- [x] 6.4 Replaying `stock_movement` reproduces `stock_balance` exactly (`rebuildBalance`)
+- [x] 6.5 Adjustment without `reason` ⇒ 400; with reason ⇒ one `audit_log` row (actor + reason
   + before/after)
-- [ ] 6.6 Ledger immutability: UPDATE/DELETE on `stock_movement` rejected by the trigger
-- [ ] 6.7 FIFO issue spanning two lots ⇒ two OUT movements at each lot's cost; landed-cost
+- [x] 6.6 Ledger immutability: UPDATE/DELETE on `stock_movement` rejected by the trigger
+- [x] 6.7 FIFO issue spanning two lots ⇒ two OUT movements at each lot's cost; landed-cost
   allocation sums to `landed_cost_total`
 
 ## 7. Verification
 
-- [ ] 7.1 `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green from the repo root
+- [x] 7.1 `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green from the repo root
 - [ ] 7.2 `pnpm db:generate` clean after migration; `pnpm db:migrate && pnpm db:seed` run
   cleanly against a fresh DB (tables, trigger, `AA00001` item code, default warehouse/UOMs)
 - [ ] 7.3 Boot `pnpm dev` and drive: create item (`AA00001`) → receipt (confirm landed → post)
