@@ -299,7 +299,7 @@ describe.skipIf(!url)("Inventory services (integration)", () => {
       boms.create(
         {
           finished_item_id: fg as never,
-          lines: [{ item_id: rm as never, uom_id: gramUom as never, qty: "2" as never }],
+          lines: [{ item_id: rm as never, uom_id: gramUom as never, qty: "2" as never, scrap_pct: "0" as never }],
         },
         actor,
       ),
