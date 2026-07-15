@@ -20,6 +20,9 @@ export const user = pgTable("user", {
   // type inference drizzle would otherwise hit for a same-table reference.
   createdBy: uuid().references((): AnyPgColumn => user.id),
   updatedBy: uuid().references((): AnyPgColumn => user.id),
+  // Link to the HR employee record. Nullable and WITHOUT an FK constraint for now — the
+  // `employee` table arrives with M2, which adds the FK in its own migration (M1 plan §2).
+  employeeId: uuid(),
   username: citext().notNull().unique(),
   email: citext().notNull().unique(),
   passwordHash: text().notNull(),

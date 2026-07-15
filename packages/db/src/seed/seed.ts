@@ -1,6 +1,6 @@
 import argon2 from "argon2";
 import { createDb } from "../client.js";
-import { documentSequence, user } from "../schema/index.js";
+import { documentSequence, permission, PERMISSION_CODES, user } from "../schema/index.js";
 
 // Idempotent development seed: a super-admin and the base document-sequence rows.
 // Safe to run repeatedly — both writes use `onConflictDoNothing`, so a second run
@@ -43,7 +43,14 @@ async function main() {
       .values(BASE_SEQUENCES.map((s) => ({ ...s, yearScope: currentYear })))
       .onConflictDoNothing();
 
-    console.log("Seed complete: super-admin + base sequences");
+    // Mirror the permission catalog into the `permission` table (M1 design D8). Idempotent:
+    // `onConflictDoNothing` on the unique `code` keeps re-runs a no-op and never duplicates.
+    await db
+      .insert(permission)
+      .values(PERMISSION_CODES.map((code) => ({ code })))
+      .onConflictDoNothing();
+
+    console.log("Seed complete: super-admin + base sequences + permission catalog");
   } finally {
     await queryClient.end();
   }

@@ -11,15 +11,15 @@
 ## 2. DB schema — `packages/db/src`
 
 - [ ] 2.1 Add `FORCE_LOGOUT` to `AuditAction` in `schema/enums.ts` (keep the `expectTypeOf` parity test green)
-- [ ] 2.2 Add `schema/iam/roles.ts` — `role` (`name` unique, `description`, `is_system` default false, `cloned_from` self-FK, audit + `version` columns)
-- [ ] 2.3 Add `schema/iam/permissions.ts` — `permission` (`code` text unique); `role_permission` (PK `(role_id, permission_id)`, both FKs `ON DELETE CASCADE`)
-- [ ] 2.4 Add `schema/iam/user-role.ts` — `user_role` (PK `(user_id, role_id)`, `user_id` FK `ON DELETE CASCADE`, `role_id` FK)
-- [ ] 2.5 Add `schema/iam/role-template.ts` — `role_template` (`name` unique, `default_permission_ids uuid[]` default `{}`)
-- [ ] 2.6 Add nullable `employeeId uuid` column to `platform/users.ts` **without** an FK constraint (FK to `employee(id)` deferred to M2)
-- [ ] 2.7 Re-export the new `schema/iam/*` modules from `schema/index.ts`
-- [ ] 2.8 `pnpm db:generate` (rebuild dist first) and review the migration; confirm `pnpm db:generate` is clean on re-run
-- [ ] 2.9 Extend `src/seed/seed.ts` — upsert one `permission` row per `@erp/contracts` `PERMISSIONS` code (`onConflictDoNothing` on `code`)
-- [ ] 2.10 Run `pnpm db:migrate && pnpm db:seed` against dev Postgres; confirm tables + seeded catalog exist
+- [x] 2.2 Add `schema/iam/roles.ts` — `role` (`name` unique, `description`, `is_system` default false, `cloned_from` self-FK, audit + `version` columns)
+- [x] 2.3 Add `schema/iam/permissions.ts` — `permission` (`code` text unique); `role_permission` (PK `(role_id, permission_id)`, both FKs `ON DELETE CASCADE`)
+- [x] 2.4 Add `schema/iam/user-role.ts` — `user_role` (PK `(user_id, role_id)`, `user_id` FK `ON DELETE CASCADE`, `role_id` FK)
+- [x] 2.5 Add `schema/iam/role-template.ts` — `role_template` (`name` unique, `default_permission_ids uuid[]` default `{}`)
+- [x] 2.6 Add nullable `employeeId uuid` column to `platform/users.ts` **without** an FK constraint (FK to `employee(id)` deferred to M2)
+- [x] 2.7 Re-export the new `schema/iam/*` modules from `schema/index.ts`
+- [x] 2.8 `pnpm db:generate` (rebuild dist first) and review the migration; confirm `pnpm db:generate` is clean on re-run
+- [x] 2.9 Extend `src/seed/seed.ts` — upsert one `permission` row per `@erp/contracts` `PERMISSIONS` code (`onConflictDoNothing` on `code`)
+- [x] 2.10 Run `pnpm db:migrate && pnpm db:seed` against dev Postgres; confirm tables + seeded catalog exist
 
 ## 3. Nest module — `apps/api/src/iam`
 
