@@ -6,3 +6,8 @@ export * from "./platform/sessions.js";
 export * from "./platform/audit-log.js";
 export * from "./platform/document-sequence.js";
 export * from "./platform/idempotency-key.js";
+export * from "./iam/roles.js";
+export * from "./iam/permissions.js";
+export * from "./iam/user-role.js";
+export * from "./iam/role-template.js";
+export * from "./iam/permission-catalog.js";
