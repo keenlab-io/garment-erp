@@ -11,3 +11,8 @@ export * from "./iam/permissions.js";
 export * from "./iam/user-role.js";
 export * from "./iam/role-template.js";
 export * from "./iam/permission-catalog.js";
+export * from "./inventory/catalog.js";
+export * from "./inventory/ledger.js";
+export * from "./inventory/documents.js";
+export * from "./inventory/bom.js";
+export * from "./inventory/count.js";

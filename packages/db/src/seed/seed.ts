@@ -1,6 +1,13 @@
 import argon2 from "argon2";
 import { createDb } from "../client.js";
-import { documentSequence, permission, PERMISSION_CODES, user } from "../schema/index.js";
+import {
+  documentSequence,
+  permission,
+  PERMISSION_CODES,
+  uom,
+  user,
+  warehouse,
+} from "../schema/index.js";
 
 // Idempotent development seed: a super-admin and the base document-sequence rows.
 // Safe to run repeatedly — both writes use `onConflictDoNothing`, so a second run
@@ -10,11 +17,27 @@ import { documentSequence, permission, PERMISSION_CODES, user } from "../schema/
 // the sequence service something to hand out in dev. One row per key.
 const BASE_SEQUENCES = [
   { key: "EMPLOYEE", prefix: "EXT", includeYear: true, resetYearly: true, format: "{prefix}{yyyy}{seq:0000}" },
-  { key: "ITEM", prefix: "AA", includeYear: false, resetYearly: false, format: "{prefix}{seq:0000}" },
+  { key: "ITEM", prefix: "AA", includeYear: false, resetYearly: false, padding: 5, format: "{prefix}{seq:00000}" },
   { key: "QUOTATION_VAT", prefix: "QV", includeYear: true, resetYearly: true, format: "{prefix}{yyyy}{seq:0000}" },
   { key: "QUOTATION_NONVAT", prefix: "QNV", includeYear: true, resetYearly: true, format: "{prefix}{yyyy}{seq:0000}" },
   { key: "INVOICE", prefix: "INV", includeYear: true, resetYearly: true, format: "{prefix}{yyyy}{seq:0000}" },
 ];
+
+// Base units of measure (M3). Seeded by unique `code`, so re-runs are a no-op. Modules and
+// items reference these; per-item conversions between them live in `uom_conversion`.
+const BASE_UOMS = [
+  { code: "PCS", name: "Piece" },
+  { code: "KG", name: "Kilogram" },
+  { code: "M", name: "Meter" },
+  { code: "ROLL", name: "Roll" },
+];
+
+// A default warehouse so inventory movements have somewhere to land in dev. Fixed `id` so
+// re-runs conflict on the primary key and do nothing (idempotent).
+const DEFAULT_WAREHOUSE = {
+  id: "11111111-1111-4111-8111-111111111111",
+  name: "Main Warehouse",
+};
 
 async function main() {
   const url = process.env.DATABASE_URL;
@@ -50,7 +73,14 @@ async function main() {
       .values(PERMISSION_CODES.map((code) => ({ code })))
       .onConflictDoNothing();
 
-    console.log("Seed complete: super-admin + base sequences + permission catalog");
+    // Base inventory reference data (M3). Both idempotent: uom conflicts on unique `code`,
+    // the warehouse on its fixed primary key.
+    await db.insert(uom).values(BASE_UOMS).onConflictDoNothing();
+    await db.insert(warehouse).values(DEFAULT_WAREHOUSE).onConflictDoNothing();
+
+    console.log(
+      "Seed complete: super-admin + base sequences + permission catalog + base uom + warehouse",
+    );
   } finally {
     await queryClient.end();
   }
