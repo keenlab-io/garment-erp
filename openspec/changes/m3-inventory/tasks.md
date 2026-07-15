@@ -5,19 +5,19 @@
 
 ## 1. Contracts — `packages/contracts/src`
 
-- [ ] 1.1 Add `enums/inventory.ts` — `item_type` (`RAW|FINISHED|CONSUMABLE`), `costing_method`
+- [x] 1.1 Add `enums/inventory.ts` — `item_type` (`RAW|FINISHED|CONSUMABLE`), `costing_method`
   (`MAV|FIFO|STANDARD`), `movement_direction` (`IN|OUT|ADJUST`), `movement_ref_type`
   (`GOODS_RECEIPT|GOODS_ISSUE|BACKFLUSH|ADJUSTMENT|COUNT`), `alloc_method` (`VALUE|WEIGHT|QTY`),
   `issue_purpose` (`PRODUCTION|SALE|OTHER`), and the GR/GI/count/adjustment state machines (§3.3)
-- [ ] 1.2 Add `dto/inventory.ts` — `inventoryContract` (`pathPrefix: API_PREFIX`, `withErrors`):
+- [x] 1.2 Add `dto/inventory.ts` — `inventoryContract` (`pathPrefix: API_PREFIX`, `withErrors`):
   items/skus/uom-conversions, `POST /barcodes/print` → `jobAccepted`, goods-receipts
   (`create`/`confirm`/`post`), goods-issues (`create`/`post`), boms (`create`/`rollup`),
   stock-counts (`create`/`lines`/`reconcile`), stock-adjustments (`create`/`approve`/`post`),
   and reports (stock-card/valuation/low-stock/dead-stock); lists via `paginationQuery` +
   `paginated`
-- [ ] 1.3 Register `inventory: inventoryContract` on the root `contract` in `dto/index.ts`;
+- [x] 1.3 Register `inventory: inventoryContract` on the root `contract` in `dto/index.ts`;
   export new DTO types. (The 5 `inventory.*` codes already exist in the catalog.)
-- [ ] 1.4 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 1.4 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 2. `@erp/utils` — costing helpers
 
