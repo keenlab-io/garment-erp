@@ -282,6 +282,44 @@ describe.skipIf(!url)("Inventory services (integration)", () => {
     expect(backflushMovements).toHaveLength(2); // one FG IN + one RM OUT, not four
   });
 
+  it("backflush failure rolls back fully — the FG IN posted before the fault is not persisted", async () => {
+    const fg = await makeItem("MAV", { itemType: "FINISHED" });
+    const rm = await makeItem("MAV");
+    await receive(rm, "1000", "5"); // seed RM stock so roll-up has a cost
+
+    // A second UOM with **no** conversion registered to the RM's base unit. The BOM
+    // line quotes it, so roll-up (cost-only, no UOM math) succeeds and the FG IN is
+    // posted — then the RM OUT leg calls `toBase`, which throws for the missing
+    // conversion, and the whole transaction must unwind.
+    const gramUom = randomUUID();
+    await conn.db
+      .insert(uom)
+      .values({ id: gramUom, code: `G-${gramUom.slice(0, 4)}`, name: "Gram" });
+    await uow.withTransaction(() =>
+      boms.create(
+        {
+          finished_item_id: fg as never,
+          lines: [{ item_id: rm as never, uom_id: gramUom as never, qty: "2" as never, scrap_pct: "0" as never }],
+        },
+        actor,
+      ),
+    );
+
+    const wo = { wo_id: randomUUID(), finished_item_id: fg, warehouse_id: warehouseId, qty_produced: "100" };
+    await expect(backflush.backflush(wo, actor.id)).rejects.toThrow();
+
+    // Nothing from the aborted transaction survives: no FG balance, no lot, and no
+    // movement references the work order.
+    expect(await balanceOf(fg)).toBeUndefined();
+    const fgMovements = await movementsOf(fg);
+    expect(fgMovements).toHaveLength(0);
+    const anyForWo = await conn.db
+      .select()
+      .from(stockMovement)
+      .where(eq(stockMovement.refId, wo.wo_id));
+    expect(anyForWo).toHaveLength(0);
+  });
+
   // ── §6.4 ──────────────────────────────────────────────────────────────────────
 
   it("replaying stock_movement reproduces stock_balance exactly", async () => {
