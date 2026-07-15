@@ -5,11 +5,11 @@
 
 ## 1. Contracts — `packages/contracts/src`
 
-- [ ] 1.1 Add `enums/hr.ts` — `employment_type` (`DAILY|MONTHLY`), `employee_status`
+- [x] 1.1 Add `enums/hr.ts` — `employment_type` (`DAILY|MONTHLY`), `employee_status`
   (`PROBATION|ACTIVE|RESIGNED|SUSPENDED`), `ot_request_status`, `cash_advance_status`,
   `payroll_run_status` (spec §2.3), plus `employee_document.type`, `pay_component.type`
   (`ALLOWANCE|DEDUCTION`), and repayment `mode` (`LUMP|INSTALLMENT`)
-- [ ] 1.2 Add `dto/hr.ts` — `hrContract` router (`pathPrefix: API_PREFIX`, `withErrors`):
+- [x] 1.2 Add `dto/hr.ts` — `hrContract` router (`pathPrefix: API_PREFIX`, `withErrors`):
   employees + org (`GET/POST /employees`, `GET/PUT /employees/{id}` with `ifMatchHeader`,
   `POST /employees/{id}/documents`, `POST /employees/{id}/salary`, departments/positions),
   OT (`create`/`submit`/`approve`/`reconcile`), cash-advances (`create`/`approve`/`disburse`),
@@ -17,12 +17,12 @@
   `GET /{id}/payslips`, `/{id}/approve`), `GET /payslips/{id}/pdf` (302), exports
   (`pnd1`/`sso` → `jobAccepted`), and config CRUD. Model salary/monetary fields **optional**
   for gating; lists via `paginationQuery` + `paginated`
-- [ ] 1.3 Register `hr: hrContract` on the root `contract` in `dto/index.ts`; export new
+- [x] 1.3 Register `hr: hrContract` on the root `contract` in `dto/index.ts`; export new
   DTO types from the package barrel
-- [ ] 1.4 (If adopting finer permission codes per design OQ3) extend the `PERMISSIONS`
+- [x] 1.4 (If adopting finer permission codes per design OQ3) extend the `PERMISSIONS`
   catalog; otherwise map management actions to existing `hr.employee.manage` /
   `hr.payroll.approve`
-- [ ] 1.5 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 1.5 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 2. DB schema — `packages/db/src`
 
