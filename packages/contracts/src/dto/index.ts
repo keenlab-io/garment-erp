@@ -3,12 +3,14 @@ import { healthContract } from "./health.js";
 import { invoiceContract } from "./invoice.js";
 import { iamContract } from "./iam.js";
 import { inventoryContract } from "./inventory.js";
+import { hrContract } from "./hr.js";
 
 export * from "./_shared.js";
 export * from "./health.js";
 export * from "./invoice.js";
 export * from "./iam.js";
 export * from "./inventory.js";
+export * from "./hr.js";
 
 const c = initContract();
 
@@ -18,4 +20,5 @@ export const contract = c.router({
   invoices: invoiceContract,
   iam: iamContract,
   inventory: inventoryContract,
+  hr: hrContract,
 });
