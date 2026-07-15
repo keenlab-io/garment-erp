@@ -14,5 +14,6 @@ export type AuditAction =
   | "LOGIN"
   | "LOGOUT"
   | "PERMISSION_CHANGE"
+  | "FORCE_LOGOUT"
   | "APPROVE"
   | "VOID";
