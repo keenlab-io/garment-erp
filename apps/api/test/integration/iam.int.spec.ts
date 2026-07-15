@@ -140,10 +140,11 @@ describe.skipIf(!url)("IAM services (integration)", () => {
 
   beforeEach(async () => {
     // Clear all IAM rows (children first); keep the seeded permission catalog.
+    // `audit_log` is append-only (DB trigger) so it is never cleared — the audit
+    // assertions below scope to a fresh entity id or a before/after count delta.
     await conn.db.delete(session);
     await conn.db.delete(userRole);
     await conn.db.delete(rolePermission);
-    await conn.db.delete(auditLog);
     await conn.db.delete(roleTemplate);
     await conn.db.delete(role);
     await conn.db.delete(user);
