@@ -2,11 +2,11 @@
 
 ## 1. Contracts — `packages/contracts/src`
 
-- [ ] 1.1 Extend `enums/iam.ts` — add `FORCE_LOGOUT` to `AuditAction` (const object + type); keep `UserStatus` as-is (`PENDING | ACTIVE | DISABLED`)
-- [ ] 1.2 Add `dto/iam.ts` — zod schemas: `LoginBody`, `RefreshBody`, `TokenPair` (`{ access_token, refresh_token, expires_in }`), `MeResponse` (`{ user, roles, permissions[] }`), `RoleCreate`/`RoleUpdate`/`RoleClone`/`RoleDelete` (`{ super_admin_password }`), `RoleListItem` (`{ id, name, permission_count, user_count }`), `PermissionCode` (reuse `Permission`), `RoleTemplateCreate`, `UserCreate`/`UserRolesUpdate`/`UserStatusUpdate`, `UserListItem` (no `password_hash`), `AuditQuery` (filters), `AuditRow`, `ImportResult` (`{ imported, skipped[] }`)
-- [ ] 1.3 Build `iamContract = c.router({...}, { pathPrefix: API_PREFIX })` — auth (login/refresh/logout/me), roles (`GET`/`POST`/`PUT`/`clone`/`DELETE`), `GET /permissions`, `POST /role-templates`, users (`GET`/`POST`/`PUT roles`/`force-logout`/`status`), `POST /iam/import` (multipart), `GET /audit`; every route via `withErrors(...)`, list routes via `paginationQuery` + `paginated(item)`
-- [ ] 1.4 Register `iam: iamContract` on the root `contract` in `dto/index.ts`; export new DTO types from the package barrel
-- [ ] 1.5 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 1.1 Extend `enums/iam.ts` — add `FORCE_LOGOUT` to `AuditAction` (const object + type); keep `UserStatus` as-is (`PENDING | ACTIVE | DISABLED`)
+- [x] 1.2 Add `dto/iam.ts` — zod schemas: `LoginBody`, `RefreshBody`, `TokenPair` (`{ access_token, refresh_token, expires_in }`), `MeResponse` (`{ user, roles, permissions[] }`), `RoleCreate`/`RoleUpdate`/`RoleClone`/`RoleDelete` (`{ super_admin_password }`), `RoleListItem` (`{ id, name, permission_count, user_count }`), `PermissionCode` (reuse `Permission`), `RoleTemplateCreate`, `UserCreate`/`UserRolesUpdate`/`UserStatusUpdate`, `UserListItem` (no `password_hash`), `AuditQuery` (filters), `AuditRow`, `ImportResult` (`{ imported, skipped[] }`)
+- [x] 1.3 Build `iamContract = c.router({...}, { pathPrefix: API_PREFIX })` — auth (login/refresh/logout/me), roles (`GET`/`POST`/`PUT`/`clone`/`DELETE`), `GET /permissions`, `POST /role-templates`, users (`GET`/`POST`/`PUT roles`/`force-logout`/`status`), `POST /iam/import` (multipart), `GET /audit`; every route via `withErrors(...)`, list routes via `paginationQuery` + `paginated(item)`
+- [x] 1.4 Register `iam: iamContract` on the root `contract` in `dto/index.ts`; export new DTO types from the package barrel
+- [x] 1.5 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 2. DB schema — `packages/db/src`
 

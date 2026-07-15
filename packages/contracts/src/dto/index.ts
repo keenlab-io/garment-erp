@@ -1,10 +1,12 @@
 import { initContract } from "@ts-rest/core";
 import { healthContract } from "./health.js";
 import { invoiceContract } from "./invoice.js";
+import { iamContract } from "./iam.js";
 
 export * from "./_shared.js";
 export * from "./health.js";
 export * from "./invoice.js";
+export * from "./iam.js";
 
 const c = initContract();
 
@@ -12,4 +14,5 @@ const c = initContract();
 export const contract = c.router({
   health: healthContract,
   invoices: invoiceContract,
+  iam: iamContract,
 });
