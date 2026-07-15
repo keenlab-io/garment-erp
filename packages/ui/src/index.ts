@@ -82,3 +82,25 @@ export {
   DrawerBody,
   DrawerFooter,
 } from "./components/drawer/drawer.js";
+
+// Data Table organism (Group 5)
+export {
+  DataTable,
+  type DataTableProps,
+  type DataTableLabels,
+  type DataTableEmptyState,
+  type BulkAction,
+  type RowAction,
+} from "./components/data-table/data-table.js";
+export {
+  textColumn,
+  moneyColumn,
+  qtyColumn,
+  statusColumn,
+} from "./components/data-table/columns.js";
+export {
+  useColumnPresets,
+  type ColumnPresetState,
+  type ColumnPresetsApi,
+  type UseColumnPresetsOptions,
+} from "./components/data-table/use-column-presets.js";

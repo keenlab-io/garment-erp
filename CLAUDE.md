@@ -64,9 +64,26 @@ component code or Tailwind config; edit the source and rebuild.
 
 The shared React component package (Radix + Tailwind, shadcn-style **owned source**) styled
 **only** through the `@erp/design-tokens` semantic Tailwind preset. Group 2 shipped the scaffold
-+ verification workbench; Group 3 shipped the **primitive inventory** (see below). The DataTable and
-higher-level compositions land in later M0 groups. See `openspec/changes/m0-frontend-foundation`
-§2–3 and design D1/D2/D10.
++ verification workbench; Group 3 shipped the **primitive inventory** (see below); Group 5 shipped
+the **DataTable organism** (see below). Higher-level compositions land in later M0 groups. See
+`openspec/changes/m0-frontend-foundation` §2–3, §5 and design D1/D2/D4/D10.
+
+- **DataTable organism (Group 5)** lives in `src/components/data-table/` — `data-table.tsx` (the
+  organism) + `columns.tsx` (typed column helpers) + `use-column-presets.ts` (localStorage presets)
+  + the `.stories.tsx`/`.test.tsx` triad. Built on **TanStack Table** (headless, the package's first
+  consumer) and rendered via a semantic `<table role="grid">`: sticky sortable header at `--z-sticky`
+  (asc→desc→none), **cursor** Prev/Next pagination matching the contract `{ data, next_cursor }` shape
+  (Next disables + end-of-list on `null`; the parent owns fetching — the table is **presentational**
+  and emits intent), density-aware rows (`--density-row-h/-pad-x/-font`; **`density="touch"` hides
+  `meta.secondary` columns**), row-action + magenta bulk-selection bar (`bg-spot`), roving-tabindex
+  keyboard nav (arrows move the active row, space toggles), a columns popover with client-persisted
+  save/reset presets, and skeleton/empty/error(+Retry) states. Column model: `textColumn`
+  (`mono` renders link-ink doc ids), `moneyColumn`/`qtyColumn` (→ `MoneyCell`/`QtyCell`, right-aligned
+  tabular), `statusColumn` (→ `InkChip`); `secondary`/`align` come from a `ColumnMeta` **module
+  augmentation** (its type-param names must match the base verbatim or `tsc --build` errors TS2428).
+  All user-facing strings are **`labels` props with English defaults** (i18n §7 not yet wired). Row
+  actions/column menu use Radix `Popover` (already a dep) — no `dropdown-menu` dependency. The
+  `density` prop is threaded by the app from `useDensity()` (a later §8 task), not read from context.
 
 - **Primitives (Group 3)** live under `src/components/<name>/` — each as `<name>.tsx` +
   `<name>.stories.tsx` + `<name>.test.tsx`, re-exported from `src/index.ts`. Shipped: `Icon`

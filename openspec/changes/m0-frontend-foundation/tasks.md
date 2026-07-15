@@ -49,14 +49,14 @@
 
 ## 5. Data Table organism
 
-- [ ] 5.1 DataTable on TanStack Table — typed column definitions, sticky header at `--z-sticky`, sortable columns with asc/desc/none cycling
-- [ ] 5.2 Cursor pagination consuming the contract `{ data, next_cursor }` shape — next-page action while cursor non-null, end-of-list state on null
-- [ ] 5.3 Density-aware rendering — row height/padding/font from density tokens; `secondary`-flagged columns hidden in Touch
-- [ ] 5.4 Money/qty column types rendering via MoneyCell/QtyCell
-- [ ] 5.5 Row actions (tap-accessible in Touch) + multi-select with bulk-action bar (count + actions); keyboard nav (arrows move active row, space selects)
-- [ ] 5.6 Saved column presets — save/apply/reset visibility+order+sort per table id, persisted client-side per user
-- [ ] 5.7 Loading skeleton rows, empty-state slot (explanation + CTA), error state with Retry
-- [ ] 5.8 Stories + tests: sort/select/pagination behavior, density matrix, Thai long-string fixtures, skeleton/empty/error states
+- [x] 5.1 DataTable on TanStack Table — typed column definitions, sticky header at `--z-sticky`, sortable columns with asc/desc/none cycling
+- [x] 5.2 Cursor pagination consuming the contract `{ data, next_cursor }` shape — next-page action while cursor non-null, end-of-list state on null
+- [x] 5.3 Density-aware rendering — row height/padding/font from density tokens; `secondary`-flagged columns hidden in Touch
+- [x] 5.4 Money/qty column types rendering via MoneyCell/QtyCell
+- [x] 5.5 Row actions (tap-accessible in Touch) + multi-select with bulk-action bar (count + actions); keyboard nav (arrows move active row, space selects)
+- [x] 5.6 Saved column presets — save/apply/reset visibility+order+sort per table id, persisted client-side per user
+- [x] 5.7 Loading skeleton rows, empty-state slot (explanation + CTA), error state with Retry
+- [x] 5.8 Stories + tests: sort/select/pagination behavior, density matrix, Thai long-string fixtures, skeleton/empty/error states
 
 ## 6. Permission-aware UI layer
 
