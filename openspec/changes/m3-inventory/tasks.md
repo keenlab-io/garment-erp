@@ -98,7 +98,8 @@
   `stock_balance.qty_on_hand=15`
 - [x] 6.2 MAV: receive 10@฿100 then 10@฿120 ⇒ `avg_cost=110`; issuing 5 posts OUT @110
 - [x] 6.3 Backflush producing 100 FG ⇒ FG +100 and each RM −(bom_qty×100×(1+scrap)) at current
-  cost, all atomic; a duplicate `WorkOrderCompleted` does not double-post (idempotent on wo_id)
+  cost, all atomic; a duplicate `WorkOrderCompleted` does not double-post (idempotent on wo_id);
+  a mid-transaction fault (RM OUT leg fails) rolls back fully — the FG IN does not persist
 - [x] 6.4 Replaying `stock_movement` reproduces `stock_balance` exactly (`rebuildBalance`)
 - [x] 6.5 Adjustment without `reason` ⇒ 400; with reason ⇒ one `audit_log` row (actor + reason
   + before/after)
