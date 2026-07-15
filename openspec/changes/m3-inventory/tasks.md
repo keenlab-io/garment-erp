@@ -28,26 +28,26 @@
 
 ## 3. DB schema — `packages/db/src`
 
-- [ ] 3.1 Add inventory enums to `schema/enums.ts` mirroring `enums/inventory.ts` (keep the
+- [x] 3.1 Add inventory enums to `schema/enums.ts` mirroring `enums/inventory.ts` (keep the
   `expectTypeOf` parity test green)
-- [ ] 3.2 Add `schema/inventory/catalog.ts` — `uom`, `uom_conversion` (PK
+- [x] 3.2 Add `schema/inventory/catalog.ts` — `uom`, `uom_conversion` (PK
   `(item_id, from_uom, to_uom)`), `item` (`code` unique, `costing_method` default MAV,
   `standard_cost`, `min_stock`, `attributes`, audit + `version`), `sku` (unique `sku_code`,
   unique `barcode`), `warehouse`
-- [ ] 3.3 Add `schema/inventory/ledger.ts` — `stock_lot` (`qty_remaining`, `unit_cost`,
+- [x] 3.3 Add `schema/inventory/ledger.ts` — `stock_lot` (`qty_remaining`, `unit_cost`,
   `received_at`), `stock_movement` (append-only; `qty` signed, `direction`, `unit_cost`,
   `ref_type`, `ref_id`; index `(item_id, warehouse_id, at)`), `stock_balance` (PK
   `(item_id, warehouse_id)`, `qty_on_hand`, `avg_cost`)
-- [ ] 3.4 Add `schema/inventory/documents.ts` — `goods_receipt(_line)` (`allocated_landed`,
+- [x] 3.4 Add `schema/inventory/documents.ts` — `goods_receipt(_line)` (`allocated_landed`,
   `alloc_method`), `goods_issue(_line)`
-- [ ] 3.5 Add `schema/inventory/bom.ts` — `bom` (`unique(finished_item_id, version)`,
+- [x] 3.5 Add `schema/inventory/bom.ts` — `bom` (`unique(finished_item_id, version)`,
   `conversion_cost`, `is_active`), `bom_line` (`scrap_pct`)
-- [ ] 3.6 Add `schema/inventory/count.ts` — `stock_count(_line)`, `stock_adjustment(_line)`
-- [ ] 3.7 Re-export `schema/inventory/*` from `schema/index.ts`; `pnpm db:generate` and review
-- [ ] 3.8 Author the `stock_movement_append_only` **custom migration** (`drizzle-kit generate
+- [x] 3.6 Add `schema/inventory/count.ts` — `stock_count(_line)`, `stock_adjustment(_line)`
+- [x] 3.7 Re-export `schema/inventory/*` from `schema/index.ts`; `pnpm db:generate` and review
+- [x] 3.8 Author the `stock_movement_append_only` **custom migration** (`drizzle-kit generate
   --custom --name=stock_movement_append_only`) — a `stock_movement_no_mutate()` function +
   `BEFORE UPDATE OR DELETE` trigger, mirroring `0001_audit_append_only.sql`
-- [ ] 3.9 Fix the `ITEM` seed row → `format:"{prefix}{seq:00000}"`, `padding:5` (renders
+- [x] 3.9 Fix the `ITEM` seed row → `format:"{prefix}{seq:00000}"`, `padding:5` (renders
   `AA00001`); seed a default `warehouse` and base `uom` rows (idempotent)
 - [ ] 3.10 `pnpm db:migrate && pnpm db:seed` against dev Postgres; confirm tables, the
   `stock_movement` trigger, and seeds
