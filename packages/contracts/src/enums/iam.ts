@@ -10,8 +10,9 @@ export const UserStatus = {
 } as const;
 export type UserStatus = (typeof UserStatus)[keyof typeof UserStatus];
 
-// Action recorded on each audit_log row. PERMISSION_CHANGE covers authz mutations;
-// APPROVE/VOID cover the audit spec's "sensitive actions".
+// Action recorded on each audit_log row. PERMISSION_CHANGE covers authz mutations and
+// FORCE_LOGOUT the session-revocation path (M1 §1.6); APPROVE/VOID cover the audit spec's
+// "sensitive actions".
 export const AuditAction = {
   CREATE: "CREATE",
   UPDATE: "UPDATE",
@@ -19,6 +20,7 @@ export const AuditAction = {
   LOGIN: "LOGIN",
   LOGOUT: "LOGOUT",
   PERMISSION_CHANGE: "PERMISSION_CHANGE",
+  FORCE_LOGOUT: "FORCE_LOGOUT",
   APPROVE: "APPROVE",
   VOID: "VOID",
 } as const;
