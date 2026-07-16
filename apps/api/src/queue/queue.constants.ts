@@ -6,6 +6,8 @@ export const QUEUES = {
   line: "line",
   pdf: "pdf",
   mvRefresh: "mv-refresh",
+  // Payroll (M2): async run calculation, statutory exports, and the daily probation scan.
+  payroll: "payroll",
   default: "default",
 } as const;
 

@@ -11,6 +11,7 @@ import { ConfigModule } from "./config/config.module.js";
 import { DbModule } from "./db/db.module.js";
 import { EventsModule } from "./events/events.module.js";
 import { HealthController } from "./health/health.controller.js";
+import { HrModule } from "./hr/hr.module.js";
 import { IamModule } from "./iam/iam.module.js";
 import { InventoryModule } from "./inventory/inventory.module.js";
 import { InvoiceController } from "./invoice/invoice.controller.js";
@@ -37,6 +38,7 @@ import { StorageModule } from "./storage/storage.module.js";
     // (RolePermissionResolver) overrides M0's empty-set default (design D1).
     IamModule,
     InventoryModule,
+    HrModule,
     SequenceModule,
     IdempotencyModule,
     QueueModule,

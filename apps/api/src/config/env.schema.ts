@@ -22,6 +22,17 @@ export const envSchema = z.object({
   JWT_ACCESS_TTL: z.string().min(1).default("15m"),
   JWT_REFRESH_TTL: z.string().min(1).default("7d"),
 
+  // PII encryption (M2). A 32-byte AES-256-GCM key as 64 hex characters. Validated
+  // fail-fast at boot (like the JWT secrets) — the crypto helper refuses to start without
+  // it, so national IDs are never stored in plaintext (design D1).
+  ENCRYPTION_KEY: z
+    .string()
+    .regex(/^[0-9a-fA-F]{64}$/, "ENCRYPTION_KEY must be 64 hex characters (32 bytes)"),
+
+  // HR — how many days before an employee's `probation_end_date` the daily scan raises a
+  // `ProbationEnding` alert (design D6). The default of 30 days is a sane dev value.
+  PROBATION_ALERT_DAYS: z.coerce.number().int().positive().default(30),
+
   // Object storage (S3 / MinIO). `S3_FORCE_PATH_STYLE` must be true for MinIO.
   S3_ENDPOINT: z.string().url(),
   S3_REGION: z.string().min(1).default("us-east-1"),
