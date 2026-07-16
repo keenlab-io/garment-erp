@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import type { Queue } from "bullmq";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -10,6 +10,7 @@ import {
   createDb,
   employee,
   otRate,
+  otRequest,
   payrollRun,
   payslip,
   salaryRecord,
@@ -99,6 +100,9 @@ describe.skipIf(!url)("HR & payroll services (integration)", () => {
   };
 
   let employeeId: string;
+  // Every `user` id this spec inserts, so `afterAll` can remove them — the shared DB is
+  // reused by other integration specs (e.g. IAM wipes `user`).
+  const createdUserIds: string[] = [];
 
   beforeAll(async () => {
     conn = createDb(url as string, { max: 1 });
@@ -135,6 +139,7 @@ describe.skipIf(!url)("HR & payroll services (integration)", () => {
       status: "ACTIVE",
       isSuperAdmin: true,
     });
+    createdUserIds.push(superAdmin.id);
 
     // Seed the effective-dated payroll config.
     await conn.db.insert(taxBracket).values(
@@ -183,6 +188,19 @@ describe.skipIf(!url)("HR & payroll services (integration)", () => {
   });
 
   afterAll(async () => {
+    // Remove every row this spec wrote (children first) so nothing dangles into another
+    // integration spec — notably the `salary_record`/run/advance rows that FK to `user`.
+    await conn.db.delete(payslip).where(eq(payslip.employeeId, employeeId));
+    await conn.db.delete(payrollRun).where(eq(payrollRun.period, "2026-07"));
+    await conn.db.delete(otRequest).where(eq(otRequest.employeeId, employeeId));
+    await conn.db.delete(attendance).where(eq(attendance.employeeId, employeeId));
+    await conn.db.delete(cashAdvance).where(eq(cashAdvance.employeeId, employeeId));
+    await conn.db.delete(salaryRecord).where(eq(salaryRecord.employeeId, employeeId));
+    // Users go before the employee — `user.employee_id` FKs to it (the self-view row).
+    if (createdUserIds.length > 0) {
+      await conn.db.delete(user).where(inArray(user.id, createdUserIds));
+    }
+    await conn.db.delete(employee).where(eq(employee.id, employeeId));
     await conn.queryClient.end();
   });
 
@@ -353,6 +371,7 @@ describe.skipIf(!url)("HR & payroll services (integration)", () => {
       status: "ACTIVE",
       employeeId,
     });
+    createdUserIds.push(selfUser.id);
     const selfUrl = await payslips.getPdfUrl(slip.id, selfUser);
     expect(selfUrl).toContain(key);
     expect(selfUrl).toContain("X-Expires=900");
@@ -381,6 +400,7 @@ describe.skipIf(!url)("HR & payroll services (integration)", () => {
       passwordHash: "x",
       status: "ACTIVE",
     });
+    createdUserIds.push(stranger.id);
     await expect(payslips.getPdfUrl(slip.id, stranger)).rejects.toBeInstanceOf(
       ForbiddenError,
     );
