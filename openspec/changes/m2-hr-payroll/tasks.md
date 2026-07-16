@@ -99,7 +99,7 @@
 - [x] 5.3 A user lacking `hr.salary.view` gets employee records with monetary fields
   **omitted** (absent, not nulled-then-shown); a holder sees them
 - [x] 5.4 Approving a payroll run twice ⇒ second call 409; recalc after APPROVED ⇒ 409
-- [ ] 5.5 Payslip `GET /pdf` returns an expiring signed URL; opening the PDF requires the
+- [x] 5.5 Payslip `GET /pdf` returns an expiring signed URL; opening the PDF requires the
   configured password; unauthorized caller ⇒ 403
 - [x] 5.6 PII: national ID stored as ciphertext (round-trips to plaintext via the helper);
   boot fails without a valid `ENCRYPTION_KEY`

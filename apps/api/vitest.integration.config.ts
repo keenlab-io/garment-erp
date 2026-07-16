@@ -12,6 +12,10 @@ export default mergeConfig(
     plugins: [swc.vite({ module: { type: "es6" } })],
     test: {
       globalSetup: ["./test/integration/global-setup.ts"],
+      // All integration specs share the one Testcontainers Postgres, and some (IAM) wipe
+      // whole tables between tests. Run the files one at a time so a spec never observes
+      // another's in-flight rows (e.g. an HR `salary_record` blocking the IAM `user` wipe).
+      fileParallelism: false,
     },
   }),
 );
