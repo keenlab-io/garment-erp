@@ -61,3 +61,49 @@ export type StockCountStatus = "OPEN" | "COUNTING" | "RECONCILED" | "ADJUSTED" |
 
 // Stock-adjustment lifecycle: DRAFT → APPROVED → POSTED (ledger ADJUST).
 export type StockAdjustmentStatus = "DRAFT" | "APPROVED" | "POSTED";
+
+// ── M2 HR & Payroll (spec §2.3) ───────────────────────────────────────────────
+// These duplicate the enums in `packages/contracts/src/enums/hr.ts` (the same
+// no-cross-import rule as the IAM/inventory enums above); the parity test keeps them
+// in lockstep.
+
+// How an employee is paid. DAILY is wage-per-day; MONTHLY is a fixed salary.
+export type EmploymentType = "DAILY" | "MONTHLY";
+
+// Employee lifecycle. New hires default to PROBATION; ACTIVE after confirmation;
+// RESIGNED/SUSPENDED remove them from active payroll.
+export type EmployeeStatus = "PROBATION" | "ACTIVE" | "RESIGNED" | "SUSPENDED";
+
+// OT-request state machine: DRAFT → SUBMITTED → {APPROVED → RECONCILED → PAID | REJECTED}.
+// RECONCILED fixes approved_hours = min(requested, attended).
+export type OtRequestStatus =
+  | "DRAFT"
+  | "SUBMITTED"
+  | "APPROVED"
+  | "REJECTED"
+  | "RECONCILED"
+  | "PAID";
+
+// Cash-advance state machine: SUBMITTED → {APPROVED (super-admin) → DISBURSED → REPAYING →
+// CLEARED | REJECTED}. Ceiling is checked at SUBMITTED.
+export type CashAdvanceStatus =
+  | "SUBMITTED"
+  | "APPROVED"
+  | "REJECTED"
+  | "DISBURSED"
+  | "REPAYING"
+  | "CLEARED";
+
+// Payroll-run state machine: DRAFT → CALCULATED → APPROVED → PAID → CLOSED (no backward
+// transitions). Re-calculation is only allowed while DRAFT/CALCULATED.
+export type PayrollRunStatus = "DRAFT" | "CALCULATED" | "APPROVED" | "PAID" | "CLOSED";
+
+// Kind of employee document. Files live in object storage, reachable only via signed URLs.
+export type EmployeeDocumentType = "ID_CARD" | "CONTRACT" | "CERTIFICATE" | "OTHER";
+
+// Pay-component direction. ALLOWANCE adds to gross, DEDUCTION subtracts from net.
+export type PayComponentType = "ALLOWANCE" | "DEDUCTION";
+
+// Cash-advance repayment mode. LUMP repays in one pull; INSTALLMENT spreads it over
+// `installments` payroll periods.
+export type RepaymentMode = "LUMP" | "INSTALLMENT";
