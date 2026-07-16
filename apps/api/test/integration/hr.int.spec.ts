@@ -15,6 +15,7 @@ import {
   payslip,
   ssoConfig,
   taxBracket,
+  user,
 } from "@erp/db";
 import type { AuthUser } from "../../src/auth/auth-user.js";
 import { CryptoService } from "../../src/common/crypto/crypto.service.js";
@@ -95,6 +96,22 @@ describe.skipIf(!url)("HR & Payroll services (integration)", () => {
       payslips,
       events,
     );
+
+    // A real user row for the actor — salary/OT/advance/run rows FK `created_by`/`approver`
+    // back to `user`.
+    const tag = actor.id.slice(0, 8);
+    await db
+      .insert(user)
+      .values({
+        id: actor.id,
+        username: `hr-test-${tag}`,
+        email: `hr-test-${tag}@test.local`,
+        passwordHash: "x",
+        status: "ACTIVE",
+        isSuperAdmin: true,
+        permissionsVersion: 1,
+      })
+      .onConflictDoNothing();
 
     // Seed the emp_code sequence + non-authoritative payroll config (mirrors the dev seed).
     await db
