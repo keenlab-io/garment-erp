@@ -2,13 +2,21 @@ import { describe, expectTypeOf, it } from "vitest";
 import type {
   AllocMethod as ContractAllocMethod,
   AuditAction as ContractAuditAction,
+  CashAdvanceStatus as ContractCashAdvanceStatus,
   CostingMethod as ContractCostingMethod,
+  EmployeeDocumentType as ContractEmployeeDocumentType,
+  EmployeeStatus as ContractEmployeeStatus,
+  EmploymentType as ContractEmploymentType,
   GoodsIssueStatus as ContractGoodsIssueStatus,
   GoodsReceiptStatus as ContractGoodsReceiptStatus,
   IssuePurpose as ContractIssuePurpose,
   ItemType as ContractItemType,
   MovementDirection as ContractMovementDirection,
   MovementRefType as ContractMovementRefType,
+  OtRequestStatus as ContractOtRequestStatus,
+  PayComponentType as ContractPayComponentType,
+  PayrollRunStatus as ContractPayrollRunStatus,
+  RepaymentMode as ContractRepaymentMode,
   StockAdjustmentStatus as ContractStockAdjustmentStatus,
   StockCountStatus as ContractStockCountStatus,
   UserStatus as ContractUserStatus,
@@ -16,13 +24,21 @@ import type {
 import type {
   AllocMethod as DbAllocMethod,
   AuditAction as DbAuditAction,
+  CashAdvanceStatus as DbCashAdvanceStatus,
   CostingMethod as DbCostingMethod,
+  EmployeeDocumentType as DbEmployeeDocumentType,
+  EmployeeStatus as DbEmployeeStatus,
+  EmploymentType as DbEmploymentType,
   GoodsIssueStatus as DbGoodsIssueStatus,
   GoodsReceiptStatus as DbGoodsReceiptStatus,
   IssuePurpose as DbIssuePurpose,
   ItemType as DbItemType,
   MovementDirection as DbMovementDirection,
   MovementRefType as DbMovementRefType,
+  OtRequestStatus as DbOtRequestStatus,
+  PayComponentType as DbPayComponentType,
+  PayrollRunStatus as DbPayrollRunStatus,
+  RepaymentMode as DbRepaymentMode,
   StockAdjustmentStatus as DbStockAdjustmentStatus,
   StockCountStatus as DbStockCountStatus,
   UserStatus as DbUserStatus,
@@ -78,5 +94,37 @@ describe("enum parity: @erp/contracts <-> @erp/db", () => {
 
   it("StockAdjustmentStatus unions are identical", () => {
     expectTypeOf<ContractStockAdjustmentStatus>().toEqualTypeOf<DbStockAdjustmentStatus>();
+  });
+
+  it("EmploymentType unions are identical", () => {
+    expectTypeOf<ContractEmploymentType>().toEqualTypeOf<DbEmploymentType>();
+  });
+
+  it("EmployeeStatus unions are identical", () => {
+    expectTypeOf<ContractEmployeeStatus>().toEqualTypeOf<DbEmployeeStatus>();
+  });
+
+  it("OtRequestStatus unions are identical", () => {
+    expectTypeOf<ContractOtRequestStatus>().toEqualTypeOf<DbOtRequestStatus>();
+  });
+
+  it("CashAdvanceStatus unions are identical", () => {
+    expectTypeOf<ContractCashAdvanceStatus>().toEqualTypeOf<DbCashAdvanceStatus>();
+  });
+
+  it("PayrollRunStatus unions are identical", () => {
+    expectTypeOf<ContractPayrollRunStatus>().toEqualTypeOf<DbPayrollRunStatus>();
+  });
+
+  it("EmployeeDocumentType unions are identical", () => {
+    expectTypeOf<ContractEmployeeDocumentType>().toEqualTypeOf<DbEmployeeDocumentType>();
+  });
+
+  it("PayComponentType unions are identical", () => {
+    expectTypeOf<ContractPayComponentType>().toEqualTypeOf<DbPayComponentType>();
+  });
+
+  it("RepaymentMode unions are identical", () => {
+    expectTypeOf<ContractRepaymentMode>().toEqualTypeOf<DbRepaymentMode>();
   });
 });

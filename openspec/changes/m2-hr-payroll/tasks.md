@@ -26,27 +26,27 @@
 
 ## 2. DB schema — `packages/db/src`
 
-- [ ] 2.1 Add HR enums to `schema/enums.ts` mirroring `enums/hr.ts` (keep the `expectTypeOf`
+- [x] 2.1 Add HR enums to `schema/enums.ts` mirroring `enums/hr.ts` (keep the `expectTypeOf`
   parity test green)
-- [ ] 2.2 Add `schema/hr/org.ts` — `department` (self-FK `parent_id`), `position`
+- [x] 2.2 Add `schema/hr/org.ts` — `department` (self-FK `parent_id`), `position`
   (`department_id` FK)
-- [ ] 2.3 Add `schema/hr/employee.ts` — `employee` (`emp_code` unique, `national_id_enc`
+- [x] 2.3 Add `schema/hr/employee.ts` — `employee` (`emp_code` unique, `national_id_enc`
   bytea, `profile` jsonb, `position_id` FK, `employment_type`, `status` default PROBATION,
   `hire_date`, `probation_end_date`, audit + `version`), `reporting_line`
   (PK `employee_id`, `manager_employee_id` self-FK), `employee_document`
-- [ ] 2.4 Add `schema/hr/compensation.ts` — `salary_record`, `pay_component`,
+- [x] 2.4 Add `schema/hr/compensation.ts` — `salary_record`, `pay_component`,
   `employee_pay_component` (PK `(employee_id, pay_component_id)`) using `money()`
-- [ ] 2.5 Add `schema/hr/time.ts` — `ot_request`, `attendance` (PK `(employee_id, work_date)`)
-- [ ] 2.6 Add `schema/hr/cash-advance.ts` — `cash_advance` (`repayment_plan` jsonb,
+- [x] 2.5 Add `schema/hr/time.ts` — `ot_request`, `attendance` (PK `(employee_id, work_date)`)
+- [x] 2.6 Add `schema/hr/cash-advance.ts` — `cash_advance` (`repayment_plan` jsonb,
   `outstanding` money, `version`)
-- [ ] 2.7 Add `schema/hr/payroll.ts` — `payroll_run` (`unique(period)`, `version`), `payslip`
+- [x] 2.7 Add `schema/hr/payroll.ts` — `payroll_run` (`unique(period)`, `version`), `payslip`
   (`breakdown` jsonb, `unique(run_id, employee_id)`, `pdf_key`)
-- [ ] 2.8 Add `schema/hr/config.ts` — effective-dated `tax_bracket`, `sso_config`, `ot_rate`
+- [x] 2.8 Add `schema/hr/config.ts` — effective-dated `tax_bracket`, `sso_config`, `ot_rate`
   (multiplier per `rate_type`), `advance_policy`
-- [ ] 2.9 Add the `user.employeeId → employee(id)` FK constraint to `platform/users.ts`
+- [x] 2.9 Add the `user.employeeId → employee(id)` FK constraint to `platform/users.ts`
   (M1 added the bare column)
-- [ ] 2.10 Re-export `schema/hr/*` from `schema/index.ts`; `pnpm db:generate` and review
-- [ ] 2.11 Adjust the seeded `EMPLOYEE` `document_sequence` row → `includeYear:false`,
+- [x] 2.10 Re-export `schema/hr/*` from `schema/index.ts`; `pnpm db:generate` and review
+- [x] 2.11 Adjust the seeded `EMPLOYEE` `document_sequence` row → `includeYear:false`,
   `format:"{prefix}{seq:0000}"` (renders `EXT0001`); seed default config rows (tax/SSO/OT/advance)
 - [ ] 2.12 `pnpm db:migrate && pnpm db:seed` against dev Postgres; confirm tables + FK + seeds
 

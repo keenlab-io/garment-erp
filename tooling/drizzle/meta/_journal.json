@@ -36,6 +36,13 @@
       "when": 1784134105309,
       "tag": "0004_stock_movement_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784160015121,
+      "tag": "0005_acoustic_dark_phoenix",
+      "breakpoints": true
     }
   ]
 }
