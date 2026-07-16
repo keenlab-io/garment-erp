@@ -52,62 +52,62 @@
 
 ## 3. Cross-cutting infra — `apps/api/src`
 
-- [ ] 3.1 Add `ENCRYPTION_KEY` (32-byte) to `config/env.schema.ts` (fail-fast) and to
+- [x] 3.1 Add `ENCRYPTION_KEY` (32-byte) to `config/env.schema.ts` (fail-fast) and to
   docker-compose/devcontainer env
-- [ ] 3.2 Implement `common/crypto/` — AES-256-GCM `encrypt(plain) → Buffer` /
+- [x] 3.2 Implement `common/crypto/` — AES-256-GCM `encrypt(plain) → Buffer` /
   `decrypt(buf) → string` using Node `crypto`; ciphertext = `iv‖tag‖ct`
-- [ ] 3.3 Implement `common/` salary-gating projection helper — omit monetary keys when
+- [x] 3.3 Implement `common/` salary-gating projection helper — omit monetary keys when
   `!user.isSuperAdmin && !user.permissions.has('hr.salary.view')` (delete keys, never null)
-- [ ] 3.4 Add `qpdf` to `.devcontainer/Dockerfile` (apt) and note the prod image; add
+- [x] 3.4 Add `qpdf` to `.devcontainer/Dockerfile` (apt) and note the prod image; add
   `node-qpdf2` to `apps/api` deps
-- [ ] 3.5 Add BullMQ producer/worker plumbing — first `@InjectQueue` producers; `@Processor`
+- [x] 3.5 Add BullMQ producer/worker plumbing — first `@InjectQueue` producers; `@Processor`
   workers extending `BaseWorker`; a **repeatable** job upserted at module init for probation alerts
 
 ## 4. Nest module — `apps/api/src/hr`
 
-- [ ] 4.1 `EmployeeService` — create (issue `emp_code` via SequenceService, PII-encrypt
+- [x] 4.1 `EmployeeService` — create (issue `emp_code` via SequenceService, PII-encrypt
   national ID/bank fields, emit `EmployeeCreated`), get/list (apply salary-gating), update
   (`If-Match`), documents (StorageService), org (dept/position/reporting-line)
-- [ ] 4.2 `CompensationService` — salary history (current = latest effective ≤ today),
+- [x] 4.2 `CompensationService` — salary history (current = latest effective ≤ today),
   pay components / employee overrides
-- [ ] 4.3 `OtService` — lifecycle + reconcile (`approved_hours = min(requested, attended)`),
+- [x] 4.3 `OtService` — lifecycle + reconcile (`approved_hours = min(requested, attended)`),
   OT pay = `approved_hours × hourly_rate × rate_multiplier`, emit `OTApproved`
-- [ ] 4.4 `CashAdvanceService` — submit (ceiling check → 422), approve (`is_super_admin`),
+- [x] 4.4 `CashAdvanceService` — submit (ceiling check → 422), approve (`is_super_admin`),
   disburse (`outstanding = amount`), emit `CashAdvanceApproved`/`CashAdvanceDisbursed`
-- [ ] 4.5 `AttendanceService` — Excel/CSV import upserting `(employee, work_date)`
-- [ ] 4.6 `PayrollService` + calculate worker — enqueue calculate (202 `job_id`), build
+- [x] 4.5 `AttendanceService` — Excel/CSV import upserting `(employee, work_date)`
+- [x] 4.6 `PayrollService` + calculate worker — enqueue calculate (202 `job_id`), build
   payslips + snapshot `breakdown`, net formula via `@erp/utils` decimals (to the cent),
   idempotent on `run_id`; `approve` pulls advances + decrements `outstanding` (→ CLEARED),
   409 on double-approve, recalc only DRAFT/CALCULATED; emit `PayrollApproved`
-- [ ] 4.7 `PayslipService` + payslip PDF `@Processor('pdf')` worker — render (PdfService) →
+- [x] 4.7 `PayslipService` + payslip PDF `@Processor('pdf')` worker — render (PdfService) →
   encrypt (qpdf) → store (StorageService) → set `pdf_key` → emit `PayslipGenerated`; download
   returns 302 signed URL (self or `hr.payslip.view`)
-- [ ] 4.8 `ExportService` — PND.1 / SSO async export jobs (non-authoritative)
-- [ ] 4.9 `PayrollConfigService` — effective-dated config read + admin CRUD
-- [ ] 4.10 Probation worker — daily scan for `probation_end_date` within N days → `ProbationEnding`
-- [ ] 4.11 ts-rest `HrController`(s) — `@TsRestHandler(contract.hr)`; in-handler
+- [x] 4.8 `ExportService` — PND.1 / SSO async export jobs (non-authoritative)
+- [x] 4.9 `PayrollConfigService` — effective-dated config read + admin CRUD
+- [x] 4.10 Probation worker — daily scan for `probation_end_date` within N days → `ProbationEnding`
+- [x] 4.11 ts-rest `HrController`(s) — `@TsRestHandler(contract.hr)`; in-handler
   `assertPermissions(user, "hr.…")`; wrap mutations in `uow.withTransaction`; `HrModule`
   imports Storage/Pdf/Queue; wire into `app.module.ts`
-- [ ] 4.12 Verify: `pnpm build && pnpm typecheck && pnpm lint` green; API boots and maps the
+- [x] 4.12 Verify: `pnpm build && pnpm typecheck && pnpm lint` green; API boots and maps the
   new `/api/v1` HR routes
 
 ## 5. Tests (spec §2.8 + PII)
 
-- [ ] 5.1 OT requested 3h, attendance 2h ⇒ reconcile sets `approved_hours=2`, pay reflects 2h
-- [ ] 5.2 Approved run auto-inserts each employee's outstanding advance into deductions;
+- [x] 5.1 OT requested 3h, attendance 2h ⇒ reconcile sets `approved_hours=2`, pay reflects 2h
+- [x] 5.2 Approved run auto-inserts each employee's outstanding advance into deductions;
   `net` equals the formula **to the cent**; advance `outstanding` decremented (→ CLEARED at 0)
-- [ ] 5.3 A user lacking `hr.salary.view` gets employee records with monetary fields
+- [x] 5.3 A user lacking `hr.salary.view` gets employee records with monetary fields
   **omitted** (absent, not nulled-then-shown); a holder sees them
-- [ ] 5.4 Approving a payroll run twice ⇒ second call 409; recalc after APPROVED ⇒ 409
+- [x] 5.4 Approving a payroll run twice ⇒ second call 409; recalc after APPROVED ⇒ 409
 - [ ] 5.5 Payslip `GET /pdf` returns an expiring signed URL; opening the PDF requires the
   configured password; unauthorized caller ⇒ 403
-- [ ] 5.6 PII: national ID stored as ciphertext (round-trips to plaintext via the helper);
+- [x] 5.6 PII: national ID stored as ciphertext (round-trips to plaintext via the helper);
   boot fails without a valid `ENCRYPTION_KEY`
-- [ ] 5.7 Cash advance over ceiling ⇒ 422; non-super-admin approve ⇒ 403
+- [x] 5.7 Cash advance over ceiling ⇒ 422; non-super-admin approve ⇒ 403
 
 ## 6. Verification
 
-- [ ] 6.1 `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green from the repo root
+- [x] 6.1 `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green from the repo root
 - [ ] 6.2 `pnpm db:generate` clean after migration; `pnpm db:migrate && pnpm db:seed` run
   cleanly against a fresh DB (tables, `user.employeeId` FK, config seeds present)
 - [ ] 6.3 Boot `pnpm dev` and drive end-to-end: create employee (emp_code `EXT0001`, PII

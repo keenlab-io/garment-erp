@@ -35,6 +35,8 @@ services:
       S3_FORCE_PATH_STYLE: "true"
       JWT_ACCESS_SECRET: dev-access-secret-change-me
       JWT_REFRESH_SECRET: dev-refresh-secret-change-me
+      # 32-byte AES-256-GCM key (64 hex chars) for M2 PII encryption — dev-only placeholder.
+      ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
     depends_on:
       postgres:
         condition: service_healthy

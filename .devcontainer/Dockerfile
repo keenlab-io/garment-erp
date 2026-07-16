@@ -28,6 +28,7 @@ RUN apt-get update \
     && export DEBIAN_FRONTEND=noninteractive \
     && apt-get install -y --no-install-recommends \
         postgresql-client \
+        qpdf \
         libnss3 libatk-bridge2.0-0 libatk1.0-0 libcups2 libdrm2 libgbm1 \
         libasound2 libpangocairo-1.0-0 libxkbcommon0 libxcomposite1 \
         libxdamage1 libxfixes3 libxrandr2 libgtk-3-0 libxshmfence1 \
