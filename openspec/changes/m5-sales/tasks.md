@@ -30,27 +30,27 @@
 
 ## 3. DB schema — `packages/db/src`
 
-- [ ] 3.1 Add sales enums to `schema/enums.ts` mirroring `enums/sales.ts` (keep the
+- [x] 3.1 Add sales enums to `schema/enums.ts` mirroring `enums/sales.ts` (keep the
   `expectTypeOf` parity test green)
-- [ ] 3.2 Add `schema/sales/customer.ts` — `customer` (`tax_id`, `branch_code`,
+- [x] 3.2 Add `schema/sales/customer.ts` — `customer` (`tax_id`, `branch_code`,
   `addresses jsonb`, `credit_terms_days`, `auditColumns`, `versionColumn`)
-- [ ] 3.3 Add `schema/sales/quotation.ts` — `quotation` (`doc_no` unique, `customer_id` FK,
+- [x] 3.3 Add `schema/sales/quotation.ts` — `quotation` (`doc_no` unique, `customer_id` FK,
   `vat_mode`, `vat_calc`, `subtotal`/`vat`/`grand_total` `money()`, `status`, `version`)
-- [ ] 3.4 Add `schema/sales/invoice.ts` — `invoice` (`doc_no` unique, `quotation_id` FK
+- [x] 3.4 Add `schema/sales/invoice.ts` — `invoice` (`doc_no` unique, `quotation_id` FK
   nullable, `customer_id` FK, `wht_rate` `rate()`, totals `money()`, `amount_paid`, `due_date`,
   `status`, `version`)
-- [ ] 3.5 Add `schema/sales/doc-line.ts` — `doc_line` (polymorphic `parent_type`/`parent_id`,
+- [x] 3.5 Add `schema/sales/doc-line.ts` — `doc_line` (polymorphic `parent_type`/`parent_id`,
   indexed; `item_id` **bare nullable uuid, no FK**; `description`, `qty()`, `unit_price money()`,
   `line_total money()`)
-- [ ] 3.6 Add `schema/sales/payment.ts` — `payment` (`invoice_id` FK, `method`, `amount money()`,
+- [x] 3.6 Add `schema/sales/payment.ts` — `payment` (`invoice_id` FK, `method`, `amount money()`,
   `promptpay_ref`, `paid_at`), `receipt_tax_invoice` (`invoice_id` FK, `doc_no` unique, `type`),
   `wht_certificate` (`invoice_id` FK, `amount money()`, `cert_no`)
-- [ ] 3.7 Add `schema/sales/document-template.ts` — `document_template` (`layout jsonb`,
+- [x] 3.7 Add `schema/sales/document-template.ts` — `document_template` (`layout jsonb`,
   `logo_key`/`signature_key`/`stamp_key`, `is_active`)
-- [ ] 3.8 Re-export `schema/sales/*` from `schema/index.ts`; `pnpm db:generate` and review
-- [ ] 3.9 Add the `RECEIPT` seed row to `BASE_SEQUENCES` — `{ key:"RECEIPT", prefix:"RE",
+- [x] 3.8 Re-export `schema/sales/*` from `schema/index.ts`; `pnpm db:generate` and review
+- [x] 3.9 Add the `RECEIPT` seed row to `BASE_SEQUENCES` — `{ key:"RECEIPT", prefix:"RE",
   includeYear:true, resetYearly:true, format:"{prefix}{yyyy}{seq:0000}" }` (renders `RE20260001`)
-- [ ] 3.10 `pnpm db:migrate && pnpm db:seed` against dev Postgres; confirm the sales tables and
+- [x] 3.10 `pnpm db:migrate && pnpm db:seed` against dev Postgres; confirm the sales tables and
   the `RECEIPT` sequence
 
 ## 4. Config, deps & infra — `apps/api/src`
