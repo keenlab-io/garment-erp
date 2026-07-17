@@ -16,10 +16,15 @@ import type {
   OtRequestStatus as ContractOtRequestStatus,
   PayComponentType as ContractPayComponentType,
   PayrollRunStatus as ContractPayrollRunStatus,
+  ProductType as ContractProductType,
   RepaymentMode as ContractRepaymentMode,
+  ScanAction as ContractScanAction,
   StockAdjustmentStatus as ContractStockAdjustmentStatus,
   StockCountStatus as ContractStockCountStatus,
+  SubcontractStatus as ContractSubcontractStatus,
   UserStatus as ContractUserStatus,
+  WorkOrderStatus as ContractWorkOrderStatus,
+  WorkOrderStepStatus as ContractWorkOrderStepStatus,
 } from "@erp/contracts";
 import type {
   AllocMethod as DbAllocMethod,
@@ -38,10 +43,15 @@ import type {
   OtRequestStatus as DbOtRequestStatus,
   PayComponentType as DbPayComponentType,
   PayrollRunStatus as DbPayrollRunStatus,
+  ProductType as DbProductType,
   RepaymentMode as DbRepaymentMode,
+  ScanAction as DbScanAction,
   StockAdjustmentStatus as DbStockAdjustmentStatus,
   StockCountStatus as DbStockCountStatus,
+  SubcontractStatus as DbSubcontractStatus,
   UserStatus as DbUserStatus,
+  WorkOrderStatus as DbWorkOrderStatus,
+  WorkOrderStepStatus as DbWorkOrderStepStatus,
 } from "@erp/db";
 
 // `@erp/db` may not import `@erp/contracts` (M0 design D1), so the two duplicate the
@@ -126,5 +136,25 @@ describe("enum parity: @erp/contracts <-> @erp/db", () => {
 
   it("RepaymentMode unions are identical", () => {
     expectTypeOf<ContractRepaymentMode>().toEqualTypeOf<DbRepaymentMode>();
+  });
+
+  it("WorkOrderStatus unions are identical", () => {
+    expectTypeOf<ContractWorkOrderStatus>().toEqualTypeOf<DbWorkOrderStatus>();
+  });
+
+  it("WorkOrderStepStatus unions are identical", () => {
+    expectTypeOf<ContractWorkOrderStepStatus>().toEqualTypeOf<DbWorkOrderStepStatus>();
+  });
+
+  it("SubcontractStatus unions are identical", () => {
+    expectTypeOf<ContractSubcontractStatus>().toEqualTypeOf<DbSubcontractStatus>();
+  });
+
+  it("ScanAction unions are identical", () => {
+    expectTypeOf<ContractScanAction>().toEqualTypeOf<DbScanAction>();
+  });
+
+  it("ProductType unions are identical", () => {
+    expectTypeOf<ContractProductType>().toEqualTypeOf<DbProductType>();
   });
 });
