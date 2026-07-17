@@ -16,6 +16,7 @@ import { IamModule } from "./iam/iam.module.js";
 import { InventoryModule } from "./inventory/inventory.module.js";
 import { InvoiceController } from "./invoice/invoice.controller.js";
 import { PdfModule } from "./pdf/pdf.module.js";
+import { ProductionModule } from "./production/production.module.js";
 import { QueueModule } from "./queue/queue.module.js";
 import { RealtimeModule } from "./realtime/realtime.module.js";
 import { SequenceModule } from "./sequence/sequence.module.js";
@@ -39,6 +40,7 @@ import { StorageModule } from "./storage/storage.module.js";
     IamModule,
     InventoryModule,
     HrModule,
+    ProductionModule,
     SequenceModule,
     IdempotencyModule,
     QueueModule,

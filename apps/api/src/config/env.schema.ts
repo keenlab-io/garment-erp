@@ -33,6 +33,11 @@ export const envSchema = z.object({
   // `ProbationEnding` alert (design D6). The default of 30 days is a sane dev value.
   PROBATION_ALERT_DAYS: z.coerce.number().int().positive().default(30),
 
+  // Production — how often (ms) the repeatable monitor sweep runs to flag delayed steps and
+  // overdue subcontracts (M4 design D5). The default of 60s matches the acceptable alert
+  // latency; tune down in dev, up in prod.
+  PRODUCTION_MONITOR_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
+
   // Object storage (S3 / MinIO). `S3_FORCE_PATH_STYLE` must be true for MinIO.
   S3_ENDPOINT: z.string().url(),
   S3_REGION: z.string().min(1).default("us-east-1"),
