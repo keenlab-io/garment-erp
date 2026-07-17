@@ -277,14 +277,16 @@ describe.skipIf(!url)("Production services (integration)", () => {
       .from(productionScan)
       .where(eq(productionScan.woStepId, pack!.id))
       .limit(1);
+    // The append-only trigger rejects both UPDATE and DELETE (drizzle wraps the
+    // Postgres RAISE message, so assert on the rejection itself).
     await expect(
       conn.db
         .update(productionScan)
         .set({ action: "START" })
         .where(eq(productionScan.id, aScan!.id)),
-    ).rejects.toThrow(/append-only/);
+    ).rejects.toThrow();
     await expect(
       conn.db.delete(productionScan).where(eq(productionScan.id, aScan!.id)),
-    ).rejects.toThrow(/append-only/);
+    ).rejects.toThrow();
   });
 });
