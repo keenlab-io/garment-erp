@@ -6,21 +6,21 @@
 
 ## 1. Contracts — `packages/contracts/src`
 
-- [ ] 1.1 Add `enums/sales.ts` — `vat_mode` (`VAT | NON_VAT`), `quotation_status`
+- [x] 1.1 Add `enums/sales.ts` — `vat_mode` (`VAT | NON_VAT`), `quotation_status`
   (`DRAFT|SENT|APPROVED|CONVERTED|EXPIRED|REJECTED|VOID`), `invoice_status`
   (`DRAFT|ISSUED|PARTIALLY_PAID|PAID|OVERDUE|VOID`), `receipt_type`
   (`RECEIPT|TAX_INVOICE|RECEIPT_TAX_INVOICE`), `payment_method`. **Reuse** the existing
   `VatMode` (`VatNai|VatNok`) for `vat_calc` and `DocType` (`QV|QNV`) for quotation mode.
-- [ ] 1.2 Add `dto/sales.ts` — `salesContract` (`pathPrefix: API_PREFIX`, `withErrors`):
+- [x] 1.2 Add `dto/sales.ts` — `salesContract` (`pathPrefix: API_PREFIX`, `withErrors`):
   customers (`create`, `GET ?search=`); quotations (`create`, `send`/`approve`/`reject`,
   `convert`); invoices (`create`, `issue`, `payments`, `void`, `GET /{id}/promptpay-qr`,
   `GET /{id}/export?format=`, `GET /{id}/wht-certificate`); `reports/aging`;
   `etax/{invoice_id}/submit`. Async endpoints return the `jobAccepted` (202 `{ job_id }`)
   shape; lists via `paginationQuery` + `paginated`.
-- [ ] 1.3 Register `sales: salesContract` on the root `contract` in `dto/index.ts` and
+- [x] 1.3 Register `sales: salesContract` on the root `contract` in `dto/index.ts` and
   **remove the demo `invoices: invoiceContract`** key + the `dto/invoice.ts` export. Export the
   new DTO types. (The 7 `sales.*` codes already exist in the catalog.)
-- [ ] 1.4 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 1.4 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 2. `@erp/utils` — `packages/utils/src`
 

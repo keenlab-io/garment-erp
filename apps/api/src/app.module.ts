@@ -14,7 +14,6 @@ import { HealthController } from "./health/health.controller.js";
 import { HrModule } from "./hr/hr.module.js";
 import { IamModule } from "./iam/iam.module.js";
 import { InventoryModule } from "./inventory/inventory.module.js";
-import { InvoiceController } from "./invoice/invoice.controller.js";
 import { PdfModule } from "./pdf/pdf.module.js";
 import { ProductionModule } from "./production/production.module.js";
 import { QueueModule } from "./queue/queue.module.js";
@@ -48,7 +47,7 @@ import { StorageModule } from "./storage/storage.module.js";
     PdfModule,
     RealtimeModule,
   ],
-  controllers: [HealthController, InvoiceController],
+  controllers: [HealthController],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_GUARD, useClass: JwtGuard },
