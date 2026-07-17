@@ -9,20 +9,26 @@ import type {
   EmploymentType as ContractEmploymentType,
   GoodsIssueStatus as ContractGoodsIssueStatus,
   GoodsReceiptStatus as ContractGoodsReceiptStatus,
+  InvoiceStatus as ContractInvoiceStatus,
   IssuePurpose as ContractIssuePurpose,
   ItemType as ContractItemType,
   MovementDirection as ContractMovementDirection,
   MovementRefType as ContractMovementRefType,
   OtRequestStatus as ContractOtRequestStatus,
   PayComponentType as ContractPayComponentType,
+  PaymentMethod as ContractPaymentMethod,
   PayrollRunStatus as ContractPayrollRunStatus,
   ProductType as ContractProductType,
+  QuotationStatus as ContractQuotationStatus,
+  ReceiptType as ContractReceiptType,
   RepaymentMode as ContractRepaymentMode,
   ScanAction as ContractScanAction,
   StockAdjustmentStatus as ContractStockAdjustmentStatus,
   StockCountStatus as ContractStockCountStatus,
   SubcontractStatus as ContractSubcontractStatus,
   UserStatus as ContractUserStatus,
+  VatApplicability as ContractVatApplicability,
+  VatMode as ContractVatMode,
   WorkOrderStatus as ContractWorkOrderStatus,
   WorkOrderStepStatus as ContractWorkOrderStepStatus,
 } from "@erp/contracts";
@@ -36,20 +42,26 @@ import type {
   EmploymentType as DbEmploymentType,
   GoodsIssueStatus as DbGoodsIssueStatus,
   GoodsReceiptStatus as DbGoodsReceiptStatus,
+  InvoiceStatus as DbInvoiceStatus,
   IssuePurpose as DbIssuePurpose,
   ItemType as DbItemType,
   MovementDirection as DbMovementDirection,
   MovementRefType as DbMovementRefType,
   OtRequestStatus as DbOtRequestStatus,
   PayComponentType as DbPayComponentType,
+  PaymentMethod as DbPaymentMethod,
   PayrollRunStatus as DbPayrollRunStatus,
   ProductType as DbProductType,
+  QuotationStatus as DbQuotationStatus,
+  ReceiptType as DbReceiptType,
   RepaymentMode as DbRepaymentMode,
   ScanAction as DbScanAction,
   StockAdjustmentStatus as DbStockAdjustmentStatus,
   StockCountStatus as DbStockCountStatus,
   SubcontractStatus as DbSubcontractStatus,
   UserStatus as DbUserStatus,
+  VatApplicability as DbVatApplicability,
+  VatMode as DbVatMode,
   WorkOrderStatus as DbWorkOrderStatus,
   WorkOrderStepStatus as DbWorkOrderStepStatus,
 } from "@erp/db";
@@ -156,5 +168,29 @@ describe("enum parity: @erp/contracts <-> @erp/db", () => {
 
   it("ProductType unions are identical", () => {
     expectTypeOf<ContractProductType>().toEqualTypeOf<DbProductType>();
+  });
+
+  it("VatApplicability unions are identical", () => {
+    expectTypeOf<ContractVatApplicability>().toEqualTypeOf<DbVatApplicability>();
+  });
+
+  it("VatMode unions are identical", () => {
+    expectTypeOf<ContractVatMode>().toEqualTypeOf<DbVatMode>();
+  });
+
+  it("QuotationStatus unions are identical", () => {
+    expectTypeOf<ContractQuotationStatus>().toEqualTypeOf<DbQuotationStatus>();
+  });
+
+  it("InvoiceStatus unions are identical", () => {
+    expectTypeOf<ContractInvoiceStatus>().toEqualTypeOf<DbInvoiceStatus>();
+  });
+
+  it("ReceiptType unions are identical", () => {
+    expectTypeOf<ContractReceiptType>().toEqualTypeOf<DbReceiptType>();
+  });
+
+  it("PaymentMethod unions are identical", () => {
+    expectTypeOf<ContractPaymentMethod>().toEqualTypeOf<DbPaymentMethod>();
   });
 });

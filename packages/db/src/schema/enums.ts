@@ -144,3 +144,39 @@ export type ProductType =
   | "SCREEN_PRINT"
   | "CUT_SEW"
   | "OTHER";
+
+// ── M5 Sales Documents (spec §5.3) ────────────────────────────────────────────
+// These duplicate the enums in `packages/contracts/src/enums/sales.ts` (the same
+// no-cross-import rule as above); the parity test keeps them in lockstep. `VatMode` also
+// duplicates the pre-existing `packages/contracts/src/enums/doc-type.ts` enum, reused here
+// (design D1) for the `quotation`/`invoice` `vat_calc` column.
+
+// Whether a document is subject to VAT at all (quotation/invoice `vat_mode`) — distinct from
+// `vat_calc`'s include/exclude dimension.
+export type VatApplicability = "VAT" | "NON_VAT";
+
+// VAT calculation mode (`vat_calc`): VatNai = include (back the VAT out of the total),
+// VatNok = exclude (add the VAT on top).
+export type VatMode = "VatNai" | "VatNok";
+
+// Quotation lifecycle: DRAFT -> SENT -> APPROVED -> CONVERTED, with EXPIRED (past
+// valid_until) | REJECTED | VOID side branches. No backward transitions.
+export type QuotationStatus =
+  | "DRAFT"
+  | "SENT"
+  | "APPROVED"
+  | "CONVERTED"
+  | "EXPIRED"
+  | "REJECTED"
+  | "VOID";
+
+// Invoice lifecycle: DRAFT -> ISSUED -> PARTIALLY_PAID -> PAID, with OVERDUE (past due_date &
+// not PAID) | VOID side branches.
+export type InvoiceStatus = "DRAFT" | "ISSUED" | "PARTIALLY_PAID" | "PAID" | "OVERDUE" | "VOID";
+
+// Receipt/tax-invoice document type (`receipt_tax_invoice.type`). A plain RECEIPT is the only
+// type a NON_VAT invoice may ever issue.
+export type ReceiptType = "RECEIPT" | "TAX_INVOICE" | "RECEIPT_TAX_INVOICE";
+
+// Payment method (`payment.method`).
+export type PaymentMethod = "TRANSFER" | "PROMPTPAY" | "CASH" | "CHEQUE" | "CREDIT_CARD";

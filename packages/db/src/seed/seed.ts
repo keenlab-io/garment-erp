@@ -26,6 +26,7 @@ const BASE_SEQUENCES = [
   { key: "QUOTATION_NONVAT", prefix: "QNV", includeYear: true, resetYearly: true, format: "{prefix}{yyyy}{seq:0000}" },
   { key: "INVOICE", prefix: "INV", includeYear: true, resetYearly: true, format: "{prefix}{yyyy}{seq:0000}" },
   { key: "WORK_ORDER", prefix: "WO", includeYear: true, resetYearly: true, format: "{prefix}{yyyy}{seq:0000}" },
+  { key: "RECEIPT", prefix: "RE", includeYear: true, resetYearly: true, format: "{prefix}{yyyy}{seq:0000}" },
 ];
 
 // Base units of measure (M3). Seeded by unique `code`, so re-runs are a no-op. Modules and
