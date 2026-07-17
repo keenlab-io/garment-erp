@@ -6,17 +6,17 @@
 
 ## 1. Contracts — `packages/contracts/src`
 
-- [ ] 1.1 Add `enums/production.ts` — `work_order_status` (`PENDING|IN_PROGRESS|COMPLETED|
+- [x] 1.1 Add `enums/production.ts` — `work_order_status` (`PENDING|IN_PROGRESS|COMPLETED|
   CANCELLED`), `work_order_step_status` (`PENDING|IN_PROGRESS|COMPLETED|HOLD|DEFECT|OUTSOURCED`),
   `subcontract_status` (`SENT|OVERDUE|RECEIVED`), scan `action` (`START|FINISH`), and
   `product_type` (`SUBLIMATION|DTF|DTG|…`)
-- [ ] 1.2 Add `dto/production.ts` — `productionContract` (`pathPrefix: API_PREFIX`,
+- [x] 1.2 Add `dto/production.ts` — `productionContract` (`pathPrefix: API_PREFIX`,
   `withErrors`): routing-templates; work-orders (`create`, `GET /{id}`, `GET /timeline`);
   wo-steps (`scan`, `hold`, `defects`, `subcontract`); `subcontracts/{id}/receive`;
   `reports/wip`; lists via `paginationQuery` + `paginated`
-- [ ] 1.3 Register `production: productionContract` on the root `contract` in `dto/index.ts`;
+- [x] 1.3 Register `production: productionContract` on the root `contract` in `dto/index.ts`;
   export new DTO types. (The 3 `production.*` codes already exist in the catalog.)
-- [ ] 1.4 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 1.4 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 2. DB schema — `packages/db/src`
 
