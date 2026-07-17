@@ -57,6 +57,13 @@
       "when": 1784261789357,
       "tag": "0007_production_scan_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784262438469,
+      "tag": "0008_powerful_miracleman",
+      "breakpoints": true
     }
   ]
 }

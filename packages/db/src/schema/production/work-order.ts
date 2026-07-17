@@ -1,5 +1,14 @@
 import { sql } from "drizzle-orm";
-import { date, integer, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  date,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { qty, versionColumn } from "../../base-columns.js";
 import type { WorkOrderStatus, WorkOrderStepStatus } from "../enums.js";
 import { routingStep, routingTemplate } from "./routing.js";
@@ -52,6 +61,10 @@ export const workOrderStep = pgTable(
     finishedAt: timestamp({ withTimezone: true }),
     assignedTo: uuid(),
     machine: text(),
+    // Idempotency flag for the monitor sweep (design D5): set once when a running step
+    // first exceeds its `standard_time_min` so `StepDelayed` is emitted exactly once,
+    // no matter how many times the ~60s sweep re-observes the same overrun.
+    delayNotified: boolean().notNull().default(false),
   },
   (t) => [unique().on(t.woId, t.routingStepId)],
 );

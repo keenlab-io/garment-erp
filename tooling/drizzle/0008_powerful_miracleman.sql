@@ -1,0 +1,1 @@
+ALTER TABLE "work_order_step" ADD COLUMN "delay_notified" boolean DEFAULT false NOT NULL;
