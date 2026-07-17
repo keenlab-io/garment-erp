@@ -23,3 +23,6 @@ export * from "./hr/time.js";
 export * from "./hr/cash-advance.js";
 export * from "./hr/payroll.js";
 export * from "./hr/config.js";
+export * from "./production/routing.js";
+export * from "./production/work-order.js";
+export * from "./production/scan.js";

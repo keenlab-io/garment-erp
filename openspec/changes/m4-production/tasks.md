@@ -20,24 +20,24 @@
 
 ## 2. DB schema — `packages/db/src`
 
-- [ ] 2.1 Add production enums to `schema/enums.ts` mirroring `enums/production.ts` (keep the
+- [x] 2.1 Add production enums to `schema/enums.ts` mirroring `enums/production.ts` (keep the
   `expectTypeOf` parity test green)
-- [ ] 2.2 Add `schema/production/routing.ts` — `routing_template` (`product_type`, `is_active`),
+- [x] 2.2 Add `schema/production/routing.ts` — `routing_template` (`product_type`, `is_active`),
   `routing_step` (`unique(template_id, seq)`, `standard_time_min`, `department_id` **bare uuid**)
-- [ ] 2.3 Add `schema/production/work-order.ts` — `work_order` (`wo_no` unique, `finished_item_id`
+- [x] 2.3 Add `schema/production/work-order.ts` — `work_order` (`wo_no` unique, `finished_item_id`
   / `customer_id` **bare uuid**, `qty`, `due_date`, `machine`, `mockup_file_key`, `version`),
   `work_order_step` (`unique(wo_id, routing_step_id)`, `seq`, `status`, `started_at`,
   `finished_at`, `assigned_to` **bare uuid**, `machine`; delay computed in service, not a
   generated column)
-- [ ] 2.4 Add `schema/production/scan.ts` — `production_scan` (append-only; `action`, `by_user`,
+- [x] 2.4 Add `schema/production/scan.ts` — `production_scan` (append-only; `action`, `by_user`,
   `at`), `defect` (`type`, `qty`, `note`), `subcontract` (`vendor`, `sla_due`, `status`)
-- [ ] 2.5 Re-export `schema/production/*` from `schema/index.ts`; `pnpm db:generate` and review
-- [ ] 2.6 Author the `production_scan_append_only` **custom migration** (`drizzle-kit generate
+- [x] 2.5 Re-export `schema/production/*` from `schema/index.ts`; `pnpm db:generate` and review
+- [x] 2.6 Author the `production_scan_append_only` **custom migration** (`drizzle-kit generate
   --custom --name=production_scan_append_only`) — a `production_scan_no_mutate()` function +
   `BEFORE UPDATE OR DELETE` trigger, mirroring `0001_audit_append_only.sql`
-- [ ] 2.7 Add the `WORK_ORDER` seed row to `BASE_SEQUENCES` — `{ key:"WORK_ORDER", prefix:"WO",
+- [x] 2.7 Add the `WORK_ORDER` seed row to `BASE_SEQUENCES` — `{ key:"WORK_ORDER", prefix:"WO",
   includeYear:true, resetYearly:true, format:"{prefix}{yyyy}{seq:0000}" }` (renders `WO20260001`)
-- [ ] 2.8 `pnpm db:migrate && pnpm db:seed` against dev Postgres; confirm tables, the
+- [x] 2.8 `pnpm db:migrate && pnpm db:seed` against dev Postgres; confirm tables, the
   `production_scan` trigger, and the `WORK_ORDER` sequence
 
 ## 3. Realtime + scheduling infra — `apps/api/src`

@@ -107,3 +107,40 @@ export type PayComponentType = "ALLOWANCE" | "DEDUCTION";
 // Cash-advance repayment mode. LUMP repays in one pull; INSTALLMENT spreads it over
 // `installments` payroll periods.
 export type RepaymentMode = "LUMP" | "INSTALLMENT";
+
+// ── M4 Production Tracking (spec §4.3) ────────────────────────────────────────
+// These duplicate the enums in `packages/contracts/src/enums/production.ts` (the same
+// no-cross-import rule as the IAM/inventory/HR enums above); the parity test keeps them
+// in lockstep.
+
+// Work-order lifecycle: PENDING -> IN_PROGRESS (first step START) -> COMPLETED (all steps
+// COMPLETED) | CANCELLED. No backward transitions.
+export type WorkOrderStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+
+// Work-order-step lifecycle: PENDING -> IN_PROGRESS (scan START) -> COMPLETED (scan FINISH),
+// with HOLD/DEFECT/OUTSOURCED side-branches back onto the line.
+export type WorkOrderStepStatus =
+  | "PENDING"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "HOLD"
+  | "DEFECT"
+  | "OUTSOURCED";
+
+// Subcontract lifecycle: SENT -> OVERDUE (monitor sweep, past sla_due) | RECEIVED (returns
+// the step to the line).
+export type SubcontractStatus = "SENT" | "OVERDUE" | "RECEIVED";
+
+// Shop-floor scan action. START begins the step (and the work order, if first); FINISH
+// completes it (409 if already COMPLETED).
+export type ScanAction = "START" | "FINISH";
+
+// Routing-template product classification.
+export type ProductType =
+  | "SUBLIMATION"
+  | "DTF"
+  | "DTG"
+  | "EMBROIDERY"
+  | "SCREEN_PRINT"
+  | "CUT_SEW"
+  | "OTHER";
