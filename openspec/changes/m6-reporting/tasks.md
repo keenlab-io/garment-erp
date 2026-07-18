@@ -7,16 +7,16 @@
 
 ## 1. Contracts — `packages/contracts/src`
 
-- [ ] 1.1 Add `enums/reporting.ts` — `export_format` (`PDF | EXCEL | CSV`), `export_status`
+- [x] 1.1 Add `enums/reporting.ts` — `export_format` (`PDF | EXCEL | CSV`), `export_status`
   (`PENDING | RUNNING | DONE | FAILED`), `report_group` (`INVENTORY|SALES|COST|PROFIT|TAX`)
-- [ ] 1.2 Add `dto/reporting.ts` — `reportingContract` (`pathPrefix: API_PREFIX`,
+- [x] 1.2 Add `dto/reporting.ts` — `reportingContract` (`pathPrefix: API_PREFIX`,
   `withErrors`): `GET /reports/{report_key}` → `{ columns[], rows[], totals }`;
   `GET /dashboards/{key}` → `{ panels[] }`; `POST /reports/{report_key}/export` → `jobAccepted`
   (202); `GET /exports/{job_id}` → `{ status, file_url? }`; report-schedules CRUD +
   `run-now` (202)
-- [ ] 1.3 Register `reporting: reportingContract` on the root `contract` in `dto/index.ts`;
+- [x] 1.3 Register `reporting: reportingContract` on the root `contract` in `dto/index.ts`;
   export the new DTO types
-- [ ] 1.4 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 1.4 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 2. DB schema + materialized views — `packages/db/src`
 
