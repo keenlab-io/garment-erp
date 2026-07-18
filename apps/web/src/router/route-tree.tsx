@@ -5,7 +5,7 @@ import { rootRoute } from "./root.route";
 import { requireModuleAccess, requireRouteAccess } from "./guards";
 import { DashboardPage } from "./routes/dashboard";
 import { ModulePlaceholder } from "./routes/placeholder";
-import { LoginPage } from "./routes/login";
+import { LoginPage, validateLoginSearch } from "./routes/login";
 
 // One route per module, generated from the single nav registry so routes, nav, and the palette
 // never drift. Dashboard gets its own page; every other module uses the shared placeholder until
@@ -79,6 +79,7 @@ const loginRoute = createRoute({
   path: "/login",
   component: LoginPage,
   staticData: { title: "login.title" },
+  validateSearch: validateLoginSearch,
 });
 
 export const routeTree = rootRoute.addChildren([

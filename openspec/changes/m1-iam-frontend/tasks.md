@@ -12,10 +12,10 @@
 
 ## 2. Auth data layer
 
-- [ ] 2.1 Login mutation + token store; inject the token into the `@ts-rest/react-query` client
+- [x] 2.1 Login mutation + token store; inject the token into the `@ts-rest/react-query` client
   `baseHeaders`; session context provides `AuthUser` for M0's `PermissionsProvider`
-- [ ] 2.2 401 / stale `permissions_version` interceptor → clear session → route to `/login` with notice
-- [ ] 2.3 `iam` query hooks (users, roles, role-templates, audit, sessions) + mutation invalidation
+- [x] 2.2 401 / stale `permissions_version` interceptor → clear session → route to `/login` with notice
+- [x] 2.3 `iam` query hooks (users, roles, role-templates, audit, sessions) + mutation invalidation
 
 ## 3. Module components
 

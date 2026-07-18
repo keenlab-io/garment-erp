@@ -2,6 +2,8 @@ import * as React from "react";
 import type { Permission } from "@erp/contracts";
 import { PermissionsProvider } from "@erp/ui";
 import { type AuthUser, createDevUser } from "./dev-user";
+import { api } from "../api/client.js";
+import { clearTokens, getAccessToken } from "../api/token-store.js";
 
 export interface Session {
   /** The signed-in user, or null when unauthenticated (login route renders). */
@@ -9,8 +11,12 @@ export interface Session {
   /** Permission check with super-admin bypass — the single gate nav/palette/UI read. */
   hasPermission: (permission: Permission) => boolean;
   isSuperAdmin: boolean;
-  /** Placeholder sign-in (M1 replaces with the real auth flow). */
-  signIn: () => void;
+  /**
+   * Commits a session. Called with no args, it restores the M0 dev stub; `useLoginMutation`
+   * (M1 §2.1) calls it with the real `AuthUser` derived from `GET /auth/me` once login succeeds.
+   */
+  signIn: (user?: AuthUser) => void;
+  /** Clears the session, revoking the token pair (best-effort backend call, then local clear). */
   signOut: () => void;
 }
 
@@ -49,8 +55,16 @@ export function SessionProvider({
       user,
       isSuperAdmin: user?.isSuperAdmin ?? false,
       hasPermission: (permission: Permission) => userHasPermission(user, permission),
-      signIn: () => setUser(createDevUser()),
-      signOut: () => setUser(null),
+      signIn: (nextUser) => setUser(nextUser ?? createDevUser()),
+      signOut: () => {
+        // Fire the revoke while the token is still attached; clearing first would strip the
+        // Authorization header before the request goes out.
+        if (getAccessToken()) {
+          void api.iam.logout.mutation({ body: undefined }).catch(() => {});
+        }
+        clearTokens();
+        setUser(null);
+      },
     }),
     [user],
   );
