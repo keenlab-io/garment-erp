@@ -84,9 +84,9 @@
 
 ## 9. Verification
 
-- [ ] 9.1 `pnpm build && pnpm typecheck && pnpm lint && pnpm test` all green from the repo root
-- [ ] 9.2 Token assertions pass (locked values present in built CSS; no primitive/raw-hex references in `@erp/ui`/`apps/web` per lint)
-- [ ] 9.3 Storybook a11y checks pass across the theme × density matrix (focus rings, contrast, labels, tap targets ≥44px office / ≥56px Touch)
-- [ ] 9.4 Manual matrix pass: theme toggle (paper-stays-white in dark), density toggle + Touch auto-apply on a kiosk-flagged route and coarse-pointer emulation, TH/EN toggle with no clipped/overlapping text
-- [ ] 9.5 Permission walkthrough with a stub session: unpermitted module absent from nav/palette, in-context action disabled with named permission, cost/salary fields masked, guarded action demands reason/re-auth
-- [ ] 9.6 Turbo graph check: `design-tokens → ui → web` ordering, token/ui builds cache and invalidate correctly on token edits
+- [x] 9.1 `pnpm build && pnpm typecheck && pnpm lint && pnpm test` all green from the repo root
+- [x] 9.2 Token assertions pass (locked values present in built CSS; no primitive/raw-hex references in `@erp/ui`/`apps/web` per lint)
+- [x] 9.3 Storybook a11y checks pass across the theme × density matrix (focus rings, contrast, labels, tap targets ≥44px office / ≥56px Touch)
+- [x] 9.4 Manual matrix pass: theme toggle (paper-stays-white in dark), density toggle + Touch auto-apply on a kiosk-flagged route and coarse-pointer emulation, TH/EN toggle with no clipped/overlapping text
+- [x] 9.5 Permission walkthrough with a stub session: unpermitted module absent from nav/palette, in-context action disabled with named permission, cost/salary fields masked, guarded action demands reason/re-auth
+- [x] 9.6 Turbo graph check: `design-tokens → ui → web` ordering, token/ui builds cache and invalidate correctly on token edits
