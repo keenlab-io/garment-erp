@@ -1,5 +1,6 @@
 import * as React from "react";
 import { AlertTriangle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/cn.js";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./dialog.js";
 import { Button } from "../button/button.js";
@@ -26,9 +27,12 @@ export interface ConfirmDialogProps {
   /** Require a typed reason; a blank reason blocks the submit with an inline error. */
   requireReason?: boolean;
   reasonLabel?: React.ReactNode;
+  reasonPlaceholder?: string;
+  reasonRequiredError?: string;
   /** Require a super-admin password (re-auth); confirm stays disabled until it is entered. */
   requirePassword?: boolean;
   passwordLabel?: React.ReactNode;
+  passwordPlaceholder?: string;
   /** Disable actions while the confirm is in flight. */
   loading?: boolean;
   /**
@@ -50,16 +54,20 @@ export function ConfirmDialog({
   title,
   consequence,
   onConfirm,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   destructive = false,
   requireReason = false,
-  reasonLabel = "Reason",
+  reasonLabel,
+  reasonPlaceholder,
+  reasonRequiredError,
   requirePassword = false,
-  passwordLabel = "Super-Admin password",
+  passwordLabel,
+  passwordPlaceholder,
   loading = false,
   confirmDisabled = false,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation("common");
   const [reason, setReason] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [reasonError, setReasonError] = React.useState<string>();
@@ -77,7 +85,7 @@ export function ConfirmDialog({
 
   const handleConfirm = async () => {
     if (requireReason && reason.trim() === "") {
-      setReasonError("A reason is required.");
+      setReasonError(reasonRequiredError ?? t("confirmDialog.reasonRequired"));
       return;
     }
     await onConfirm({
@@ -99,36 +107,36 @@ export function ConfirmDialog({
             {destructive && <AlertTriangle className="size-5 shrink-0" aria-hidden />}
             {title}
           </DialogTitle>
-          <p className="text-sm text-text-secondary">{consequence}</p>
+          <p className="text-sm leading-relaxed text-text-secondary">{consequence}</p>
         </DialogHeader>
 
         {requireReason && (
-          <FormField label={reasonLabel} required error={reasonError}>
+          <FormField label={reasonLabel ?? t("confirmDialog.reasonLabel")} required error={reasonError}>
             <Input
               value={reason}
               onChange={(e) => {
                 setReason(e.target.value);
                 if (reasonError) setReasonError(undefined);
               }}
-              placeholder="Explain why"
+              placeholder={reasonPlaceholder ?? t("confirmDialog.reasonPlaceholder")}
             />
           </FormField>
         )}
 
         {requirePassword && (
-          <FormField label={passwordLabel} required>
+          <FormField label={passwordLabel ?? t("confirmDialog.passwordLabel")} required>
             <Input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Re-enter to authorize"
+              placeholder={passwordPlaceholder ?? t("confirmDialog.passwordPlaceholder")}
             />
           </FormField>
         )}
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={loading}>
-            {cancelLabel}
+            {cancelLabel ?? t("actions.cancel")}
           </Button>
           <Button
             variant={destructive ? "destructive" : "primary"}
@@ -136,7 +144,7 @@ export function ConfirmDialog({
             disabled={passwordMissing || confirmDisabled}
             loading={loading}
           >
-            {confirmLabel}
+            {confirmLabel ?? t("actions.confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

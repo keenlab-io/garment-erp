@@ -207,6 +207,45 @@ describe("DataTable", () => {
       expect(screen.queryByRole("columnheader", { name: /Document/ })).not.toBeInTheDocument();
     });
   });
+
+  describe("i18n defaults (M0 §7)", () => {
+    it("resolves built-in labels through the `table` namespace, not a hardcoded literal", () => {
+      setup({ enableSelection: true });
+      // vitest.setup.ts initializes the shared i18next instance with the real `table` English
+      // resources — asserting against them (not the string again) catches drift if the resource
+      // key is renamed without updating the component.
+      expect(screen.getByRole("button", { name: "Columns" })).toBeInTheDocument();
+    });
+
+    it("still lets a `labels` override win over the i18next default", () => {
+      setup({ labels: { columns: "Fields" } });
+      expect(screen.getByRole("button", { name: "Fields" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Columns" })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Thai typesetting (M0 §7.6)", () => {
+    it("resets uppercase/letter-spacing on header text for :lang(th) (never on Thai)", () => {
+      setup();
+      const header = screen.getByRole("columnheader", { name: /Document/ });
+      expect(header.className).toContain("uppercase");
+      expect(header.className).toContain("tracking-wide");
+      expect(header.className).toContain("[&:lang(th)]:normal-case");
+      expect(header.className).toContain("[&:lang(th)]:tracking-normal");
+    });
+
+    it("gives body cells at least the Thai-safe 1.6 line-height (leading-normal)", () => {
+      setup();
+      const cell = screen.getByText("QV20260042").closest("td");
+      expect(cell?.className).toContain("leading-normal");
+    });
+
+    it("keeps numeric cells at the compact leading — digits have no ascenders/tone marks to clip", () => {
+      setup();
+      const amount = screen.getByText("฿53,500.00");
+      expect(amount.className).toContain("leading-tight");
+    });
+  });
 });
 
 describe("useColumnPresets", () => {

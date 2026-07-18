@@ -1,24 +1,15 @@
 import * as React from "react";
-import { format, type DecimalInput } from "@erp/utils";
+import { format, groupDigits, type DecimalInput } from "@erp/utils";
 import { cn } from "../../lib/cn.js";
-
-/** Group the integer digits in threes with commas — pure string work, never a float. */
-function groupThousands(intDigits: string): string {
-  return intDigits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
 
 /**
  * Round to `scale` via decimal.js (no float) then group the integer part. Returns the grouped
  * magnitude plus whether the value is negative — the caller decides how to weight negatives.
  */
 function formatGrouped(value: DecimalInput, scale: number): { magnitude: string; negative: boolean } {
-  const raw = format(value, scale);
-  const negative = raw.startsWith("-");
-  const abs = negative ? raw.slice(1) : raw;
-  const dot = abs.indexOf(".");
-  const intPart = dot === -1 ? abs : abs.slice(0, dot);
-  const fracPart = dot === -1 ? "" : abs.slice(dot);
-  return { magnitude: `${groupThousands(intPart)}${fracPart}`, negative };
+  const grouped = groupDigits(format(value, scale));
+  const negative = grouped.startsWith("-");
+  return { magnitude: negative ? grouped.slice(1) : grouped, negative };
 }
 
 interface NumericCellBaseProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, "children"> {
@@ -41,7 +32,9 @@ function NumericCell({
   return (
     <span
       className={cn(
-        "block text-right font-numeric tabular-nums",
+        // Digits have no ascenders/tone marks, so the compact `leading-tight` (1.35) row height
+        // is safe here — unlike Thai body text, which needs `leading-normal` (M0 §7.6).
+        "block text-right font-numeric leading-tight tabular-nums",
         negative && "text-danger",
         className,
       )}

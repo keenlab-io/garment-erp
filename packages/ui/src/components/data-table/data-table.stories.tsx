@@ -27,11 +27,13 @@ const QUOTATIONS: Quotation[] = [
   { id: "6", doc: "QV20260037", customer: "Gulf Fashion", status: "draft", amount: "8750.00", qty: "150", owner: "Pranee" },
 ];
 
-// Thai long-string fixture — verifies dense rows don't clip tone marks and expansion doesn't overflow.
+// Thai long-string fixture — verifies dense rows don't clip tone marks and expansion doesn't
+// overflow (M0 §7.6). "ใบเสนอราคา" (quotation) and "ที่อยู่" (address) carry upper vowels + tone
+// marks stacked above the consonant, the tallest case for row-height clipping.
 const QUOTATIONS_TH: Quotation[] = [
-  { id: "1", doc: "QV20260042", customer: "บริษัท สยามเท็กซ์ไทล์ จำกัด (มหาชน)", status: "issued", amount: "53500.00", qty: "1200", owner: "ณัฐญา" },
+  { id: "1", doc: "QV20260042", customer: "บริษัท สยามเท็กซ์ไทล์ จำกัด (มหาชน) — ใบเสนอราคา", status: "issued", amount: "53500.00", qty: "1200", owner: "ณัฐญา ที่อยู่กรุงเทพฯ" },
   { id: "2", doc: "QV20260041", customer: "โรงงานตัดเย็บเสื้อผ้ากรุงเทพมหานคร", status: "paid", amount: "99000.00", qty: "2400", owner: "สมชาย" },
-  { id: "3", doc: "QV20260040", customer: "กลุ่มทอผ้าเชียงใหม่ล้านนา", status: "overdue", amount: "12000.00", qty: "300", owner: "ปราณี" },
+  { id: "3", doc: "QV20260040", customer: "กลุ่มทอผ้าเชียงใหม่ล้านนา ที่อยู่ 99/1 ถ.นิมมานเหมินท์", status: "overdue", amount: "12000.00", qty: "300", owner: "ปราณี" },
 ];
 
 const columns: ColumnDef<Quotation>[] = [
@@ -148,24 +150,32 @@ export const SavedPresets: Story = {
   ),
 };
 
+/**
+ * Dense Thai rows across all three densities — set the toolbar locale to `th` (the default) and
+ * check every row for clipped tone marks/ascenders at Comfortable and Compact (M0 §7.6). Built-in
+ * strings (bulk bar, pagination) come from the `table` namespace default, not a `labels` override,
+ * so this also proves @erp/ui's own copy translates when the workbench locale switches.
+ */
 export const ThaiFixtures: Story = {
   render: () => (
-    <DataTable
-      data={QUOTATIONS_TH}
-      columns={columns}
-      getRowId={(r) => r.id}
-      rowActions={rowActions}
-      enableSelection
-      totalLabel="3 รายการ"
-      labels={{
-        selected: (n) => `เลือก ${n} รายการ`,
-        clearSelection: "ล้าง",
-        columns: "คอลัมน์",
-        nextPage: "ถัดไป",
-        previousPage: "ก่อนหน้า",
-        endOfList: "สิ้นสุดรายการ",
-      }}
-    />
+    <div className="flex flex-col gap-8">
+      {(["comfortable", "compact", "touch"] as Density[]).map((density) => (
+        <div key={density} data-density={density}>
+          <p className="mb-2 text-caption font-semibold uppercase tracking-wide text-text-muted [&:lang(th)]:normal-case [&:lang(th)]:tracking-normal">
+            {density}
+          </p>
+          <DataTable
+            data={QUOTATIONS_TH}
+            columns={columns}
+            getRowId={(r) => r.id}
+            density={density}
+            rowActions={rowActions}
+            enableSelection
+            totalLabel="3 รายการ"
+          />
+        </div>
+      ))}
+    </div>
   ),
 };
 

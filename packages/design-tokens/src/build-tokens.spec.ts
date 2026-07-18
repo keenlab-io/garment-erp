@@ -127,3 +127,18 @@ describe("Tailwind v4 preset exposes semantic names only", () => {
     expect(tailwindCss).not.toMatch(/--(ink|cyan|substrate|magenta|rubine|amber|violet|green)-\d/);
   });
 });
+
+describe("locked line-heights (Thai typesetting, M0 §7)", () => {
+  it("emits the Thai-safe leading scale on :root, never below 1.5", () => {
+    const root = block(css, ":root {");
+    expect(root).toContain("--leading-tight: 1.35;"); // numbers, table cells
+    expect(root).toContain("--leading-normal: 1.6;"); // Thai body
+    expect(root).toContain("--leading-relaxed: 1.75;"); // long-form Thai paragraphs
+  });
+
+  it("overrides Tailwind's built-in leading-* utilities with the locked values", () => {
+    expect(tailwindCss).toContain("--leading-tight: var(--leading-tight);");
+    expect(tailwindCss).toContain("--leading-normal: var(--leading-normal);");
+    expect(tailwindCss).toContain("--leading-relaxed: var(--leading-relaxed);");
+  });
+});

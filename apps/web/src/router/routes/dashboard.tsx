@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Badge, Skeleton } from "@erp/ui";
 import { api } from "../../api/client";
+import { useNumberFormat } from "../../i18n/use-formatters";
 
 /**
  * Landing page. M0 shows a token-styled API-health panel (proving the shell renders real data
@@ -10,6 +11,7 @@ import { api } from "../../api/client";
 export function DashboardPage() {
   const { t } = useTranslation();
   const health = api.health.check.useQuery(["health"]);
+  const uptimeFormat = useNumberFormat({ minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -27,7 +29,9 @@ export function DashboardPage() {
           <div className="flex flex-wrap items-center gap-3">
             <Badge tone="success">{t("dashboard.healthy")}</Badge>
             <span className="text-sm text-text-secondary">
-              {t("dashboard.uptime", { seconds: health.data?.body.uptime.toFixed(1) })}
+              {t("dashboard.uptime", {
+                seconds: health.data ? uptimeFormat.format(health.data.body.uptime) : "0.0",
+              })}
             </span>
           </div>
         )}

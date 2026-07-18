@@ -1,5 +1,6 @@
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
+import { commonEn, commonTh, tableEn, tableTh } from "@erp/ui";
 import { shellEn } from "./resources/en";
 import { shellTh } from "./resources/th";
 
@@ -16,16 +17,17 @@ function readStoredLocale(): Locale {
   return stored === "en" || stored === "th" ? stored : "th";
 }
 
-// One shared instance. Group 7 augments this (module namespaces, typed keys, completeness check);
-// Task 4 stands up the `shell` namespace and the runtime toggle only.
+// The one i18next instance for the app. `common`/`table` are @erp/ui's own default copy
+// (imported, not re-transcribed, so the package and the app share a single translation) — @erp/ui
+// never initializes i18next itself, it only consumes this app-provided instance (M0 design D6/D9).
 void i18next.use(initReactI18next).init({
   lng: readStoredLocale(),
   fallbackLng: "th",
   defaultNS: "shell",
-  ns: ["shell"],
+  ns: ["shell", "common", "table"],
   resources: {
-    en: { shell: shellEn },
-    th: { shell: shellTh },
+    en: { shell: shellEn, common: commonEn, table: tableEn },
+    th: { shell: shellTh, common: commonTh, table: tableTh },
   },
   interpolation: { escapeValue: false },
 });

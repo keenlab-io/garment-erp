@@ -130,3 +130,8 @@ export {
   type GuardedActionPreset,
   type GuardedActionDialogProps,
 } from "./components/permission/guarded-action-dialog.js";
+
+// i18n (Group 7) — @erp/ui's own `common`/`table` namespace resources. The host app merges these
+// into its i18next instance so the package and the app share one translation bundle (M0 §7).
+export { commonEn, commonTh, type CommonMessages } from "./i18n/resources/common.js";
+export { tableEn, tableTh, type TableMessages } from "./i18n/resources/table.js";

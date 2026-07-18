@@ -2,6 +2,7 @@ import * as React from "react";
 import * as ToastPrimitive from "@radix-ui/react-toast";
 import { Info, CheckCircle2, AlertTriangle, XCircle, Loader2, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/cn.js";
 
 export type ToastTone = "info" | "success" | "warning" | "danger";
@@ -137,6 +138,7 @@ function ToastItem({
   defaultDuration: number;
   onDismiss: () => void;
 }) {
+  const { t } = useTranslation("common");
   const tone = record.tone ?? "info";
   const ToneIcon = TONE_ICON[tone];
 
@@ -178,7 +180,7 @@ function ToastItem({
         </ToastPrimitive.Action>
       )}
       <ToastPrimitive.Close
-        aria-label="Dismiss"
+        aria-label={t("actions.dismiss")}
         className="shrink-0 rounded-sm text-text-muted hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
       >
         <X className="size-4" aria-hidden />

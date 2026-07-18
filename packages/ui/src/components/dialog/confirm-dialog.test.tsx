@@ -54,4 +54,10 @@ describe("ConfirmDialog", () => {
     render(<Harness confirmDisabled confirmLabel="Void" />);
     expect(screen.getByRole("button", { name: "Void" })).toBeDisabled();
   });
+
+  it("falls back to the `common` namespace defaults when confirm/cancel labels aren't overridden (M0 §7)", () => {
+    render(<Harness />);
+    expect(screen.getByRole("button", { name: "Confirm" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
 });
