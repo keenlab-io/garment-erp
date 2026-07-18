@@ -60,12 +60,12 @@
 
 ## 6. Permission-aware UI layer
 
-- [ ] 6.1 `PermissionsProvider` + `usePermissions()` in `@erp/ui` — `has(p: Permission)` typed against the `@erp/contracts` catalog, super-admin bypass mirroring backend semantics
-- [ ] 6.2 `<HasPermission required fallback>` component (+ thin `withPermission` HOC convenience)
-- [ ] 6.3 Disabled-with-tooltip pattern for in-context actions — tooltip names the required permission code (e.g. "Requires sales.document.void")
-- [ ] 6.4 `<MaskedValue>` — `••••` + lock icon, stable layout slot, accessible restricted-access description, renders mask whenever the gate permission is absent (value never placed in the DOM when masked)
-- [ ] 6.5 Guarded-action flow — ConfirmDialog presets for force-logout / role delete / document void / stock adjustment / payroll approve wiring reason + re-auth requirements
-- [ ] 6.6 Tests: typo in a permission string fails typecheck (type-level test), gating truth table incl. super-admin, masking DOM assertion, reason/re-auth blocking
+- [x] 6.1 `PermissionsProvider` + `usePermissions()` in `@erp/ui` — `has(p: Permission)` typed against the `@erp/contracts` catalog, super-admin bypass mirroring backend semantics
+- [x] 6.2 `<HasPermission required fallback>` component (+ thin `withPermission` HOC convenience)
+- [x] 6.3 Disabled-with-tooltip pattern for in-context actions — tooltip names the required permission code (e.g. "Requires sales.document.void")
+- [x] 6.4 `<MaskedValue>` — `••••` + lock icon, stable layout slot, accessible restricted-access description, renders mask whenever the gate permission is absent (value never placed in the DOM when masked)
+- [x] 6.5 Guarded-action flow — ConfirmDialog presets for force-logout / role delete / document void / stock adjustment / payroll approve wiring reason + re-auth requirements
+- [x] 6.6 Tests: typo in a permission string fails typecheck (type-level test), gating truth table incl. super-admin, masking DOM assertion, reason/re-auth blocking
 
 ## 7. i18n & localization
 

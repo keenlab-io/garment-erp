@@ -31,6 +31,12 @@ export interface ConfirmDialogProps {
   passwordLabel?: React.ReactNode;
   /** Disable actions while the confirm is in flight. */
   loading?: boolean;
+  /**
+   * Extra condition that disables the confirm button regardless of reason/password state — the
+   * defense-in-depth half of a guarded action's permission gate (the trigger control is the other
+   * half; see `GuardedActionDialog`).
+   */
+  confirmDisabled?: boolean;
 }
 
 /**
@@ -52,6 +58,7 @@ export function ConfirmDialog({
   requirePassword = false,
   passwordLabel = "Super-Admin password",
   loading = false,
+  confirmDisabled = false,
 }: ConfirmDialogProps) {
   const [reason, setReason] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -126,7 +133,7 @@ export function ConfirmDialog({
           <Button
             variant={destructive ? "destructive" : "primary"}
             onClick={handleConfirm}
-            disabled={passwordMissing}
+            disabled={passwordMissing || confirmDisabled}
             loading={loading}
           >
             {confirmLabel}
