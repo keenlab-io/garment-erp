@@ -180,3 +180,16 @@ export type ReceiptType = "RECEIPT" | "TAX_INVOICE" | "RECEIPT_TAX_INVOICE";
 
 // Payment method (`payment.method`).
 export type PaymentMethod = "TRANSFER" | "PROMPTPAY" | "CASH" | "CHEQUE" | "CREDIT_CARD";
+
+// ── M6 Reporting & Analytics (spec §6) ────────────────────────────────────────
+// These duplicate the enums in `packages/contracts/src/enums/reporting.ts` (the same
+// no-cross-import rule as above); the parity test keeps them in lockstep.
+
+// Async export job output format (`report_schedule.format` / export job requests).
+export type ReportExportFormat = "PDF" | "EXCEL" | "CSV";
+
+// Async export job lifecycle (`GET /exports/{job_id}`).
+export type ExportStatus = "PENDING" | "RUNNING" | "DONE" | "FAILED";
+
+// The five report-catalog groups, gating access via `report.<group>.view`.
+export type ReportGroup = "INVENTORY" | "SALES" | "COST" | "PROFIT" | "TAX";
