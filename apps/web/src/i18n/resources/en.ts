@@ -64,6 +64,8 @@ export const shellEn = {
     title: "Sign in",
     subtitle: "Authentication wiring lands with M1. This is a placeholder session.",
     continue: "Continue to app",
+    noticeReauth: "Your access changed. Please sign in again.",
+    noticeSessionExpired: "Your session expired. Please sign in again.",
   },
 } as const;
 

@@ -9,13 +9,29 @@ import i18next from "./i18n/i18n";
 import { ThemeProvider } from "./theme/theme-context";
 import { LocaleProvider } from "./i18n/locale-context";
 import { SessionProvider, useSession } from "./session/session-context";
+import { onUnauthorized } from "./api/auth-events";
 import { router } from "./router/router";
 
 const queryClient = new QueryClient();
 
-// Threads the live session into the router so `beforeLoad` guards read it synchronously.
+// Threads the live session into the router so `beforeLoad` guards read it synchronously. Also owns
+// the M1 §2.2 401/stale-permissions interceptor: the api client sits outside the React tree, so it
+// just raises `notifyUnauthorized`; this is where that becomes "clear the session and route to
+// /login with a notice".
 function InnerRouter() {
   const session = useSession();
+
+  React.useEffect(() => {
+    onUnauthorized((reason) => {
+      session.signOut();
+      void router.navigate({
+        to: "/login",
+        search: { notice: reason === "REAUTH_REQUIRED" ? "reauth" : "session-expired" },
+      });
+    });
+    return () => onUnauthorized(null);
+  }, [session]);
+
   return <RouterProvider router={router} context={{ session }} />;
 }
 
