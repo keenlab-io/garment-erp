@@ -19,11 +19,11 @@
 
 ## 3. Module components
 
-- [ ] 3.1 **PermissionMatrix** — module×action grid from the `PERMISSIONS` catalog; collapsible
+- [x] 3.1 **PermissionMatrix** — module×action grid from the `PERMISSIONS` catalog; collapsible
   groups; special `hr.salary.*` / `inventory.cost.*` toggles captioned below; live "affects N"
-- [ ] 3.2 **BeforeAfterDiff** viewer (two-column, changed fields highlighted)
-- [ ] 3.3 **ImportValidationTable** (per-row OK/error) + upload dropzone
-- [ ] 3.4 **SessionList** row with revoke action
+- [x] 3.2 **BeforeAfterDiff** viewer (two-column, changed fields highlighted)
+- [x] 3.3 **ImportValidationTable** (per-row OK/error) + upload dropzone
+- [x] 3.4 **SessionList** row with revoke action
 
 ## 4. Screens / flows
 
