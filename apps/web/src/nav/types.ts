@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { Permission } from "@erp/contracts";
+import type { ShellKey } from "../i18n/keys";
 
 /**
  * One navigable module. This descriptor is the single source of truth: the route tree spreads it
@@ -11,8 +12,8 @@ export interface ModuleDescriptor {
   key: string;
   /** Route path. */
   path: string;
-  /** i18n key under the `shell:nav` namespace. */
-  titleKey: string;
+  /** i18n key under the `shell:nav` namespace — typed, so a typo fails typecheck (M0 §7.2). */
+  titleKey: Extract<ShellKey, `nav.${string}`>;
   /** Nav glyph (lucide component passed to `@erp/ui`'s `Icon`). */
   icon: LucideIcon;
   /**

@@ -22,6 +22,7 @@ import {
   SlidersHorizontal,
   TriangleAlert,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { Density } from "@erp/design-tokens";
 import { cn } from "../../lib/cn.js";
 import { Button } from "../button/button.js";
@@ -52,7 +53,12 @@ export interface DataTableEmptyState {
   action?: React.ReactNode;
 }
 
-/** All user-facing strings, overridable so the app can pass localized labels (i18n lands in M0 §7). */
+/**
+ * All user-facing strings. Defaults resolve through the `table` namespace of the app's i18next
+ * instance (via `react-i18next`'s `useTranslation` — @erp/ui never owns/initializes an i18next
+ * instance itself, it only consumes the app-provided one, M0 design D6/D9); `labels` overrides a
+ * default when a caller needs bespoke copy.
+ */
 export interface DataTableLabels {
   selectAll: string;
   selectRow: string;
@@ -69,21 +75,28 @@ export interface DataTableLabels {
   errorTitle: string;
 }
 
-const DEFAULT_LABELS: DataTableLabels = {
-  selectAll: "Select all rows",
-  selectRow: "Select row",
-  selected: (count) => `${count} selected`,
-  clearSelection: "Clear",
-  columns: "Columns",
-  savePreset: "Save view",
-  resetPreset: "Reset",
-  previousPage: "Previous",
-  nextPage: "Next",
-  endOfList: "End of list",
-  rowActions: "Row actions",
-  retry: "Retry",
-  errorTitle: "Couldn't load this list",
-};
+/** Builds `DataTableLabels` from the `table` namespace — the i18next-backed default set. */
+function useDefaultLabels(): DataTableLabels {
+  const { t } = useTranslation("table");
+  return React.useMemo<DataTableLabels>(
+    () => ({
+      selectAll: t("selectAll"),
+      selectRow: t("selectRow"),
+      selected: (count) => t("selectedCount", { n: count }),
+      clearSelection: t("clearSelection"),
+      columns: t("columns"),
+      savePreset: t("savePreset"),
+      resetPreset: t("resetPreset"),
+      previousPage: t("previousPage"),
+      nextPage: t("nextPage"),
+      endOfList: t("endOfList"),
+      rowActions: t("rowActions"),
+      retry: t("retry"),
+      errorTitle: t("errorTitle"),
+    }),
+    [t],
+  );
+}
 
 export interface DataTableProps<TData> {
   data: TData[];
@@ -163,7 +176,11 @@ export function DataTable<TData>({
   labels: labelsProp,
   maxBodyHeight,
 }: DataTableProps<TData>) {
-  const labels = React.useMemo(() => ({ ...DEFAULT_LABELS, ...labelsProp }), [labelsProp]);
+  const defaultLabels = useDefaultLabels();
+  const labels = React.useMemo(
+    () => ({ ...defaultLabels, ...labelsProp }),
+    [defaultLabels, labelsProp],
+  );
   const isTouch = density === "touch";
 
   const presets = useColumnPresets(tableId, { defaults: { sorting: defaultSorting } });
@@ -348,7 +365,10 @@ export function DataTable<TData>({
                           : undefined
                       }
                       className={cn(
-                        "whitespace-nowrap py-2 text-caption font-semibold uppercase tracking-wide text-text-muted",
+                        // Uppercase + letter-spacing is a Latin-only convention — Thai has no case
+                        // and letter-spacing breaks its glyph shaping, so both reset under :lang(th)
+                        // (locked typesetting rule, M0 §7.6).
+                        "whitespace-nowrap py-2 text-caption font-semibold uppercase tracking-wide text-text-muted [&:lang(th)]:normal-case [&:lang(th)]:tracking-normal",
                         align === "right" ? "text-right" : "text-left",
                       )}
                       style={{ paddingInline: "var(--density-pad-x)" }}
@@ -358,7 +378,7 @@ export function DataTable<TData>({
                           type="button"
                           onClick={header.column.getToggleSortingHandler()}
                           className={cn(
-                            "-mx-1 inline-flex items-center gap-1 rounded-sm px-1 uppercase hover:text-text-primary",
+                            "-mx-1 inline-flex items-center gap-1 rounded-sm px-1 uppercase hover:text-text-primary [&:lang(th)]:normal-case",
                             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus",
                             align === "right" && "flex-row-reverse",
                           )}
@@ -415,7 +435,13 @@ export function DataTable<TData>({
                     return (
                       <td
                         key={cell.id}
-                        className={cn("align-middle", align === "right" && "text-right")}
+                        // `leading-normal` (1.6) is the Thai-body default — tall enough that tone
+                        // marks aren't clipped at the row height; numeric cells override to
+                        // `leading-tight` themselves since digits have no ascenders (M0 §7.6).
+                        className={cn(
+                          "align-middle leading-normal",
+                          align === "right" && "text-right",
+                        )}
                         style={{ paddingInline: "var(--density-pad-x)" }}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -511,11 +537,12 @@ function StateRow({ colSpan, children }: { colSpan: number; children: React.Reac
 }
 
 function EmptyState({ state }: { state?: DataTableEmptyState }) {
+  const { t } = useTranslation("table");
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-6 py-14 text-center">
-      <p className="font-medium text-text-primary">{state?.title ?? "Nothing here yet"}</p>
+      <p className="font-medium text-text-primary">{state?.title ?? t("emptyTitle")}</p>
       {state?.description && (
-        <p className="max-w-sm text-sm text-text-muted">{state.description}</p>
+        <p className="max-w-sm text-sm leading-relaxed text-text-muted">{state.description}</p>
       )}
       {state?.action && <div className="mt-2">{state.action}</div>}
     </div>
@@ -538,7 +565,7 @@ function ErrorState({
     >
       <TriangleAlert aria-hidden className="size-6 text-danger" />
       <p className="font-medium text-text-primary">{labels.errorTitle}</p>
-      <p className="max-w-sm text-sm text-text-muted">{error.message}</p>
+      <p className="max-w-sm text-sm leading-relaxed text-text-muted">{error.message}</p>
       {onRetry && (
         <Button variant="secondary" onClick={onRetry} className="mt-2 gap-2">
           <RotateCw aria-hidden style={{ width: "var(--density-icon)", height: "var(--density-icon)" }} />

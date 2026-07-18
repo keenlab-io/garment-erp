@@ -1,12 +1,30 @@
 import * as React from "react";
 import type { Preview, Decorator } from "@storybook/react-vite";
+import i18next from "i18next";
+import { initReactI18next } from "react-i18next";
 import { THEMES, DENSITIES } from "@erp/design-tokens";
+import { commonEn, commonTh, tableEn, tableTh } from "../src/index";
 import "../src/fonts";
 import "../src/styles.css";
 
 const LOCALES = ["th", "en"] as const;
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// The workbench never boots apps/web, so it owns a throwaway i18next instance covering
+// @erp/ui's own `common`/`table` namespaces — enough for the locale toolbar to actually
+// translate component defaults (DataTable, ConfirmDialog, Dialog, Toast), not just flip `lang`.
+void i18next.use(initReactI18next).init({
+  lng: "th",
+  fallbackLng: "th",
+  defaultNS: "common",
+  ns: ["common", "table"],
+  resources: {
+    th: { common: commonTh, table: tableTh },
+    en: { common: commonEn, table: tableEn },
+  },
+  interpolation: { escapeValue: false },
+});
 
 /**
  * Wraps every story in the theme × density surface and syncs `<html lang>`. Theme and density
@@ -17,6 +35,7 @@ const withMatrix: Decorator = (Story, context) => {
   const { theme, density, locale } = context.globals;
   React.useEffect(() => {
     document.documentElement.lang = locale;
+    void i18next.changeLanguage(locale);
   }, [locale]);
   return (
     <div

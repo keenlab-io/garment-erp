@@ -15,6 +15,7 @@
     "@erp/contracts": "workspace:*",
     "@erp/design-tokens": "workspace:*",
     "@erp/ui": "workspace:*",
+    "@erp/utils": "workspace:*",
     "@tanstack/react-query": "^5.62.7",
     "@tanstack/react-router": "^1.170.17",
     "@ts-rest/core": "^3.51.0",

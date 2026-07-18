@@ -137,6 +137,22 @@ export function allocate(total: DecimalInput, weights: DecimalInput[]): string[]
   return rounded.map((r) => formatMoney(r));
 }
 
+/**
+ * Group the integer part of a fixed-scale decimal string in threes with commas (e.g. `"53500.00"`
+ * → `"53,500.00"`). Pure string manipulation — no float conversion — so it's safe to use on
+ * arbitrary-precision money/qty strings. Thai and English share the same Arabic-digit, comma-grouped
+ * convention, so this is locale-invariant (spec §7.5: digits are always Arabic in both locales).
+ */
+export function groupDigits(value: string): string {
+  const negative = value.startsWith("-");
+  const abs = negative ? value.slice(1) : value;
+  const dot = abs.indexOf(".");
+  const intPart = dot === -1 ? abs : abs.slice(0, dot);
+  const fracPart = dot === -1 ? "" : abs.slice(dot);
+  const grouped = `${intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${fracPart}`;
+  return negative ? `-${grouped}` : grouped;
+}
+
 /** True if the string is a valid decimal with at most `scale` fractional digits. */
 export function isValidScaled(value: string, scale: number): boolean {
   if (!/^-?\d+(\.\d+)?$/.test(value)) return false;

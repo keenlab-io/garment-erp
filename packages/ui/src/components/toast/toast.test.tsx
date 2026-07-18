@@ -34,6 +34,18 @@ describe("Toast", () => {
     expect(await screen.findByText("Saved")).toBeInTheDocument();
   });
 
+  it("labels its dismiss control through the `common` namespace default (M0 §7)", async () => {
+    const user = userEvent.setup();
+    render(
+      <ToastProvider>
+        <Trigger />
+      </ToastProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "toast" }));
+    await screen.findByText("Saved");
+    expect(screen.getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
+  });
+
   it("resolves a job toast in place", async () => {
     const user = userEvent.setup();
     render(

@@ -1,6 +1,7 @@
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/cn.js";
 
 export const Dialog = DialogPrimitive.Root;
@@ -30,8 +31,15 @@ export const DialogOverlay = React.forwardRef<
  */
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { showClose?: boolean }
->(function DialogContent({ className, children, style, showClose = true, ...props }, ref) {
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    showClose?: boolean;
+    closeLabel?: string;
+  }
+>(function DialogContent(
+  { className, children, style, showClose = true, closeLabel, ...props },
+  ref,
+) {
+  const { t } = useTranslation("common");
   return (
     <DialogPrimitive.Portal>
       <DialogOverlay />
@@ -47,7 +55,7 @@ export const DialogContent = React.forwardRef<
         {children}
         {showClose && (
           <DialogPrimitive.Close
-            aria-label="Close"
+            aria-label={closeLabel ?? t("actions.close")}
             className="absolute right-4 top-4 rounded-sm text-text-muted hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
           >
             <X className="size-4" aria-hidden />

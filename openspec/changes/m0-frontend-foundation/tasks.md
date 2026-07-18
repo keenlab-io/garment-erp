@@ -69,12 +69,12 @@
 
 ## 7. i18n & localization
 
-- [ ] 7.1 i18next + react-i18next setup in `apps/web` — `th` default, `en` complete, namespaces (`common`, `shell`, `table`), persisted toggle in the top bar, `<html lang>` synced; `@erp/ui` consumes the app instance via context
-- [ ] 7.2 Typed message keys via i18next TS resource augmentation — unknown keys fail typecheck
-- [ ] 7.3 CI completeness check diffing `th`/`en` key sets (fails on missing keys)
-- [ ] 7.4 Translate all foundation strings (shell, table, dialogs, toasts, empty states) into both locales
-- [ ] 7.5 Locale-aware formatters — dates/plain numbers via `Intl`; money/qty via `@erp/utils` only (string-safe, Arabic digits both locales); expose as shared hooks
-- [ ] 7.6 Thai typesetting verification — Storybook Thai fixtures for dense table rows (no clipped tone marks at any density), ≥1.6 body leading, no justify/letter-spacing on Thai; ~30% expansion check on shell/dialog/table surfaces in both locales
+- [x] 7.1 i18next + react-i18next setup in `apps/web` — `th` default, `en` complete, namespaces (`common`, `shell`, `table`), persisted toggle in the top bar, `<html lang>` synced; `@erp/ui` consumes the app instance via context
+- [x] 7.2 Typed message keys via i18next TS resource augmentation — unknown keys fail typecheck
+- [x] 7.3 CI completeness check diffing `th`/`en` key sets (fails on missing keys)
+- [x] 7.4 Translate all foundation strings (shell, table, dialogs, toasts, empty states) into both locales
+- [x] 7.5 Locale-aware formatters — dates/plain numbers via `Intl`; money/qty via `@erp/utils` only (string-safe, Arabic digits both locales); expose as shared hooks
+- [x] 7.6 Thai typesetting verification — Storybook Thai fixtures for dense table rows (no clipped tone marks at any density), ≥1.6 body leading, no justify/letter-spacing on Thai; ~30% expansion check on shell/dialog/table surfaces in both locales
 
 ## 8. Rewire `apps/web` demo + remove antd
 
