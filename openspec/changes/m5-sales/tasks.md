@@ -24,7 +24,7 @@
 
 ## 2. `@erp/utils` — `packages/utils/src`
 
-- [ ] 2.1 Add `divideMoney(a, b)` / `vatBackOut(grand, rate)` to `money.ts`
+- [x] 2.1 Add `divideMoney(a, b)` / `vatBackOut(grand, rate)` to `money.ts`
   (`toDecimal(grand).div(toDecimal(1).plus(rate))`, money scale, half-up) + unit tests
   covering the §5.8 VatNai back-out (107 @ 7% → 100 / 7)
 
@@ -55,61 +55,61 @@
 
 ## 4. Config, deps & infra — `apps/api/src`
 
-- [ ] 4.1 Add deps to `apps/api`: `promptpay-qr`, `qrcode`, `exceljs`
-- [ ] 4.2 Add `PROMPTPAY_ID` to `config/env.schema.ts` (validated at boot)
-- [ ] 4.3 Extend `PdfService` with a `renderJpeg(html)` path
+- [x] 4.1 Add deps to `apps/api`: `promptpay-qr`, `qrcode`, `exceljs`
+- [x] 4.2 Add `PROMPTPAY_ID` to `config/env.schema.ts` (validated at boot)
+- [x] 4.3 Extend `PdfService` with a `renderJpeg(html)` path
   (`page.screenshot({ type:"jpeg" })`) reusing the shared Chromium
-- [ ] 4.4 Register a BullMQ **repeatable** overdue-sweep job on the `default` queue (cadence
+- [x] 4.4 Register a BullMQ **repeatable** overdue-sweep job on the `default` queue (cadence
   configurable, default daily) + a `BaseWorker` subclass; upsert the repeatable job at module init
 
 ## 5. Nest module — `apps/api/src/sales`
 
-- [ ] 5.1 `CustomerService` — create + autocomplete search
-- [ ] 5.2 `QuotationService` — create (QV/QNV via SequenceService), lifecycle
+- [x] 5.1 `CustomerService` — create + autocomplete search
+- [x] 5.2 `QuotationService` — create (QV/QNV via SequenceService), lifecycle
   (`send`/`approve` → emit `QuotationApproved`/`reject`), **convert** (copy lines/prices → invoice, quotation → CONVERTED
   atomically; re-convert → 409; `Idempotency-Key` replay returns the same invoice)
-- [ ] 5.3 `TotalsService` — compute subtotal/vat/grand from `doc_line` (VatNok add-on / VatNai
+- [x] 5.3 `TotalsService` — compute subtotal/vat/grand from `doc_line` (VatNok add-on / VatNai
   back-out / non-VAT), WHT + `wht_certificate`; all via `@erp/utils`, 4dp half-up
-- [ ] 5.4 `InvoiceService` — create (INVOICE sequence), lifecycle, `issue` (emit `InvoiceIssued`
+- [x] 5.4 `InvoiceService` — create (INVOICE sequence), lifecycle, `issue` (emit `InvoiceIssued`
   / `DeliveryNoteIssued` for optional stock OUT), **partial billing** ceiling (Σ subtotals ≤
   quotation subtotal → 422)
-- [ ] 5.5 `PaymentService` — record payment (update `amount_paid` → PAID/PARTIALLY_PAID), issue
+- [x] 5.5 `PaymentService` — record payment (update `amount_paid` → PAID/PARTIALLY_PAID), issue
   `receipt_tax_invoice` (RECEIPT for non-VAT, tax-invoice for VAT) from the RECEIPT sequence,
   emit `PaymentReceived`
-- [ ] 5.6 `PromptPayService` — build the EMVCo payload (`promptpay-qr`) from `PROMPTPAY_ID` +
+- [x] 5.6 `PromptPayService` — build the EMVCo payload (`promptpay-qr`) from `PROMPTPAY_ID` +
   amount, render PNG (`qrcode`); `GET /promptpay-qr` returns `{ payload, png_base64 }`
-- [ ] 5.7 `ExportService` — PDF (`PdfService`), Excel (`exceljs`), JPG (`PdfService.renderJpeg`)
+- [x] 5.7 `ExportService` — PDF (`PdfService`), Excel (`exceljs`), JPG (`PdfService.renderJpeg`)
   + WHT certificate as `pdf`-queue jobs (202 `{ job_id }`); `document_template` assets via
   `StorageService`
-- [ ] 5.8 `VoidService` — void (`requireReason`; VOID never deletes; **409 if a
+- [x] 5.8 `VoidService` — void (`requireReason`; VOID never deletes; **409 if a
   `receipt_tax_invoice` exists**; emit `DocumentVoided` for the compensating IN; audit
   `action=VOID`)
-- [ ] 5.9 `OverdueMonitor` (the sweep worker: past `due_date` & not PAID → OVERDUE +
+- [x] 5.9 `OverdueMonitor` (the sweep worker: past `due_date` & not PAID → OVERDUE +
   `InvoiceOverdue`) and `AgingReportService` (`GET /reports/aging`, bucketed)
-- [ ] 5.10 `EtaxService` — `POST /etax/{id}/submit` → 202 async RD e-Tax XML job (stub,
+- [x] 5.10 `EtaxService` — `POST /etax/{id}/submit` → 202 async RD e-Tax XML job (stub,
   non-authoritative)
-- [ ] 5.11 ts-rest `SalesController`(s) — in-handler `assertPermissions(user, "sales.…")`;
+- [x] 5.11 ts-rest `SalesController`(s) — in-handler `assertPermissions(user, "sales.…")`;
   wrap mutations in `uow.withTransaction`; `SalesModule` wired into `app.module.ts`. **Delete
   the demo `apps/api/src/invoice/` controller/module.**
-- [ ] 5.12 Verify: `pnpm build && pnpm typecheck && pnpm lint` green; API boots and maps the new
+- [x] 5.12 Verify: `pnpm build && pnpm typecheck && pnpm lint` green; API boots and maps the new
   `/api/v1` sales routes (and no longer the demo `invoices`)
 
 ## 6. Tests (spec §5.8)
 
-- [ ] 6.1 VatNok line ฿100 ⇒ subtotal 100 / VAT 7 / grand 107; VatNai ฿107 ⇒ subtotal 100 /
+- [x] 6.1 VatNok line ฿100 ⇒ subtotal 100 / VAT 7 / grand 107; VatNai ฿107 ⇒ subtotal 100 /
   VAT 7 (correct back-out)
-- [ ] 6.2 Services invoice ฿100,000 + WHT 3% ⇒ certificate 3,000, expected net 97,000
-- [ ] 6.3 Convert an APPROVED quotation ⇒ invoice with identical lines/prices, quotation
+- [x] 6.2 Services invoice ฿100,000 + WHT 3% ⇒ certificate 3,000, expected net 97,000
+- [x] 6.3 Convert an APPROVED quotation ⇒ invoice with identical lines/prices, quotation
   CONVERTED; second convert ⇒ 409
-- [ ] 6.4 Two invoices off one quotation exceeding its subtotal ⇒ 422 on the second
-- [ ] 6.5 Void after a receipt exists ⇒ 409; valid void writes `audit_log` (`action=VOID`,
+- [x] 6.4 Two invoices off one quotation exceeding its subtotal ⇒ 422 on the second
+- [x] 6.5 Void after a receipt exists ⇒ 409; valid void writes `audit_log` (`action=VOID`,
   reason)
-- [ ] 6.6 Concurrent document numbering ⇒ zero duplicate `doc_no`
+- [x] 6.6 Concurrent document numbering ⇒ zero duplicate `doc_no`
 
 ## 7. Verification
 
-- [ ] 7.1 `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green from the repo root
-- [ ] 7.2 `pnpm db:generate` clean after schema; `pnpm db:migrate && pnpm db:seed` run cleanly
+- [x] 7.1 `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green from the repo root
+- [x] 7.2 `pnpm db:generate` clean after schema; `pnpm db:migrate && pnpm db:seed` run cleanly
   against a fresh DB (sales tables + `RECEIPT` sequence)
 - [ ] 7.3 Boot `pnpm dev` and drive: create customer → quotation (QV) → send → approve →
   convert → invoice issue → record payment → receipt issued → export (pdf/xlsx/jpg) + PromptPay

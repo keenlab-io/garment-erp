@@ -38,6 +38,13 @@ export const envSchema = z.object({
   // latency; tune down in dev, up in prod.
   PRODUCTION_MONITOR_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
 
+  // Sales (M5) — the PromptPay ID (mobile number or national/tax ID) the PromptPay QR payload
+  // credits (design D9). Optional in dev; `getInvoicePromptPayQr` 422s if it is unset when a QR
+  // is requested. `SALES_OVERDUE_SWEEP_MS` is how often the repeatable sweep flips past-due,
+  // unpaid invoices to OVERDUE (design D11) — default daily.
+  PROMPTPAY_ID: z.string().min(1).optional(),
+  SALES_OVERDUE_SWEEP_MS: z.coerce.number().int().positive().default(86_400_000),
+
   // Object storage (S3 / MinIO). `S3_FORCE_PATH_STYLE` must be true for MinIO.
   S3_ENDPOINT: z.string().url(),
   S3_REGION: z.string().min(1).default("us-east-1"),
