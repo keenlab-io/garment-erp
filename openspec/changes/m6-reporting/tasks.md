@@ -36,51 +36,51 @@
 
 ## 3. Config, deps & infra — `apps/api/src`
 
-- [ ] 3.1 Add deps to `apps/api`: `nodemailer` (+ types), `exceljs` (shared with the M5
+- [x] 3.1 Add deps to `apps/api`: `nodemailer` (+ types), `exceljs` (shared with the M5
   proposal — dedupe to one version)
-- [ ] 3.2 Add `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`/`SMTP_FROM` to
+- [x] 3.2 Add `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`/`SMTP_FROM` to
   `config/env.schema.ts` (validated at boot)
-- [ ] 3.3 `MailService` wrapping `nodemailer.createTransport(SMTP_* env)` + an `EmailWorker`
+- [x] 3.3 `MailService` wrapping `nodemailer.createTransport(SMTP_* env)` + an `EmailWorker`
   (`BaseWorker` subclass — the `email` queue's first consumer)
 
 ## 4. Nest module — `apps/api/src/reporting`
 
-- [ ] 4.1 `ReportService` — per-`report_key` SQL builders over the MVs via
+- [x] 4.1 `ReportService` — per-`report_key` SQL builders over the MVs via
   `currentExecutor(this.db).execute(sql\`…\`)`; returns `{ columns, rows, totals }`
-- [ ] 4.2 `DashboardService` — compose panels, applying one `(dimension, value)` set across
+- [x] 4.2 `DashboardService` — compose panels, applying one `(dimension, value)` set across
   every panel builder
-- [ ] 4.3 `ExportService` + `ExportWorker` — async render (Excel `exceljs` / CSV native / PDF
+- [x] 4.3 `ExportService` + `ExportWorker` — async render (Excel `exceljs` / CSV native / PDF
   `PdfService.renderHtml`), `StorageService.put` + `getSignedUrl`; `GET /exports/{job_id}` →
   `{ status, file_url? }`; emit `ReportGenerated`
-- [ ] 4.4 `ReportScheduleService` — schedule CRUD; **upsert/remove a BullMQ repeatable job**
+- [x] 4.4 `ReportScheduleService` — schedule CRUD; **upsert/remove a BullMQ repeatable job**
   (`repeat: { pattern: cron }`) on create/update/activate/delete/deactivate; `run-now` enqueues
   a one-off (202)
-- [ ] 4.5 `DigestWorker` (`BaseWorker`) — render + store + enqueue an email job; on send-failure
+- [x] 4.5 `DigestWorker` (`BaseWorker`) — render + store + enqueue an email job; on send-failure
   exhaustion emit an in-app alert; emit `ScheduledReportSent`
-- [ ] 4.6 `MvRefreshSubscriber` (`@OnEvent` for `GoodsReceiptPosted`/`GoodsIssued`/
+- [x] 4.6 `MvRefreshSubscriber` (`@OnEvent` for `GoodsReceiptPosted`/`GoodsIssued`/
   `StockAdjusted`/`BackflushPosted`/`InvoiceIssued`/`PaymentReceived`, after-commit) enqueues a
   **debounced** `mv-refresh` job; `MvRefreshWorker` runs the targeted
   `REFRESH MATERIALIZED VIEW CONCURRENTLY` (+ a scheduled fallback refresh)
-- [ ] 4.7 ts-rest `ReportingController`(s) — in-handler `assertPermissions(user,
+- [x] 4.7 ts-rest `ReportingController`(s) — in-handler `assertPermissions(user,
   "report.<group>.view")`; **cost/profit also assert `inventory.cost.view` → 403**;
   `ReportingModule` wired into `app.module.ts`
-- [ ] 4.8 Verify: `pnpm build && pnpm typecheck && pnpm lint` green; API boots and maps the new
+- [x] 4.8 Verify: `pnpm build && pnpm typecheck && pnpm lint` green; API boots and maps the new
   `/api/v1` reporting routes
 
 ## 5. Tests (spec §6.7)
 
-- [ ] 5.1 Clicking "this month" on the sales panel re-filters Top-Products and Sales-by-Customer
+- [x] 5.1 Clicking "this month" on the sales panel re-filters Top-Products and Sales-by-Customer
   to the same window (one dimension across panels)
-- [ ] 5.2 `cost.valuation` total equals `Σ mv_stock_valuation`, matching M3 stock cards
+- [x] 5.2 `cost.valuation` total equals `Σ mv_stock_valuation`, matching M3 stock cards
   item-by-item
-- [ ] 5.3 A `0 8 * * 1` schedule emails recipients a summary with attachment every Monday 08:00;
+- [x] 5.3 A `0 8 * * 1` schedule emails recipients a summary with attachment every Monday 08:00;
   a send failure retries and surfaces an in-app alert
-- [ ] 5.4 A user with `report.sales.view` but not `inventory.cost.view` opens sales reports but
+- [x] 5.4 A user with `report.sales.view` but not `inventory.cost.view` opens sales reports but
   gets 403 on cost/profit reports
 
 ## 6. Verification
 
-- [ ] 6.1 `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green from the repo root
+- [x] 6.1 `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green from the repo root
 - [ ] 6.2 `pnpm db:generate` clean; `pnpm db:migrate` runs cleanly against a DB with M3/M5
   applied (creates `report_schedule` + the three MVs with unique indexes)
 - [ ] 6.3 Boot `pnpm dev` and drive: `GET /reports/{key}` for each group (403 on cost/profit

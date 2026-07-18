@@ -8,6 +8,9 @@ export const QUEUES = {
   mvRefresh: "mv-refresh",
   // Payroll (M2): async run calculation, statutory exports, and the daily probation scan.
   payroll: "payroll",
+  // Reporting (M6): async report exports and scheduled/one-off digest renders. Its own
+  // queue so its worker never competes with the `pdf`/`default` workers for jobs.
+  report: "report",
   default: "default",
 } as const;
 
