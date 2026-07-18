@@ -104,3 +104,29 @@ export {
   type ColumnPresetsApi,
   type UseColumnPresetsOptions,
 } from "./components/data-table/use-column-presets.js";
+
+// Permission-aware UI layer (Group 6)
+export {
+  PermissionsProvider,
+  usePermissions,
+  type PermissionsGate,
+  type PermissionsProviderProps,
+} from "./components/permission/permissions-context.js";
+export {
+  HasPermission,
+  withPermission,
+  checkHasPermission,
+  type HasPermissionProps,
+} from "./components/permission/has-permission.js";
+export {
+  PermissionButton,
+  type PermissionButtonProps,
+} from "./components/permission/permission-button.js";
+export { MaskedValue, type MaskedValueProps } from "./components/permission/masked-value.js";
+export {
+  GuardedActionDialog,
+  GUARDED_ACTION_PRESETS,
+  type GuardedActionKind,
+  type GuardedActionPreset,
+  type GuardedActionDialogProps,
+} from "./components/permission/guarded-action-dialog.js";

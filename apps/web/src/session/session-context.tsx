@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { Permission } from "@erp/contracts";
+import { PermissionsProvider } from "@erp/ui";
 import { type AuthUser, createDevUser } from "./dev-user";
 
 export interface Session {
@@ -54,7 +55,16 @@ export function SessionProvider({
     [user],
   );
 
-  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={value}>
+      {/* Feeds @erp/ui's gating layer (usePermissions, HasPermission, MaskedValue, guarded-action
+          dialogs) from this session — the one place apps/web wires auth state into it (M0 frontend
+          design D5). */}
+      <PermissionsProvider permissions={user?.permissions ?? []} isSuperAdmin={user?.isSuperAdmin ?? false}>
+        {children}
+      </PermissionsProvider>
+    </SessionContext.Provider>
+  );
 }
 
 export function useSession(): Session {

@@ -49,4 +49,9 @@ describe("ConfirmDialog", () => {
     await userEvent.type(screen.getByPlaceholderText("Re-enter to authorize"), "s3cret");
     expect(confirm).toBeEnabled();
   });
+
+  it("keeps confirm disabled when confirmDisabled is set, regardless of reason/password state", () => {
+    render(<Harness confirmDisabled confirmLabel="Void" />);
+    expect(screen.getByRole("button", { name: "Void" })).toBeDisabled();
+  });
 });
