@@ -78,9 +78,9 @@
 
 ## 8. Rewire `apps/web` demo + remove antd
 
-- [ ] 8.1 Rebuild the demo page on the new foundation — health status surface + invoice list on the DataTable, fed by the existing `@ts-rest/react-query` client (contract untouched), inside the shell
-- [ ] 8.2 Remove `antd` from `apps/web` dependencies and delete the `antd/dist/reset.css` import; confirm the workspace-wide antd lint ban is active
-- [ ] 8.3 Confirm `pnpm dev` end-to-end: API proxy works, demo flows render in both themes, all three densities, both locales
+- [x] 8.1 Rebuild the demo page on the new foundation — health status surface + invoice list on the DataTable, fed by the existing `@ts-rest/react-query` client (contract untouched), inside the shell
+- [x] 8.2 Remove `antd` from `apps/web` dependencies and delete the `antd/dist/reset.css` import; confirm the workspace-wide antd lint ban is active
+- [x] 8.3 Confirm `pnpm dev` end-to-end: API proxy works, demo flows render in both themes, all three densities, both locales
 
 ## 9. Verification
 
