@@ -66,3 +66,16 @@ export const shellEn = {
     continue: "Continue to app",
   },
 } as const;
+
+// The `iam` namespace (M1 Access & Identity frontend) — nav/palette/route titles for the
+// Admin & Access sub-screens. Screen copy (matrix, diff, import labels) lands with M1 §5.1.
+export const iamEn = {
+  nav: {
+    users: "Users",
+    userDetail: "User",
+    roles: "Roles",
+    roleDetail: "Role",
+    audit: "Audit log",
+    import: "Import",
+  },
+} as const;

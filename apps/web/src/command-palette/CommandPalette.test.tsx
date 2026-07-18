@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import i18n from "../i18n/i18n";
-import { renderInShell, userWith } from "../test/render";
+import { renderInShell, userWith, superAdmin } from "../test/render";
 import { CommandPaletteProvider } from "./command-context";
 import { CommandPalette } from "./CommandPalette";
 import { useCommandKeymap } from "./useCommandKeymap";
@@ -32,5 +32,27 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Inventory")).toBeInTheDocument();
     expect(screen.queryByText("Sales")).not.toBeInTheDocument();
     expect(screen.queryByText("Admin & Access")).not.toBeInTheDocument();
+    expect(screen.queryByText("Users")).not.toBeInTheDocument();
+  });
+
+  it("offers the Admin & Access sub-routes to a super admin", async () => {
+    const user = userEvent.setup();
+    await renderInShell(
+      <CommandPaletteProvider>
+        <Host />
+      </CommandPaletteProvider>,
+      { user: superAdmin },
+    );
+
+    await user.keyboard("{Control>}k{/Control}");
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    // "Admin & Access" appears twice — the "Go to" module entry and this group's own heading —
+    // so assert via the option role rather than text (which would ambiguously match both).
+    expect(screen.getByRole("option", { name: "Admin & Access" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Users" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Roles" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Audit log" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Import" })).toBeInTheDocument();
   });
 });

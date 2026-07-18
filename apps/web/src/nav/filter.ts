@@ -7,8 +7,13 @@ export interface NavGate {
   isSuperAdmin: boolean;
 }
 
-/** Whether a single module is visible to the current user. */
-export function isModuleVisible(module: ModuleDescriptor, gate: NavGate): boolean {
+/** The gating fields `isModuleVisible` actually reads — satisfied by a `ModuleDescriptor` or any
+ * other route-metadata shape (e.g. `AdminRouteDescriptor` via `router/guards.ts`'s
+ * `requireRouteAccess`) that carries the same permission/super-admin gate. */
+export type GatedEntry = Pick<ModuleDescriptor, "permissions" | "superAdminOnly">;
+
+/** Whether a single module (or other gated route entry) is visible to the current user. */
+export function isModuleVisible(module: GatedEntry, gate: NavGate): boolean {
   if (module.superAdminOnly) return gate.isSuperAdmin;
   if (gate.isSuperAdmin) return true;
   if (!module.permissions || module.permissions.length === 0) return true;

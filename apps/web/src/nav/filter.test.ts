@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Permission } from "@erp/contracts";
-import { MODULES } from "./registry";
-import { filterNav, type NavGate } from "./filter";
+import { MODULES, ADMIN_ROUTES } from "./registry";
+import { filterNav, isModuleVisible, type NavGate } from "./filter";
 
 const keys = (gate: NavGate) => filterNav(MODULES, gate).map((m) => m.key);
 
@@ -34,5 +34,23 @@ describe("filterNav", () => {
   it("shows every module, including Admin, to a super admin", () => {
     const superAdmin: NavGate = { isSuperAdmin: true, has: () => false };
     expect(keys(superAdmin)).toEqual(MODULES.map((m) => m.key));
+  });
+});
+
+// Admin & Access sub-routes (users/roles/audit/import) aren't `ModuleDescriptor`s, but their
+// `permissions` field is a fixed super-admin-only entry — `isModuleVisible` gates them the same way
+// once the route's `beforeLoad` passes `superAdminOnly: true` (see router/guards.ts `requireRouteAccess`).
+describe("isModuleVisible with an Admin & Access sub-route entry", () => {
+  it("is absent for a non-super-admin even holding the exact iam permission", () => {
+    const [users] = ADMIN_ROUTES;
+    const gate = gateWith(...users!.permissions);
+    expect(isModuleVisible({ permissions: users!.permissions, superAdminOnly: true }, gate)).toBe(false);
+  });
+
+  it("is visible to a super admin for every admin sub-route", () => {
+    const gate: NavGate = { isSuperAdmin: true, has: () => false };
+    for (const entry of ADMIN_ROUTES) {
+      expect(isModuleVisible({ permissions: entry.permissions, superAdminOnly: true }, gate)).toBe(true);
+    }
   });
 });

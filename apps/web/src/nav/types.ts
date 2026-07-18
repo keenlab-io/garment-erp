@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { Permission } from "@erp/contracts";
-import type { ShellKey } from "../i18n/keys";
+import type { ShellKey, IamKey } from "../i18n/keys";
 
 /**
  * One navigable module. This descriptor is the single source of truth: the route tree spreads it
@@ -27,4 +27,23 @@ export interface ModuleDescriptor {
   kiosk?: boolean;
   /** `primary` = main sidebar list; `admin` = bottom-anchored. */
   section: "primary" | "admin";
+}
+
+/**
+ * A Super-Admin-only sub-route inside the Admin & Access module (Users/Roles/Audit/Import lists).
+ * Drives both its TanStack route registration and its Cmd/Ctrl-K palette entry. Kept separate from
+ * `ModuleDescriptor` because these aren't top-level sidebar items — the Admin & Access sidebar entry
+ * still points at `/admin`; these are reached via the palette until M1's screens (§4) link them.
+ */
+export interface AdminRouteDescriptor {
+  /** Stable id (React key and route-metadata back-reference). */
+  key: string;
+  /** Route path. */
+  path: string;
+  /** i18n key in the `iam` namespace — typed, so a typo fails typecheck. */
+  titleKey: IamKey;
+  /** Nav glyph (lucide component passed to `@erp/ui`'s `Icon`). */
+  icon: LucideIcon;
+  /** The specific iam.* permission(s) that grant entry (any-of), on top of the Super-Admin gate. */
+  permissions: Permission[];
 }

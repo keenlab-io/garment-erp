@@ -1,8 +1,8 @@
 import { createRoute } from "@tanstack/react-router";
-import { MODULES } from "../nav/registry";
-import type { ModuleDescriptor } from "../nav/types";
+import { MODULES, ADMIN_ROUTES } from "../nav/registry";
+import type { AdminRouteDescriptor, ModuleDescriptor } from "../nav/types";
 import { rootRoute } from "./root.route";
-import { requireModuleAccess } from "./guards";
+import { requireModuleAccess, requireRouteAccess } from "./guards";
 import { DashboardPage } from "./routes/dashboard";
 import { ModulePlaceholder } from "./routes/placeholder";
 import { LoginPage } from "./routes/login";
@@ -25,6 +25,54 @@ function moduleRoute(module: ModuleDescriptor) {
   });
 }
 
+// Admin & Access sub-routes (Users/Roles/Audit/Import lists) — Super-Admin gated in addition to
+// their specific iam.* permission, sharing `ModulePlaceholder` until M1's screens (§4) land.
+function adminRoute(entry: AdminRouteDescriptor) {
+  return createRoute({
+    getParentRoute: () => rootRoute,
+    path: entry.path,
+    component: ModulePlaceholder,
+    staticData: {
+      title: entry.titleKey,
+      breadcrumb: entry.titleKey,
+      permissions: entry.permissions,
+      navKey: "admin",
+    },
+    beforeLoad: ({ context }) =>
+      requireRouteAccess(context.session, { permissions: entry.permissions, superAdminOnly: true }),
+  });
+}
+
+// The `$id` detail routes have no fixed nav/palette entry (the id varies), so they're registered
+// directly rather than through `ADMIN_ROUTES`.
+const adminUserDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin/users/$id",
+  component: ModulePlaceholder,
+  staticData: {
+    title: "iam:nav.userDetail",
+    breadcrumb: "iam:nav.userDetail",
+    permissions: ["iam.user.manage"],
+    navKey: "admin",
+  },
+  beforeLoad: ({ context }) =>
+    requireRouteAccess(context.session, { permissions: ["iam.user.manage"], superAdminOnly: true }),
+});
+
+const adminRoleDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin/roles/$id",
+  component: ModulePlaceholder,
+  staticData: {
+    title: "iam:nav.roleDetail",
+    breadcrumb: "iam:nav.roleDetail",
+    permissions: ["iam.role.manage"],
+    navKey: "admin",
+  },
+  beforeLoad: ({ context }) =>
+    requireRouteAccess(context.session, { permissions: ["iam.role.manage"], superAdminOnly: true }),
+});
+
 // The login route is intentionally outside the nav registry and unguarded (guarding it would loop).
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -35,5 +83,8 @@ const loginRoute = createRoute({
 
 export const routeTree = rootRoute.addChildren([
   ...MODULES.map(moduleRoute),
+  ...ADMIN_ROUTES.map(adminRoute),
+  adminUserDetailRoute,
+  adminRoleDetailRoute,
   loginRoute,
 ]);
