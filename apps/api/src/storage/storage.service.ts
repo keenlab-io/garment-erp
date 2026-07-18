@@ -5,6 +5,7 @@ import {
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
+  type GetObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -43,6 +44,15 @@ export class StorageService implements OnModuleDestroy {
         ContentType: contentType,
       }),
     );
+  }
+
+  /** Fetch a stored object's bytes — used to attach a rendered report to a digest email. */
+  async get(key: string): Promise<Buffer> {
+    const out: GetObjectCommandOutput = await this.client.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+    );
+    const bytes = await out.Body?.transformToByteArray();
+    return Buffer.from(bytes ?? new Uint8Array());
   }
 
   getSignedUrl(key: string, expiresInSeconds = 900): Promise<string> {

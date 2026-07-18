@@ -45,6 +45,23 @@ export const envSchema = z.object({
   PROMPTPAY_ID: z.string().min(1).optional(),
   SALES_OVERDUE_SWEEP_MS: z.coerce.number().int().positive().default(86_400_000),
 
+  // SMTP (M6) — outbound mail transport for scheduled report digests (design D9). The
+  // `MailService` wraps `nodemailer.createTransport(SMTP_*)`; credentials are optional so a
+  // dev instance can boot without a mail server (a send then fails and, on exhaustion, raises
+  // an in-app alert). `SMTP_FROM` is the envelope From address.
+  SMTP_HOST: z.string().min(1).default("localhost"),
+  SMTP_PORT: z.coerce.number().int().positive().default(1025),
+  SMTP_USER: z.string().min(1).optional(),
+  SMTP_PASS: z.string().min(1).optional(),
+  SMTP_FROM: z.string().min(1).default("reports@erp.local"),
+
+  // Reporting (M6) — how often (ms) the scheduled fallback materialized-view refresh runs to
+  // bound MV staleness when event-driven refreshes are quiet (design D10). Default hourly.
+  MV_REFRESH_FALLBACK_MS: z.coerce.number().int().positive().default(3_600_000),
+  // Debounce window (ms) that coalesces bursts of refresh-triggering events into one targeted
+  // `REFRESH … CONCURRENTLY` per view (design D10 / mv-refresh spec). Default 5s.
+  MV_REFRESH_DEBOUNCE_MS: z.coerce.number().int().positive().default(5_000),
+
   // Object storage (S3 / MinIO). `S3_FORCE_PATH_STYLE` must be true for MinIO.
   S3_ENDPOINT: z.string().url(),
   S3_REGION: z.string().min(1).default("us-east-1"),
