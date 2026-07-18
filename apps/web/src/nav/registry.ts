@@ -1,6 +1,17 @@
-import { LayoutDashboard, Boxes, Factory, ReceiptText, Users, BarChart3, ShieldCheck } from "lucide-react";
+import {
+  LayoutDashboard,
+  Boxes,
+  Factory,
+  ReceiptText,
+  Users,
+  BarChart3,
+  ShieldCheck,
+  KeyRound,
+  ScrollText,
+  Upload,
+} from "lucide-react";
 import { PERMISSIONS, type Permission } from "@erp/contracts";
-import type { ModuleDescriptor } from "./types";
+import type { AdminRouteDescriptor, ModuleDescriptor } from "./types";
 
 /** All catalog permissions in a module's namespace (e.g. every `sales.*`) — any of them grants entry. */
 function permissionsFor(prefix: string): Permission[] {
@@ -69,5 +80,42 @@ export const MODULES: ModuleDescriptor[] = [
     permissions: permissionsFor("iam"),
     superAdminOnly: true,
     section: "admin",
+  },
+];
+
+/**
+ * Admin & Access sub-routes — Users, Roles, Audit log, Import (the list-level screens; the
+ * `/admin/users/{id}` and `/admin/roles/{id}` detail routes are registered directly in the route
+ * tree, since a dynamic id has no fixed nav/palette entry). Every entry is Super-Admin-gated in
+ * addition to its specific permission (`router/guards.ts` `requireRouteAccess`).
+ */
+export const ADMIN_ROUTES: AdminRouteDescriptor[] = [
+  {
+    key: "admin-users",
+    path: "/admin/users",
+    titleKey: "iam:nav.users",
+    icon: Users,
+    permissions: ["iam.user.manage"],
+  },
+  {
+    key: "admin-roles",
+    path: "/admin/roles",
+    titleKey: "iam:nav.roles",
+    icon: KeyRound,
+    permissions: ["iam.role.manage"],
+  },
+  {
+    key: "admin-audit",
+    path: "/admin/audit",
+    titleKey: "iam:nav.audit",
+    icon: ScrollText,
+    permissions: ["iam.audit.view"],
+  },
+  {
+    key: "admin-import",
+    path: "/admin/import",
+    titleKey: "iam:nav.import",
+    icon: Upload,
+    permissions: ["iam.role.manage"],
   },
 ];

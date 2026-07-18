@@ -5,10 +5,10 @@
 
 ## 1. Deps, routes & i18n
 
-- [ ] 1.1 Register `iam` routes in the TanStack Router tree with metadata (title/breadcrumb,
+- [x] 1.1 Register `iam` routes in the TanStack Router tree with metadata (title/breadcrumb,
   required `Permission`, super-admin nav group): `/login`, `/admin/users`, `/admin/users/{id}`,
   `/admin/roles`, `/admin/roles/{id}`, `/admin/audit`, `/admin/import`
-- [ ] 1.2 Add the `iam` i18next namespace (TH default + EN); wire nav + ⌘K entries from route metadata
+- [x] 1.2 Add the `iam` i18next namespace (TH default + EN); wire nav + ⌘K entries from route metadata
 
 ## 2. Auth data layer
 
