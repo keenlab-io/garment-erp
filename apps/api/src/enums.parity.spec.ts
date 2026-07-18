@@ -7,6 +7,7 @@ import type {
   EmployeeDocumentType as ContractEmployeeDocumentType,
   EmployeeStatus as ContractEmployeeStatus,
   EmploymentType as ContractEmploymentType,
+  ExportStatus as ContractExportStatus,
   GoodsIssueStatus as ContractGoodsIssueStatus,
   GoodsReceiptStatus as ContractGoodsReceiptStatus,
   InvoiceStatus as ContractInvoiceStatus,
@@ -22,6 +23,8 @@ import type {
   QuotationStatus as ContractQuotationStatus,
   ReceiptType as ContractReceiptType,
   RepaymentMode as ContractRepaymentMode,
+  ReportExportFormat as ContractReportExportFormat,
+  ReportGroup as ContractReportGroup,
   ScanAction as ContractScanAction,
   StockAdjustmentStatus as ContractStockAdjustmentStatus,
   StockCountStatus as ContractStockCountStatus,
@@ -40,6 +43,7 @@ import type {
   EmployeeDocumentType as DbEmployeeDocumentType,
   EmployeeStatus as DbEmployeeStatus,
   EmploymentType as DbEmploymentType,
+  ExportStatus as DbExportStatus,
   GoodsIssueStatus as DbGoodsIssueStatus,
   GoodsReceiptStatus as DbGoodsReceiptStatus,
   InvoiceStatus as DbInvoiceStatus,
@@ -55,6 +59,8 @@ import type {
   QuotationStatus as DbQuotationStatus,
   ReceiptType as DbReceiptType,
   RepaymentMode as DbRepaymentMode,
+  ReportExportFormat as DbReportExportFormat,
+  ReportGroup as DbReportGroup,
   ScanAction as DbScanAction,
   StockAdjustmentStatus as DbStockAdjustmentStatus,
   StockCountStatus as DbStockCountStatus,
@@ -192,5 +198,17 @@ describe("enum parity: @erp/contracts <-> @erp/db", () => {
 
   it("PaymentMethod unions are identical", () => {
     expectTypeOf<ContractPaymentMethod>().toEqualTypeOf<DbPaymentMethod>();
+  });
+
+  it("ReportExportFormat unions are identical", () => {
+    expectTypeOf<ContractReportExportFormat>().toEqualTypeOf<DbReportExportFormat>();
+  });
+
+  it("ExportStatus unions are identical", () => {
+    expectTypeOf<ContractExportStatus>().toEqualTypeOf<DbExportStatus>();
+  });
+
+  it("ReportGroup unions are identical", () => {
+    expectTypeOf<ContractReportGroup>().toEqualTypeOf<DbReportGroup>();
   });
 });

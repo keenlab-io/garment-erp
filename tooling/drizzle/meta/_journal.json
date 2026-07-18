@@ -71,6 +71,20 @@
       "when": 1784267181283,
       "tag": "0009_melted_phantom_reporter",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784356153040,
+      "tag": "0010_mean_lady_mastermind",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784356167194,
+      "tag": "0011_reporting_materialized_views",
+      "breakpoints": true
     }
   ]
 }

@@ -32,3 +32,4 @@ export * from "./sales/invoice.js";
 export * from "./sales/doc-line.js";
 export * from "./sales/payment.js";
 export * from "./sales/document-template.js";
+export * from "./reporting/report-schedule.js";

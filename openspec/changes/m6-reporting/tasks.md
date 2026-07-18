@@ -20,18 +20,18 @@
 
 ## 2. DB schema + materialized views — `packages/db/src`
 
-- [ ] 2.1 Add reporting enums to `schema/enums.ts` mirroring `enums/reporting.ts` (keep the
+- [x] 2.1 Add reporting enums to `schema/enums.ts` mirroring `enums/reporting.ts` (keep the
   `expectTypeOf` parity test green)
-- [ ] 2.2 Add `schema/reporting/report-schedule.ts` — `report_schedule` (`name`, `report_key`,
+- [x] 2.2 Add `schema/reporting/report-schedule.ts` — `report_schedule` (`name`, `report_key`,
   `cron`, `recipients` **`text().array()`** — first array column, `format`, `params jsonb()`,
   `is_active`, `...auditColumns`, `...versionColumn`)
-- [ ] 2.3 Re-export `schema/reporting/*` from `schema/index.ts`; `pnpm db:generate` (creates the
+- [x] 2.3 Re-export `schema/reporting/*` from `schema/index.ts`; `pnpm db:generate` (creates the
   `report_schedule` migration)
-- [ ] 2.4 Author the **MV custom migration** (`drizzle-kit generate --custom
+- [x] 2.4 Author the **MV custom migration** (`drizzle-kit generate --custom
   --name=reporting_materialized_views`) — `CREATE MATERIALIZED VIEW` for `mv_stock_valuation`,
   `mv_sales_daily`, `mv_cogs_monthly`, each with a **UNIQUE index** (for `REFRESH … CONCURRENTLY`),
   using `--> statement-breakpoint`. **Sequence this migration after the M3/M5 migrations.**
-- [ ] 2.5 `pnpm db:migrate` against a DB that already has M3/M5 tables; confirm the three MVs +
+- [x] 2.5 `pnpm db:migrate` against a DB that already has M3/M5 tables; confirm the three MVs +
   their unique indexes exist
 
 ## 3. Config, deps & infra — `apps/api/src`
