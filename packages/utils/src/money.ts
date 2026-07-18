@@ -59,6 +59,18 @@ export function divideMoney(a: DecimalInput, b: DecimalInput): string {
   return formatMoney(toDecimal(a).dividedBy(divisor));
 }
 
+/**
+ * Back out the VAT-exclusive subtotal from a VAT-**inclusive** grand total (spec §5.5,
+ * "Vat Nai"): `subtotal = grand / (1 + rate)`, at money scale, half-up. E.g. a ฿107 grand at
+ * 7% yields `100.0000` (so `vat = grand − subtotal = 7.0000`). `rate` is a fraction (0.07 for
+ * 7%). Throws if `1 + rate` is zero (a −100% rate).
+ */
+export function vatBackOut(grand: DecimalInput, rate: DecimalInput): string {
+  const divisor = toDecimal(1).plus(toDecimal(rate));
+  if (divisor.isZero()) throw new Error("Invalid VAT rate: 1 + rate is zero");
+  return formatMoney(toDecimal(grand).dividedBy(divisor));
+}
+
 /** Divide `a / b` at quantity scale (rounds half-up). Throws on divide-by-zero. */
 export function divideQty(a: DecimalInput, b: DecimalInput): string {
   const divisor = toDecimal(b);

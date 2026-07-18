@@ -30,6 +30,24 @@ export class PdfService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * HTML → JPEG (M5 design D10). Renders the document at A4 width and screenshots the full
+   * page, reusing the same shared Chromium as `renderHtml` (no extra image dependency).
+   */
+  async renderJpeg(html: string): Promise<Buffer> {
+    const browser = await this.getBrowser();
+    const page = await browser.newPage();
+    try {
+      await page.setViewport({ width: 794, height: 1123 }); // A4 @ 96dpi
+      await page.setContent(html, { waitUntil: "load" });
+      return Buffer.from(
+        await page.screenshot({ type: "jpeg", quality: 90, fullPage: true }),
+      );
+    } finally {
+      await page.close();
+    }
+  }
+
   async onModuleDestroy(): Promise<void> {
     if (this.browser) {
       await this.browser.close();

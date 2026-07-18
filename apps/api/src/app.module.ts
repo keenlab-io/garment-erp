@@ -18,6 +18,7 @@ import { PdfModule } from "./pdf/pdf.module.js";
 import { ProductionModule } from "./production/production.module.js";
 import { QueueModule } from "./queue/queue.module.js";
 import { RealtimeModule } from "./realtime/realtime.module.js";
+import { SalesModule } from "./sales/sales.module.js";
 import { SequenceModule } from "./sequence/sequence.module.js";
 import { StorageModule } from "./storage/storage.module.js";
 
@@ -40,6 +41,7 @@ import { StorageModule } from "./storage/storage.module.js";
     InventoryModule,
     HrModule,
     ProductionModule,
+    SalesModule,
     SequenceModule,
     IdempotencyModule,
     QueueModule,
