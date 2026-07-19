@@ -27,6 +27,19 @@ export interface DocumentLineEditorLabels {
   removeLine: string;
 }
 
+/** `lineTotal` assumes valid decimal strings; the qty/price/discount inputs below are wired
+ * straight to keystrokes (their `onChange` casts via `asQty`/`asMoney`, unchecked assertions —
+ * the same pattern `emptyDocumentLine` relies on), so a momentarily blank or partial value (e.g.
+ * clearing the field to retype it) must fall back to a zero total instead of throwing and
+ * crashing the whole editor. */
+function safeLineTotal(line: DocumentLineEditorLine): string {
+  try {
+    return lineTotal(line);
+  } catch {
+    return "0.0000";
+  }
+}
+
 const defaultLabels: DocumentLineEditorLabels = {
   itemLabel: "Item",
   itemPlaceholder: "Look up an item…",
@@ -134,7 +147,7 @@ export function DocumentLineEditor({
           </FormField>
           <div className="flex w-28 flex-col gap-1.5">
             <span className="text-sm font-medium text-text-primary">{labels.totalLabel}</span>
-            <MoneyCell value={lineTotal(line)} className="pt-1.5" />
+            <MoneyCell value={safeLineTotal(line)} className="pt-1.5" />
           </div>
           <Button type="button" variant="ghost" onClick={() => removeLine(line.id)} disabled={lines.length === 1}>
             {labels.removeLine}

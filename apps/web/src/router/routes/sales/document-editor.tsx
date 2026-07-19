@@ -109,7 +109,12 @@ function DocumentEditorScreen({ id }: { id: string }) {
   const invoiceIssued = record?.kind === "invoice" && record.invoice.status !== InvoiceStatus.DRAFT;
   const promptPayQr = useInvoicePromptPayQrQuery(invoiceId ?? "", { enabled: Boolean(invoiceId) && invoiceIssued });
 
-  const validLines = lines.filter((l) => l.description.trim() !== "" && Number(l.qty) > 0);
+  // `unit_price` (like `qty`) is wired straight to keystrokes — a line whose price is still blank
+  // or not-yet-a-number (mid-edit) must not reach `lineTotal`/`computeDocumentTotals` below, or a
+  // routine "clear the field to retype it" crashes the whole live preview.
+  const validLines = lines.filter(
+    (l) => l.description.trim() !== "" && Number(l.qty) > 0 && l.unit_price !== "" && Number.isFinite(Number(l.unit_price)),
+  );
   const canSubmit = Boolean(customerId) && validLines.length > 0;
 
   async function handleCreate() {

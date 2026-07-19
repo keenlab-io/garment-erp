@@ -30,6 +30,20 @@ describe("DocumentLineEditor", () => {
     expect(screen.getByText("฿50,000.00")).toBeInTheDocument();
   });
 
+  it("shows a zero total instead of crashing when qty or unit price is cleared mid-edit", () => {
+    render(
+      <Harness
+        initial={[{ id: "l1", description: "Jersey", qty: asQty("200"), unit_price: asMoney("250.00") }]}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Qty"), { target: { value: "" } });
+    expect(screen.getByText("฿0.00")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Qty"), { target: { value: "10" } });
+    fireEvent.change(screen.getByLabelText("Unit price"), { target: { value: "" } });
+    expect(screen.getByText("฿0.00")).toBeInTheDocument();
+  });
+
   it("recomputes the total live as qty changes", () => {
     render(
       <Harness
