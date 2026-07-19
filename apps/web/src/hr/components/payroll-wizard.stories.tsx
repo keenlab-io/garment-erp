@@ -1,7 +1,9 @@
 import * as React from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useTranslation } from "react-i18next";
 import { PermissionsProvider } from "@erp/ui";
-import { PayrollWizard, type PayrollWizardStep, type PayslipPreviewRow } from "./payroll-wizard";
+import { usePeriodFormat } from "../../i18n/use-formatters";
+import { PayrollWizard, type PayrollWizardLabels, type PayrollWizardStep, type PayslipPreviewRow } from "./payroll-wizard";
 
 const SCOPE = [
   { id: "e1", name: "Somchai Jaidee" },
@@ -38,13 +40,50 @@ const PAYSLIPS: PayslipPreviewRow[] = [
   },
 ];
 
+/** Wires the wizard's `labels` to the real `hr` namespace so the Storybook toolbar's locale
+ * control retranslates it (M2 §5.3, mirrors `payroll-run-detail.tsx`'s wiring). */
+function useWizardLabels(): PayrollWizardLabels {
+  const { t } = useTranslation("hr");
+  return {
+    stepLabel: {
+      inputs: t("payroll.stepInputs"),
+      calculate: t("payroll.stepCalculate"),
+      review: t("payroll.stepReview"),
+      approve: t("payroll.stepApprove"),
+    },
+    stepsAriaLabel: t("payroll.stepsAriaLabel"),
+    scopeColumn: t("payroll.scopeColumn"),
+    flagsColumn: t("payroll.flagsColumn"),
+    excludeColumn: t("payroll.excludeColumn"),
+    missingSalary: t("payroll.missingSalary"),
+    unreconciledOt: t("payroll.unreconciledOt"),
+    noBlockingFlags: t("payroll.noBlockingFlags"),
+    blockingNotice: t("payroll.blockingNotice"),
+    continueToCalculate: t("payroll.continueToCalculate"),
+    runCalculation: t("payroll.runCalculation"),
+    calculating: t("payroll.calculating"),
+    continueToReview: t("payroll.continueToReview"),
+    continueToApprove: t("payroll.continueToApprove"),
+    employeeColumn: t("payroll.employeeColumn"),
+    netColumn: t("payroll.netColumn"),
+    outlier: t("payroll.outlier"),
+    viewBreakdown: t("payroll.viewBreakdown"),
+    approveCount: (count) => t("payroll.approveCount", { count }),
+    netTotalLabel: t("payroll.netTotalLabel"),
+    approve: t("payroll.approveRun"),
+  };
+}
+
 function Demo(props: { initialStep?: PayrollWizardStep; payslips?: PayslipPreviewRow[] }) {
   const [step, setStep] = React.useState<PayrollWizardStep>(props.initialStep ?? "inputs");
   const [excluded, setExcluded] = React.useState<string[]>([]);
+  const labels = useWizardLabels();
+  const formatPeriod = usePeriodFormat();
   return (
     <PermissionsProvider permissions={["hr.salary.view", "hr.payroll.approve"]} isSuperAdmin={false}>
       <PayrollWizard
         period="2026-07"
+        formatPeriod={formatPeriod}
         status="DRAFT"
         step={step}
         onStepChange={setStep}
@@ -57,6 +96,7 @@ function Demo(props: { initialStep?: PayrollWizardStep; payslips?: PayslipPrevie
         payslips={props.payslips ?? []}
         onOpenBreakdown={() => {}}
         onApprove={() => {}}
+        labels={labels}
       />
     </PermissionsProvider>
   );

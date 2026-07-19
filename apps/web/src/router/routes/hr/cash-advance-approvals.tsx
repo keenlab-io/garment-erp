@@ -75,6 +75,23 @@ export function CashAdvanceApprovalsPage() {
           onReject={(reason) => handleReject(advance.id, reason)}
           approving={approvingId === advance.id}
           rejecting={rejectingId === advance.id}
+          labels={{
+            amountLabel: t("approvals.cardAmountLabel"),
+            reasonLabel: t("approvals.cardReasonLabel"),
+            noReason: t("approvals.cardNoReason"),
+            approve: t("approvals.cardApprove"),
+            reject: t("approvals.cardReject"),
+            approveTitle: (employeeName) => t("approvals.cardApproveTitle", { employeeName }),
+            approveConsequence: (employeeName) => t("approvals.cardApproveConsequence", { employeeName }),
+            rejectTitle: (employeeName) => t("approvals.cardRejectTitle", { employeeName }),
+            rejectConsequence: (employeeName) => t("approvals.cardRejectConsequence", { employeeName }),
+            superAdminOnly: t("approvals.cardSuperAdminOnly"),
+          }}
+          ceilingLabels={{
+            within: t("approvals.ceilingWithin"),
+            approaching: t("approvals.ceilingApproaching"),
+            over: t("approvals.ceilingOver"),
+          }}
         />
       ))}
     </div>

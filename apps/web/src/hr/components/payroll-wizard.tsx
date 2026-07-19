@@ -60,6 +60,7 @@ function isOutlier(row: PayslipPreviewRow): boolean {
 
 export interface PayrollWizardLabels {
   stepLabel: Record<PayrollWizardStep, string>;
+  stepsAriaLabel: string;
   scopeColumn: string;
   flagsColumn: string;
   excludeColumn: string;
@@ -83,6 +84,7 @@ export interface PayrollWizardLabels {
 
 const defaultLabels: PayrollWizardLabels = {
   stepLabel: { inputs: "Inputs", calculate: "Calculate", review: "Review", approve: "Approve" },
+  stepsAriaLabel: "Payroll run steps",
   scopeColumn: "Employee",
   flagsColumn: "Flags",
   excludeColumn: "Exclude",
@@ -107,6 +109,8 @@ const defaultLabels: PayrollWizardLabels = {
 export interface PayrollWizardProps {
   /** Payroll period, "YYYY-MM". */
   period: string;
+  /** Formats `period` for display (header, approve-dialog subject) — defaults to the raw string. */
+  formatPeriod?: (period: string) => string;
   status: PayrollRunStatus;
   step: PayrollWizardStep;
   onStepChange: (step: PayrollWizardStep) => void;
@@ -132,6 +136,7 @@ export interface PayrollWizardProps {
  */
 export function PayrollWizard({
   period,
+  formatPeriod = (p) => p,
   status,
   step,
   onStepChange,
@@ -164,11 +169,11 @@ export function PayrollWizard({
   return (
     <div className={cn("flex flex-col gap-6", className)}>
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-h3 font-semibold text-text-primary">{period}</h2>
+        <h2 className="text-h3 font-semibold text-text-primary">{formatPeriod(period)}</h2>
         <InkChip status={payrollRunStatusToChip(status)} />
       </div>
 
-      <ol className="flex items-center gap-2" aria-label="Payroll run steps">
+      <ol className="flex items-center gap-2" aria-label={labels.stepsAriaLabel}>
         {STEPS.map((s, index) => {
           const isCurrent = index === stepIndex;
           const isDone = index < stepIndex;
@@ -348,7 +353,7 @@ export function PayrollWizard({
             open={approveOpen}
             onOpenChange={setApproveOpen}
             kind="payroll-approve"
-            subject={period}
+            subject={formatPeriod(period)}
             loading={approving}
             onConfirm={async (result) => {
               await onApprove(result);

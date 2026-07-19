@@ -3,8 +3,9 @@ import { useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import type { PayrollRunStatus } from "@erp/contracts";
-import { Button, DataTable, FormField, Input, statusColumn, textColumn, useToast } from "@erp/ui";
+import { Button, DataTable, FormField, Input, statusColumn, useToast } from "@erp/ui";
 import { useDensity } from "../../../density/density-context.js";
+import { usePeriodFormat } from "../../../i18n/use-formatters.js";
 import { useCreatePayrollRunMutation, usePayrollRunsQuery } from "../../../hr/queries.js";
 import { payrollRunStatusToChip } from "../../../hr/chip-status.js";
 
@@ -23,6 +24,7 @@ export function PayrollRunsListPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { density } = useDensity();
+  const formatPeriod = usePeriodFormat();
 
   const runs = usePayrollRunsQuery();
   const createRun = useCreatePayrollRunMutation();
@@ -35,13 +37,20 @@ export function PayrollRunsListPage() {
 
   const columns = React.useMemo<ColumnDef<PayrollRunRow>[]>(
     () => [
-      textColumn<PayrollRunRow>("period", { header: t("payroll.columnPeriod"), mono: true }),
+      {
+        id: "period",
+        accessorKey: "period",
+        header: t("payroll.columnPeriod"),
+        cell: ({ getValue }) => (
+          <span className="font-mono text-mono text-text-link">{formatPeriod(getValue() as string)}</span>
+        ),
+      },
       statusColumn<PayrollRunRow, PayrollRunStatus>("status", {
         header: t("payroll.columnStatus"),
         resolve: payrollRunStatusToChip,
       }),
     ],
-    [t],
+    [t, formatPeriod],
   );
 
   function handleCreate(event: React.FormEvent) {

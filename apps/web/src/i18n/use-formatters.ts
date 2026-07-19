@@ -52,3 +52,21 @@ export function useQtyFormat(): (value: DecimalInput, unit?: string, scale?: num
     [],
   );
 }
+
+/**
+ * Formats a "YYYY-MM" period (payroll runs, attendance) as a locale month+year label — e.g.
+ * "July 2026" / "กรกฎาคม 2026" — via `useDateFormat`, so it stays Gregorian/CE like every other
+ * on-screen date (M2 §5.1; the raw ISO period string is never shown to the user). Falls back to
+ * the raw string for a malformed period rather than throwing.
+ */
+export function usePeriodFormat(): (period: string) => string {
+  const dateFormat = useDateFormat({ year: "numeric", month: "long" });
+  return React.useCallback(
+    (period) => {
+      const [year, month] = period.split("-").map(Number);
+      if (!year || !month) return period;
+      return dateFormat.format(new Date(year, month - 1, 1));
+    },
+    [dateFormat],
+  );
+}

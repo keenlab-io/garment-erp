@@ -37,10 +37,10 @@
 
 ## 5. i18n, a11y & Storybook
 
-- [ ] 5.1 TH+EN strings for `hr`; BE/CE dates on payslips and periods
-- [ ] 5.2 WCAG AA: wizard stepper focus order, masked-field lock semantics, chips not color-only,
+- [x] 5.1 TH+EN strings for `hr`; BE/CE dates on payslips and periods
+- [x] 5.2 WCAG AA: wizard stepper focus order, masked-field lock semantics, chips not color-only,
   one-hand mobile approval targets
-- [ ] 5.3 Stories: PayrollWizard, PayslipBreakdownDrawer, CashAdvanceApprovalCard at theme×density×locale
+- [x] 5.3 Stories: PayrollWizard, PayslipBreakdownDrawer, CashAdvanceApprovalCard at theme×density×locale
 
 ## 6. Verification
 

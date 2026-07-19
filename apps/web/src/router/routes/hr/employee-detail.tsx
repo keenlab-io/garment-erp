@@ -257,6 +257,7 @@ function ProfileTab({ employeeId }: { employeeId: string }) {
 function DocumentsTab({ employeeId }: { employeeId: string }) {
   const { t } = useTranslation("hr");
   const { toast } = useToast();
+  const dateTimeFormat = useDateFormat({ dateStyle: "medium", timeStyle: "short" });
   const documentsQuery = useEmployeeDocumentsQuery(employeeId);
   const uploadDocument = useUploadEmployeeDocumentMutation();
   const documentUrl = useEmployeeDocumentUrlMutation();
@@ -301,6 +302,11 @@ function DocumentsTab({ employeeId }: { employeeId: string }) {
               }}
               onDownload={() => handleDownload(document.id)}
               downloading={downloadingId === document.id}
+              formatDateTime={(iso) => dateTimeFormat.format(new Date(iso))}
+              labels={{
+                download: t("employeeDetail.documentDownload"),
+                uploaded: (formatted) => t("employeeDetail.documentUploadedAt", { date: formatted }),
+              }}
             />
           ))
         )}

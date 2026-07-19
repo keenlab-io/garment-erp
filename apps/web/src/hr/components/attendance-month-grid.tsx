@@ -15,19 +15,19 @@ export interface AttendanceRecord {
   status: AttendanceDayStatus;
 }
 
-interface DayMeta {
+interface DayGlyph {
   glyph: string;
-  label: string;
   tone: string;
 }
 
-const DAY_META: Record<AttendanceDayStatus, DayMeta> = {
-  present: { glyph: "P", label: "Present", tone: "bg-success-subtle text-success-on" },
-  absent: { glyph: "A", label: "Absent", tone: "bg-danger-subtle text-danger-on" },
-  leave: { glyph: "L", label: "Leave", tone: "bg-warning-subtle text-warning-on" },
-  holiday: { glyph: "H", label: "Holiday", tone: "bg-info-subtle text-info-on" },
+/** Glyph + tone never localize (a single-letter, non-color-only signature); only the label does. */
+const DAY_GLYPH: Record<AttendanceDayStatus, DayGlyph> = {
+  present: { glyph: "P", tone: "bg-success-subtle text-success-on" },
+  absent: { glyph: "A", tone: "bg-danger-subtle text-danger-on" },
+  leave: { glyph: "L", tone: "bg-warning-subtle text-warning-on" },
+  holiday: { glyph: "H", tone: "bg-info-subtle text-info-on" },
 };
-const UNRECORDED_META: DayMeta = { glyph: "–", label: "No record", tone: "text-text-muted" };
+const UNRECORDED_GLYPH: DayGlyph = { glyph: "–", tone: "text-text-muted" };
 
 export interface AttendanceMonthGridLabels {
   employeeColumn: string;
@@ -41,12 +41,23 @@ const defaultLabels: AttendanceMonthGridLabels = {
   empty: "No employees in scope.",
 };
 
+const defaultStatusLabels: Record<AttendanceDayStatus, string> = {
+  present: "Present",
+  absent: "Absent",
+  leave: "Leave",
+  holiday: "Holiday",
+};
+
 export interface AttendanceMonthGridProps {
   /** The month being reviewed, "YYYY-MM". */
   period: string;
   employees: AttendanceEmployee[];
   records: AttendanceRecord[];
   labels?: Partial<AttendanceMonthGridLabels>;
+  /** Per-status day labels (legend + cell `aria-label`/`title`). */
+  statusLabels?: Partial<Record<AttendanceDayStatus, string>>;
+  /** Label for a day with no attendance row at all. */
+  noRecordLabel?: string;
   className?: string;
 }
 
@@ -66,9 +77,12 @@ export function AttendanceMonthGrid({
   employees,
   records,
   labels: labelsProp,
+  statusLabels: statusLabelsProp,
+  noRecordLabel = "No record",
   className,
 }: AttendanceMonthGridProps) {
   const labels = { ...defaultLabels, ...labelsProp };
+  const statusLabels = { ...defaultStatusLabels, ...statusLabelsProp };
   const days = React.useMemo(() => Array.from({ length: daysInPeriod(period) }, (_, i) => i + 1), [period]);
 
   const byCell = React.useMemo(() => {
@@ -116,18 +130,19 @@ export function AttendanceMonthGrid({
                 {days.map((day) => {
                   const date = `${period}-${String(day).padStart(2, "0")}`;
                   const status = byCell.get(`${employee.id}:${date}`);
-                  const meta = status ? DAY_META[status] : UNRECORDED_META;
+                  const glyph = status ? DAY_GLYPH[status] : UNRECORDED_GLYPH;
+                  const label = status ? statusLabels[status] : noRecordLabel;
                   return (
                     <td key={day} className="p-1 text-center">
                       <span
-                        title={meta.label}
-                        aria-label={`${employee.name}, ${date}: ${meta.label}`}
+                        title={label}
+                        aria-label={`${employee.name}, ${date}: ${label}`}
                         className={cn(
                           "inline-flex size-6 items-center justify-center rounded-sm text-caption font-medium",
-                          meta.tone,
+                          glyph.tone,
                         )}
                       >
-                        {meta.glyph}
+                        {glyph.glyph}
                       </span>
                     </td>
                   );
@@ -140,12 +155,12 @@ export function AttendanceMonthGrid({
 
       <div className="flex flex-wrap items-center gap-3 text-caption text-text-muted">
         <span className="font-semibold">{labels.legendTitle}:</span>
-        {(Object.keys(DAY_META) as AttendanceDayStatus[]).map((status) => (
+        {(Object.keys(DAY_GLYPH) as AttendanceDayStatus[]).map((status) => (
           <span key={status} className="inline-flex items-center gap-1">
-            <span className={cn("inline-flex size-4 items-center justify-center rounded-sm text-[10px] font-medium", DAY_META[status].tone)}>
-              {DAY_META[status].glyph}
+            <span className={cn("inline-flex size-4 items-center justify-center rounded-sm text-[10px] font-medium", DAY_GLYPH[status].tone)}>
+              {DAY_GLYPH[status].glyph}
             </span>
-            {DAY_META[status].label}
+            {statusLabels[status]}
           </span>
         ))}
       </div>
