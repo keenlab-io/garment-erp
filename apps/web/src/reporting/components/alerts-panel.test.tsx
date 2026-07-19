@@ -52,6 +52,12 @@ describe("AlertsPanel", () => {
     expect(onSelect).toHaveBeenCalledWith(ALERTS[0]);
   });
 
+  it("gives each View button a distinct accessible name (WCAG 2.4.4 link purpose)", () => {
+    render(<AlertsPanel title="Alerts" alerts={ALERTS} onSelect={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "View Cotton fabric — near minimum" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View WO-1042 delayed" })).toBeInTheDocument();
+  });
+
   it("shows loading skeletons instead of the list while loading", () => {
     render(<AlertsPanel title="Alerts" alerts={ALERTS} onSelect={vi.fn()} loading />);
     expect(screen.queryByText("Cotton fabric — near minimum")).not.toBeInTheDocument();

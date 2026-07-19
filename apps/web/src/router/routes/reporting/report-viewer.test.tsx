@@ -120,10 +120,10 @@ describe("ReportViewerPage", () => {
     const router = await renderViewer("sales.overview");
     await router.navigate({ to: "/reports/$reportKey", params: { reportKey: "sales.overview" }, search: { dimension: "day", value: "2026-01-01" } });
 
-    expect(await screen.findByText("day: 2026-01-01")).toBeInTheDocument();
+    expect(await screen.findByText("Day: Jan 1, 2026")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("From"), "2026-02-01");
 
-    expect(screen.queryByText("day: 2026-01-01")).not.toBeInTheDocument();
+    expect(screen.queryByText("Day: Jan 1, 2026")).not.toBeInTheDocument();
   });
 });

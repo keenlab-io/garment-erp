@@ -18,6 +18,9 @@ export interface ReportingAlert {
 export interface AlertsPanelLabels {
   empty: string;
   viewAction: string;
+  /** The View button's accessible name — disambiguates it from every other alert's identical
+   * `viewAction` text (WCAG 2.4.4 "Link Purpose"), e.g. `"View Cotton fabric — near minimum"`. */
+  viewActionFor: (title: string) => string;
   source: (source: AlertSource) => string;
 }
 
@@ -30,6 +33,7 @@ const DEFAULT_SOURCE_LABEL: Record<AlertSource, string> = {
 const defaultLabels: AlertsPanelLabels = {
   empty: "No alerts — everything's on track.",
   viewAction: "View",
+  viewActionFor: (title) => `View ${title}`,
   source: (source) => DEFAULT_SOURCE_LABEL[source],
 };
 
@@ -81,7 +85,7 @@ export function AlertsPanel({
                   {alert.description ? ` · ${alert.description}` : ""}
                 </span>
               </div>
-              <Button variant="ghost" onClick={() => onSelect(alert)}>
+              <Button variant="ghost" onClick={() => onSelect(alert)} aria-label={labels.viewActionFor(alert.title)}>
                 {labels.viewAction}
               </Button>
             </li>

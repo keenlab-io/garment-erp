@@ -8,6 +8,7 @@ import { ActiveFilterChipRail } from "../../reporting/components/active-filter-c
 import { AlertsPanel } from "../../reporting/components/alerts-panel.js";
 import { useDashboardFilter, useDashboardQuery } from "../../reporting/queries.js";
 import { dimensionFilterValue, panelChartConfig, panelHeadlineTotal, panelResult } from "../../reporting/dashboard-panels.js";
+import { useFilterChips } from "../../reporting/use-filter-chips.js";
 import {
   financeAlertsFromAging,
   productionAlertsFromTimeline,
@@ -87,13 +88,17 @@ export function DashboardPage() {
   );
   const alertsLoading = lowStockQuery.isLoading || timelineQuery.isLoading || agingQuery.isLoading;
 
-  const chips = filter.dimension && filter.value ? [{ key: filter.dimension, label: `${filter.dimension}: ${filter.value}` }] : [];
+  const chips = useFilterChips(filter.dimension, filter.value);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <h1 className="font-display text-h1 font-semibold text-text-primary">{t("overview.title")}</h1>
 
-      <ActiveFilterChipRail chips={chips} onClear={clearFilter} />
+      <ActiveFilterChipRail
+        chips={chips}
+        onClear={clearFilter}
+        labels={{ groupLabel: t("filters.groupLabel"), clear: t("filters.clear"), remove: (label) => t("filters.removeFilter", { label }) }}
+      />
 
       {cards.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -108,6 +113,7 @@ export function DashboardPage() {
                 format="money"
                 loading={card.query.isLoading}
                 permission={card.permission}
+                labels={{ restricted: t("kpi.restricted") }}
               />
             );
           })}
@@ -125,6 +131,7 @@ export function DashboardPage() {
           series={salesChart.series}
           activeValue={filter.value}
           loading={salesDashboard.isLoading}
+          emptyLabel={t("chart.empty")}
           onSelect={
             salesDimension
               ? (value) => setFilter({ dimension: salesDimension, value: dimensionFilterValue(salesDimension, value) })
@@ -138,6 +145,13 @@ export function DashboardPage() {
         alerts={alerts}
         loading={alertsLoading}
         onSelect={(alert) => void navigate({ to: alert.href })}
+        labels={{
+          empty: t("alerts.empty"),
+          viewAction: t("alerts.viewAction"),
+          viewActionFor: (title) => t("alerts.viewActionFor", { title }),
+          source: (source) =>
+            source === "stock" ? t("alerts.sourceStock") : source === "production" ? t("alerts.sourceProduction") : t("alerts.sourceFinance"),
+        }}
       />
     </div>
   );

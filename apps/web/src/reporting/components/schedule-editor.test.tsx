@@ -26,6 +26,23 @@ describe("ScheduleEditor", () => {
     expect(screen.getByText("Sends Every Monday 08:00")).toBeInTheDocument();
   });
 
+  it("lets the caller override the weekday/cadence labels for localization", () => {
+    render(
+      <ScheduleEditor
+        value={baseValue()}
+        onChange={vi.fn()}
+        reportOptions={REPORT_OPTIONS}
+        onSubmit={vi.fn()}
+        labels={{
+          weekdayLabel: () => "วันจันทร์",
+          describeCadence: () => "ทุกวันจันทร์ 08:00",
+        }}
+      />,
+    );
+    expect(screen.getByText("Sends ทุกวันจันทร์ 08:00")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Day of week" })).toHaveTextContent("วันจันทร์");
+  });
+
   it("shows the day-of-week field only for a weekly cadence", () => {
     const { rerender } = render(
       <ScheduleEditor value={baseValue()} onChange={vi.fn()} reportOptions={REPORT_OPTIONS} onSubmit={vi.fn()} />,

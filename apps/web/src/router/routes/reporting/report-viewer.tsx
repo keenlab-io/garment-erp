@@ -6,6 +6,7 @@ import { FormField, Input } from "@erp/ui";
 import { ActiveFilterChipRail } from "../../../reporting/components/active-filter-chip-rail.js";
 import { ReportDataTable } from "../../../reporting/components/report-data-table.js";
 import { useReportFilter, useReportQuery } from "../../../reporting/queries.js";
+import { useFilterChips } from "../../../reporting/use-filter-chips.js";
 import { reportKeyLabelKey } from "../../../reporting/report-catalog.js";
 
 /** A row's drill-down target (design MD4) — only the ids a screen actually has a detail route for;
@@ -46,7 +47,7 @@ export function ReportViewerPage() {
   const report = useReportQuery(reportKey, definedQuery(filter));
   const drillable = (report.data?.body.columns ?? []).some((c) => c.key === "item_id" || c.key === "customer_id");
 
-  const chips = filter.dimension && filter.value ? [{ key: filter.dimension, label: `${filter.dimension}: ${filter.value}` }] : [];
+  const chips = useFilterChips(filter.dimension, filter.value);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -69,7 +70,11 @@ export function ReportViewerPage() {
         </FormField>
       </div>
 
-      <ActiveFilterChipRail chips={chips} onClear={clearFilter} />
+      <ActiveFilterChipRail
+        chips={chips}
+        onClear={clearFilter}
+        labels={{ groupLabel: t("filters.groupLabel"), clear: t("filters.clear"), remove: (label) => t("filters.removeFilter", { label }) }}
+      />
 
       <ReportDataTable
         columns={report.data?.body.columns ?? []}
@@ -88,6 +93,16 @@ export function ReportViewerPage() {
             : undefined
         }
         tableId={`report-${reportKey}`}
+        labels={{
+          exportAction: t("viewer.exportAction"),
+          exportPending: (format) => t("viewer.exportPending", { format }),
+          exportDone: t("viewer.exportDone"),
+          exportFailed: t("viewer.exportFailed"),
+          download: t("viewer.download"),
+          totalsLabel: t("viewer.totalsLabel"),
+          drillDown: t("viewer.drillDown"),
+          emptyTitle: t("viewer.emptyTitle"),
+        }}
       />
     </div>
   );
