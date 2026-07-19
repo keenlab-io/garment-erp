@@ -37,10 +37,10 @@
 
 ## 5. i18n, a11y & Storybook
 
-- [ ] 5.1 TH+EN strings for `production`; BE/CE dates on due/timeline
-- [ ] 5.2 WCAG AA + Touch: status by shape+label (not color), ≥56px kiosk buttons, gloved-hand targets,
+- [x] 5.1 TH+EN strings for `production`; BE/CE dates on due/timeline
+- [x] 5.2 WCAG AA + Touch: status by shape+label (not color), ≥56px kiosk buttons, gloved-hand targets,
   live-region announces delays
-- [ ] 5.3 Stories: GanttTimelineRow, KioskCard, StepDrawer, SubcontractSlaChip at theme×density×locale (incl. Touch)
+- [x] 5.3 Stories: GanttTimelineRow, KioskCard, StepDrawer, SubcontractSlaChip at theme×density×locale (incl. Touch)
 
 ## 6. Verification
 
