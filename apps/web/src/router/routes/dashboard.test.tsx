@@ -8,9 +8,9 @@ import {
 } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nextProvider } from "react-i18next";
+import { PermissionsProvider } from "@erp/ui";
+import type { Permission } from "@erp/contracts";
 import i18n from "../../i18n/i18n";
-import { LocaleProvider } from "../../i18n/locale-context";
-import { DensityProvider } from "../../density/density-context";
 import { DashboardPage } from "./dashboard";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -31,17 +31,20 @@ function stubFetch(byPath: Record<string, () => Response>) {
   );
 }
 
-/** Renders the dashboard inside the same provider stack the real shell threads through it. */
-async function renderDashboard() {
+function panelsResponse(panels: Array<{ key: string; columns: Array<{ key: string; label: string }>; rows: Array<Record<string, string>>; totals: Record<string, string> }>) {
+  return jsonResponse({
+    panels: panels.map((p) => ({ key: p.key, data: { window: {}, columns: p.columns, rows: p.rows, totals: p.totals } })),
+  });
+}
+
+async function renderDashboard(permissions: Permission[]) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const rootRoute = createRootRoute({
     component: () => (
       <QueryClientProvider client={queryClient}>
-        <LocaleProvider>
-          <DensityProvider>
-            <DashboardPage />
-          </DensityProvider>
-        </LocaleProvider>
+        <PermissionsProvider permissions={permissions} isSuperAdmin={false}>
+          <DashboardPage />
+        </PermissionsProvider>
       </QueryClientProvider>
     ),
   });
@@ -57,7 +60,7 @@ async function renderDashboard() {
   );
 }
 
-describe("DashboardPage", () => {
+describe("DashboardPage (M6 overview)", () => {
   beforeAll(async () => {
     await i18n.changeLanguage("en");
   });
@@ -66,55 +69,70 @@ describe("DashboardPage", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders API health and the customer list once both requests resolve", async () => {
+  it("shows a KPI card per accessible report group and the sales trend chart", async () => {
     stubFetch({
-      "/health": () => jsonResponse({ status: "ok", uptime: 12.3 }),
-      "/customers": () =>
-        jsonResponse({
-          data: [
-            {
-              id: "1",
-              name: "Siam Textile Co.",
-              tax_id: "1234567890123",
-              branch_code: null,
-              addresses: [],
-              credit_terms_days: 30,
-              version: 1,
-            },
-          ],
-          next_cursor: null,
-        }),
+      "/dashboards/inventory": () =>
+        panelsResponse([{ key: "stock.balance", columns: [{ key: "item_id", label: "Item" }, { key: "value", label: "Value" }], rows: [{ item_id: "i1", value: "100.0000" }], totals: { value: "100.0000" } }]),
+      "/dashboards/sales": () =>
+        panelsResponse([{ key: "sales.overview", columns: [{ key: "d", label: "Date" }, { key: "sales", label: "Sales" }], rows: [{ d: "2026-01-01", sales: "500.0000" }], totals: { sales: "500.0000" } }]),
+      "/reports/low-stock": () => jsonResponse({ rows: [] }),
+      "/work-orders/timeline": () => jsonResponse({ data: [] }),
+      "/reports/aging": () => jsonResponse({ rows: [] }),
+      "/items": () => jsonResponse({ data: [], next_cursor: null }),
     });
 
-    await renderDashboard();
+    await renderDashboard(["report.inventory.view", "report.sales.view"]);
 
-    expect(await screen.findByText("Connected")).toBeInTheDocument();
-    expect(await screen.findByText("Siam Textile Co.")).toBeInTheDocument();
+    expect(await screen.findByText("Inventory dashboard")).toBeInTheDocument();
+    expect(screen.getByText("Sales dashboard")).toBeInTheDocument();
+    expect(await screen.findByText("฿500.0000")).toBeInTheDocument();
   });
 
-  it("shows the empty state when there are no customers", async () => {
+  it("masks the cost KPI without inventory.cost.view instead of fetching it", async () => {
+    let costFetched = false;
     stubFetch({
-      "/health": () => jsonResponse({ status: "ok", uptime: 1 }),
-      "/customers": () => jsonResponse({ data: [], next_cursor: null }),
+      "/dashboards/cost": () => {
+        costFetched = true;
+        return panelsResponse([]);
+      },
+      "/reports/low-stock": () => jsonResponse({ rows: [] }),
+      "/work-orders/timeline": () => jsonResponse({ data: [] }),
+      "/reports/aging": () => jsonResponse({ rows: [] }),
+      "/items": () => jsonResponse({ data: [], next_cursor: null }),
     });
 
-    await renderDashboard();
+    await renderDashboard(["report.cost.view"]);
 
-    expect(await screen.findByText("No customers yet.")).toBeInTheDocument();
+    expect(await screen.findByText("Cost dashboard")).toBeInTheDocument();
+    expect(screen.getByText("Restricted — requires cost access")).toBeInTheDocument();
+    expect(costFetched).toBe(false);
   });
 
-  it("shows an error state with retry when the customer list request fails", async () => {
+  it("shows the no-access message when the viewer holds no report permission", async () => {
     stubFetch({
-      "/health": () => jsonResponse({ status: "ok", uptime: 1 }),
-      "/customers": () =>
-        jsonResponse({ code: "UNAUTHENTICATED", message: "no token", details: [] }, 401),
+      "/reports/low-stock": () => jsonResponse({ rows: [] }),
+      "/work-orders/timeline": () => jsonResponse({ data: [] }),
+      "/reports/aging": () => jsonResponse({ rows: [] }),
+      "/items": () => jsonResponse({ data: [], next_cursor: null }),
     });
 
-    await renderDashboard();
+    await renderDashboard([]);
 
-    expect(
-      await screen.findByText("Couldn't load customers. Check your connection and try again."),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(await screen.findByText("No report access yet — ask an admin to grant a reporting permission.")).toBeInTheDocument();
+  });
+
+  it("unifies low-stock, delayed-step, and overdue alerts into one panel", async () => {
+    stubFetch({
+      "/reports/low-stock": () => jsonResponse({ rows: [{ item_id: "i1", warehouse_id: "w1", on_hand: "1.0000", min_stock: "5.0000" }] }),
+      "/work-orders/timeline": () => jsonResponse({ data: [] }),
+      "/reports/aging": () =>
+        jsonResponse({ rows: [{ customer_id: "c1", customer_name: "Acme Co.", current: "0", d1_30: "0", d31_60: "0", d61_90: "0", over_90: "999.0000" }] }),
+      "/items": () => jsonResponse({ data: [{ id: "i1", code: "AA1", name: "Cotton Fabric", base_uom_id: "u1" }], next_cursor: null }),
+    });
+
+    await renderDashboard([]);
+
+    expect(await screen.findByText("Cotton Fabric")).toBeInTheDocument();
+    expect(screen.getByText("Acme Co.")).toBeInTheDocument();
   });
 });

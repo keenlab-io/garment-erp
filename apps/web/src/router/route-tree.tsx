@@ -24,6 +24,10 @@ import { requireModuleAccess, requireReportAccess, requireRouteAccess } from "./
 import { validateDashboardSearch, validateReportSearch } from "../reporting/search";
 import { DashboardPage } from "./routes/dashboard";
 import { ModulePlaceholder } from "./routes/placeholder";
+import { ReportsHomePage } from "./routes/reporting/reports-home";
+import { ReportDashboardPage } from "./routes/reporting/dashboard-detail";
+import { ReportViewerPage } from "./routes/reporting/report-viewer";
+import { ReportSchedulesPage } from "./routes/reporting/report-schedules";
 import { LoginPage, validateLoginSearch } from "./routes/login";
 import { UsersListPage } from "./routes/admin/users-list";
 import { UserDetailPage } from "./routes/admin/user-detail";
@@ -69,18 +73,24 @@ const ADMIN_ROUTE_COMPONENTS: Record<string, () => React.ReactElement> = {
   "admin-import": PermissionImportPage,
 };
 
+/** The M1–M6 module home screens, keyed by `ModuleDescriptor.key` — every other module keeps the
+ * shared `ModulePlaceholder` until its UI ships. `dashboard` (`/`) is the M6 reporting overview
+ * (design MD1); `reports` (`/reports`) is the Reports-home browse surface (M6 §4.2). */
+const MODULE_ROUTE_COMPONENTS: Record<string, () => React.ReactElement> = {
+  dashboard: DashboardPage,
+  reports: ReportsHomePage,
+};
+
 // One route per module, generated from the single nav registry so routes, nav, and the palette
-// never drift. Dashboard gets its own page; every other module uses the shared placeholder until
-// its M1–M6 UI ships. `/` doubles as the M6 reporting overview (design MD1) — its cross-filter
-// state (`dimension`/`value`) is typed search params from the start (M6 §1.2) even though the
-// current `DashboardPage` doesn't read them yet (that lands with the M6 §4.1 screen); it stays
-// ungated (every authenticated user lands somewhere, M0 design) — cost/profit masking happens at
-// the panel level, not the route level.
+// never drift. `/` doubles as the M6 reporting overview (design MD1) — its cross-filter state
+// (`dimension`/`value`) is typed search params (M6 §1.2); it stays ungated (every authenticated
+// user lands somewhere, M0 design) — cost/profit masking happens at the panel level, not the
+// route level.
 function moduleRoute(module: ModuleDescriptor) {
   return createRoute({
     getParentRoute: () => rootRoute,
     path: module.path,
-    component: module.key === "dashboard" ? DashboardPage : ModulePlaceholder,
+    component: MODULE_ROUTE_COMPONENTS[module.key] ?? ModulePlaceholder,
     staticData: {
       title: module.titleKey,
       kiosk: module.kiosk,
@@ -403,18 +413,20 @@ const salesCustomerDetailRoute = createRoute({
 
 // Reporting & Analytics domain dashboards (Inventory/Sales/Cost/Profit/Tax) — each gated by its
 // own report.<group>.view permission; cross-filter state (`dimension`/`value`) is typed search
-// params (M6 §1.2, design MD1) so a filtered dashboard is shareable via URL. None has a screen yet
-// (M6 §4 ships them), so every entry falls back to `ModulePlaceholder`.
+// params (M6 §1.2, design MD1) so a filtered dashboard is shareable via URL. All five share one
+// `ReportDashboardPage` component (M6 §4.1) — since their paths are static per group rather than a
+// `$param`, `staticData.reportGroup` is how the component reads back which group it's showing.
 function reportingDashboardRoute(entry: ReportingRouteDescriptor) {
   return createRoute({
     getParentRoute: () => rootRoute,
     path: entry.path,
-    component: ModulePlaceholder,
+    component: ReportDashboardPage,
     staticData: {
       title: entry.titleKey,
       breadcrumb: entry.titleKey,
       permissions: entry.permissions,
       navKey: "reports",
+      reportGroup: entry.key.replace("reports-dashboard-", ""),
     },
     validateSearch: validateDashboardSearch,
     beforeLoad: ({ context }) =>
@@ -423,12 +435,12 @@ function reportingDashboardRoute(entry: ReportingRouteDescriptor) {
 }
 
 // Reporting & Analytics sub-routes with no cross-filter state of their own (currently just the
-// schedules manager, M6 §1/design MD5).
+// schedules manager, M6 §4.3/design MD5).
 function reportingRoute(entry: ReportingRouteDescriptor) {
   return createRoute({
     getParentRoute: () => rootRoute,
     path: entry.path,
-    component: ModulePlaceholder,
+    component: ReportSchedulesPage,
     staticData: {
       title: entry.titleKey,
       breadcrumb: entry.titleKey,
@@ -449,7 +461,7 @@ function reportingRoute(entry: ReportingRouteDescriptor) {
 const reportViewerRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/reports/$reportKey",
-  component: ModulePlaceholder,
+  component: ReportViewerPage,
   staticData: {
     title: "reporting:nav.reportViewer",
     breadcrumb: "reporting:nav.reportViewer",
