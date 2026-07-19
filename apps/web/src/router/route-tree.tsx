@@ -278,6 +278,7 @@ function productionRoute(entry: ProductionRouteDescriptor) {
       title: entry.titleKey,
       breadcrumb: entry.titleKey,
       kiosk: entry.kiosk,
+      kioskLockdown: entry.kioskLockdown,
       permissions: entry.permissions,
       navKey: "production",
     },
