@@ -17,10 +17,10 @@
 
 ## 3. Module components
 
-- [ ] 3.1 **DocumentLineEditor** (item lookup + qty + unit price + total)
-- [ ] 3.2 **PaperPreview** surface (token-CSS, WYSIWYG = the PDF) with live totals
-- [ ] 3.3 **VatModeCalcToggle** (preview-linked) + **WhtNetToReceivePanel** + **PromptPayQrBlock**
-- [ ] 3.4 **DocLifecycleChip**, **AgingBucketChip**, **CustomerAutocomplete** (fills tax fields),
+- [x] 3.1 **DocumentLineEditor** (item lookup + qty + unit price + total)
+- [x] 3.2 **PaperPreview** surface (token-CSS, WYSIWYG = the PDF) with live totals
+- [x] 3.3 **VatModeCalcToggle** (preview-linked) + **WhtNetToReceivePanel** + **PromptPayQrBlock**
+- [x] 3.4 **DocLifecycleChip**, **AgingBucketChip**, **CustomerAutocomplete** (fills tax fields),
   **TemplateDesigner** (asset slots + named-range map)
 
 ## 4. Screens / flows

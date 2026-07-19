@@ -15,8 +15,21 @@ type Story = StoryObj<typeof meta>;
 
 const ROUTING: ChipStatus[] = ["pending", "in-progress", "completed", "delayed"];
 const SHOP: ChipStatus[] = ["hold", "outsourced"];
-const DOCUMENT: ChipStatus[] = ["draft", "issued", "approved", "partial", "paid", "overdue", "void"];
+const DOCUMENT: ChipStatus[] = [
+  "draft",
+  "sent",
+  "issued",
+  "approved",
+  "converted",
+  "expired",
+  "rejected",
+  "partial",
+  "paid",
+  "overdue",
+  "void",
+];
 const STOCK: ChipStatus[] = ["stock-ok", "stock-near-min", "stock-dead"];
+const AGING: ChipStatus[] = ["aging-current", "aging-1-30", "aging-31-60", "aging-61-90", "aging-90-plus"];
 
 function Row({ title, statuses }: { title: string; statuses: ChipStatus[] }) {
   return (
@@ -38,6 +51,7 @@ export const AllStatuses: Story = {
       <Row title="Shop floor" statuses={SHOP} />
       <Row title="Document lifecycle" statuses={DOCUMENT} />
       <Row title="Stock health" statuses={STOCK} />
+      <Row title="AR aging" statuses={AGING} />
     </div>
   ),
 };
@@ -78,7 +92,7 @@ export const GrayscaleLegibility: Story = {
     <div className="flex flex-col gap-3" style={{ filter: "grayscale(1)" }}>
       <p className="text-caption text-text-muted">Rendered through a grayscale filter:</p>
       <div className="flex flex-wrap items-center gap-4">
-        {[...ROUTING, ...SHOP, ...DOCUMENT].map((s) => (
+        {[...ROUTING, ...SHOP, ...DOCUMENT, ...AGING].map((s) => (
           <InkChip key={s} status={s} />
         ))}
       </div>

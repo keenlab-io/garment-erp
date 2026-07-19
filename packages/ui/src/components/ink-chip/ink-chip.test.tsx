@@ -36,5 +36,17 @@ describe("InkChip", () => {
     expect(chipMeta("paid").swatch).toBe("var(--color-success)");
     expect(chipMeta("overdue").swatch).toBe("var(--color-danger)");
     expect(chipMeta("void").swatch).toBeNull();
+    expect(chipMeta("sent").swatch).toBe("var(--color-info)");
+    expect(chipMeta("converted").swatch).toBe("var(--color-success)");
+    expect(chipMeta("expired").swatch).toBe("var(--color-warning)");
+    expect(chipMeta("rejected").swatch).toBe("var(--color-danger)");
+  });
+
+  it("resolves AR-aging bucket statuses to semantic color roles", () => {
+    expect(chipMeta("aging-current").swatch).toBe("var(--color-success)");
+    expect(chipMeta("aging-1-30").swatch).toBe("var(--color-info)");
+    expect(chipMeta("aging-31-60").swatch).toBe("var(--color-warning)");
+    expect(chipMeta("aging-61-90").swatch).toBe("var(--color-danger)");
+    expect(chipMeta("aging-90-plus").swatch).toBe("var(--color-danger)");
   });
 });
