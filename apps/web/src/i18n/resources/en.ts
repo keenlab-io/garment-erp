@@ -823,3 +823,18 @@ export const productionEn = {
     noDueDate: "No SLA set",
   },
 } as const;
+
+// The `sales` namespace (M5 Sales Documents frontend) — nav/palette/route titles for the module's
+// sub-routes (M5 §1); the M5 §4/§5 screens add their own copy.
+export const salesEn = {
+  nav: {
+    documents: "Documents",
+    documentDetail: "Document",
+    documentEdit: "Edit document",
+    customers: "Customers",
+    customerDetail: "Customer",
+    payments: "Payments",
+    templates: "Templates",
+    aging: "AR aging",
+  },
+} as const;

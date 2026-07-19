@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { commonEn, commonTh, tableEn, tableTh } from "@erp/ui";
-import { shellEn, iamEn, hrEn, inventoryEn, productionEn } from "./resources/en";
-import { shellTh, iamTh, hrTh, inventoryTh, productionTh } from "./resources/th";
+import { shellEn, iamEn, hrEn, inventoryEn, productionEn, salesEn } from "./resources/en";
+import { shellTh, iamTh, hrTh, inventoryTh, productionTh, salesTh } from "./resources/th";
 
 // Runs as a normal `pnpm test` file, so it's part of the existing CI `test` task without a
 // separate job (M0 §7.3) — no `tooling/` script needed. `shellTh`/`commonTh`/`tableTh` already
@@ -42,6 +42,7 @@ const NAMESPACES: Record<string, { en: MessageTree; th: MessageTree }> = {
   hr: { en: hrEn, th: hrTh },
   inventory: { en: inventoryEn, th: inventoryTh },
   production: { en: productionEn, th: productionTh },
+  sales: { en: salesEn, th: salesTh },
 };
 
 describe.each(Object.entries(NAMESPACES))("i18n completeness — %s namespace", (_name, { en, th }) => {

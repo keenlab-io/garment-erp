@@ -9,7 +9,7 @@ import { MODULES } from "../../nav/registry";
  * message inside the shell.
  */
 export function ModulePlaceholder() {
-  const { t } = useTranslation(["shell", "iam", "hr", "inventory", "production"]);
+  const { t } = useTranslation(["shell", "iam", "hr", "inventory", "production", "sales"]);
   const matches = useMatches();
   const leaf = matches.at(-1);
   const module = MODULES.find((m) => m.key === leaf?.staticData?.navKey);

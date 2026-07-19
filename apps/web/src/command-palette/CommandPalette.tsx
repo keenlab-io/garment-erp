@@ -4,7 +4,14 @@ import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 import { Icon } from "@erp/ui";
 import { useSession } from "../session/session-context";
-import { MODULES, ADMIN_ROUTES, HR_ROUTES, INVENTORY_ROUTES, PRODUCTION_ROUTES } from "../nav/registry";
+import {
+  MODULES,
+  ADMIN_ROUTES,
+  HR_ROUTES,
+  INVENTORY_ROUTES,
+  PRODUCTION_ROUTES,
+  SALES_ROUTES,
+} from "../nav/registry";
 import { filterNav, isModuleVisible } from "../nav/filter";
 import { useCommandPalette } from "./command-context";
 
@@ -18,13 +25,14 @@ import { useCommandPalette } from "./command-context";
  * them; offered to Super Admins only, the same gate their routes enforce.
  *
  * HR & Payroll sub-routes (Employees/OT/Cash advances/Attendance/Payroll/Tax exports), Inventory &
- * Costing sub-routes (Items/Receipts/Issues/Counts/Adjustments/Barcodes/Reports), and Production
- * Tracking sub-routes (Timeline/Work orders/Scan station/WIP board/Subcontracts) follow the same
- * "palette until the screen links them" pattern, but each is gated by its own module-namespace
- * permission(s) rather than a blanket Super-Admin requirement (M2 §1 / M3 §1 / M4 §1).
+ * Costing sub-routes (Items/Receipts/Issues/Counts/Adjustments/Barcodes/Reports), Production
+ * Tracking sub-routes (Timeline/Work orders/Scan station/WIP board/Subcontracts), and Sales
+ * sub-routes (Documents/Customers/Payments/Templates/Aging) follow the same "palette until the
+ * screen links them" pattern, but each is gated by its own module-namespace permission(s) rather
+ * than a blanket Super-Admin requirement (M2 §1 / M3 §1 / M4 §1 / M5 §1).
  */
 export function CommandPalette() {
-  const { t } = useTranslation(["shell", "iam", "hr", "inventory", "production"]);
+  const { t } = useTranslation(["shell", "iam", "hr", "inventory", "production", "sales"]);
   const { open, setOpen } = useCommandPalette();
   const navigate = useNavigate();
   const { hasPermission, isSuperAdmin } = useSession();
@@ -37,6 +45,9 @@ export function CommandPalette() {
     isModuleVisible(entry, { has: hasPermission, isSuperAdmin }),
   );
   const productionRoutes = PRODUCTION_ROUTES.filter((entry) =>
+    isModuleVisible(entry, { has: hasPermission, isSuperAdmin }),
+  );
+  const salesRoutes = SALES_ROUTES.filter((entry) =>
     isModuleVisible(entry, { has: hasPermission, isSuperAdmin }),
   );
 
@@ -129,6 +140,22 @@ export function CommandPalette() {
         {productionRoutes.length > 0 ? (
           <Command.Group heading={t("nav.production")}>
             {productionRoutes.map((entry) => (
+              <Command.Item
+                key={entry.key}
+                value={t(entry.titleKey)}
+                onSelect={() => go(entry.path)}
+                className="flex cursor-pointer items-center gap-3 rounded-md px-3 text-body text-text-primary outline-none data-[selected=true]:bg-accent-subtle"
+                style={{ minHeight: "var(--density-tap-min)" }}
+              >
+                <Icon icon={entry.icon} />
+                <span>{t(entry.titleKey)}</span>
+              </Command.Item>
+            ))}
+          </Command.Group>
+        ) : null}
+        {salesRoutes.length > 0 ? (
+          <Command.Group heading={t("nav.sales")}>
+            {salesRoutes.map((entry) => (
               <Command.Item
                 key={entry.key}
                 value={t(entry.titleKey)}

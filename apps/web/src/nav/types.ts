@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { Permission } from "@erp/contracts";
-import type { ShellKey, IamKey, HrKey, InventoryKey, ProductionKey } from "../i18n/keys";
+import type { ShellKey, IamKey, HrKey, InventoryKey, ProductionKey, SalesKey } from "../i18n/keys";
 
 /**
  * One navigable module. This descriptor is the single source of truth: the route tree spreads it
@@ -113,4 +113,26 @@ export interface ProductionRouteDescriptor {
   kiosk?: boolean;
   /** Full kiosk lockdown (design MD2 "Kiosk lockdown") → shell chrome (nav/palette) is suppressed. */
   kioskLockdown?: boolean;
+}
+
+/**
+ * A Sales sub-route (Documents worklist/Customers/Payments/Templates/Aging — M5 §1). Kept separate
+ * from `ModuleDescriptor` for the same reason as `ProductionRouteDescriptor`: these aren't
+ * top-level sidebar items — the Sales sidebar entry still points at `/sales` — they're reached via
+ * the palette until M5's screens (§4) link them. Entry is gated by each route's own `sales.*` (or
+ * `report.sales.view`) permission(s), matching the `apps/api` `SalesController` handler(s) it
+ * fronts. The document editor (`/sales/documents/{id}/edit`) and the `{id}` detail routes have no
+ * fixed nav/palette entry (the id varies) and are registered directly in the route tree.
+ */
+export interface SalesRouteDescriptor {
+  /** Stable id (React key and route-metadata back-reference). */
+  key: string;
+  /** Route path. */
+  path: string;
+  /** i18n key in the `sales` namespace — typed, so a typo fails typecheck. */
+  titleKey: SalesKey;
+  /** Nav glyph (lucide component passed to `@erp/ui`'s `Icon`). */
+  icon: LucideIcon;
+  /** The specific `sales.*` (or `report.sales.view`) permission(s) that grant entry (any-of). */
+  permissions: Permission[];
 }

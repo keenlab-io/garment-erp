@@ -1,12 +1,20 @@
 import type * as React from "react";
 import { createRoute } from "@tanstack/react-router";
-import { MODULES, ADMIN_ROUTES, HR_ROUTES, INVENTORY_ROUTES, PRODUCTION_ROUTES } from "../nav/registry";
+import {
+  MODULES,
+  ADMIN_ROUTES,
+  HR_ROUTES,
+  INVENTORY_ROUTES,
+  PRODUCTION_ROUTES,
+  SALES_ROUTES,
+} from "../nav/registry";
 import type {
   AdminRouteDescriptor,
   HrRouteDescriptor,
   InventoryRouteDescriptor,
   ModuleDescriptor,
   ProductionRouteDescriptor,
+  SalesRouteDescriptor,
 } from "../nav/types";
 import { rootRoute } from "./root.route";
 import { requireModuleAccess, requireRouteAccess } from "./guards";
@@ -303,6 +311,74 @@ const productionWorkOrderDetailRoute = createRoute({
     requireRouteAccess(context.session, { permissions: ["production.wo.manage"] }),
 });
 
+// Sales sub-routes (Documents worklist/Customers/Payments/Templates/Aging) — each gated by its own
+// sales.* (or report.sales.view) permission(s). None has a screen yet (M5 §4 ships them), so every
+// entry falls back to `ModulePlaceholder`.
+function salesRoute(entry: SalesRouteDescriptor) {
+  return createRoute({
+    getParentRoute: () => rootRoute,
+    path: entry.path,
+    component: ModulePlaceholder,
+    staticData: {
+      title: entry.titleKey,
+      breadcrumb: entry.titleKey,
+      permissions: entry.permissions,
+      navKey: "sales",
+    },
+    beforeLoad: ({ context }) =>
+      requireRouteAccess(context.session, { permissions: entry.permissions }),
+  });
+}
+
+// The `/sales/documents/{id}`, `/sales/documents/{id}/edit`, and `/sales/customers/{id}` routes
+// have no fixed nav/palette entry (the id varies), so they're registered directly rather than
+// through `SALES_ROUTES`.
+const salesDocumentDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/sales/documents/$id",
+  component: ModulePlaceholder,
+  staticData: {
+    title: "sales:nav.documentDetail",
+    breadcrumb: "sales:nav.documentDetail",
+    permissions: ["sales.quotation.manage", "sales.invoice.create"],
+    navKey: "sales",
+  },
+  beforeLoad: ({ context }) =>
+    requireRouteAccess(context.session, {
+      permissions: ["sales.quotation.manage", "sales.invoice.create"],
+    }),
+});
+
+const salesDocumentEditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/sales/documents/$id/edit",
+  component: ModulePlaceholder,
+  staticData: {
+    title: "sales:nav.documentEdit",
+    breadcrumb: "sales:nav.documentEdit",
+    permissions: ["sales.quotation.manage", "sales.invoice.create"],
+    navKey: "sales",
+  },
+  beforeLoad: ({ context }) =>
+    requireRouteAccess(context.session, {
+      permissions: ["sales.quotation.manage", "sales.invoice.create"],
+    }),
+});
+
+const salesCustomerDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/sales/customers/$id",
+  component: ModulePlaceholder,
+  staticData: {
+    title: "sales:nav.customerDetail",
+    breadcrumb: "sales:nav.customerDetail",
+    permissions: ["sales.customer.manage"],
+    navKey: "sales",
+  },
+  beforeLoad: ({ context }) =>
+    requireRouteAccess(context.session, { permissions: ["sales.customer.manage"] }),
+});
+
 // The login route is intentionally outside the nav registry and unguarded (guarding it would loop).
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -326,5 +402,9 @@ export const routeTree = rootRoute.addChildren([
   inventoryCountDetailRoute,
   ...PRODUCTION_ROUTES.map(productionRoute),
   productionWorkOrderDetailRoute,
+  ...SALES_ROUTES.map(salesRoute),
+  salesDocumentDetailRoute,
+  salesDocumentEditRoute,
+  salesCustomerDetailRoute,
   loginRoute,
 ]);
