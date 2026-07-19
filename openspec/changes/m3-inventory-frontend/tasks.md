@@ -46,7 +46,7 @@
 
 ## 6. Verification
 
-- [ ] 6.1 `pnpm --filter @erp/web build && typecheck && lint` green; Storybook renders
-- [ ] 6.2 Scan routes auto-apply Touch on coarse-pointer; cost columns masked without `inventory.cost.view`
-- [ ] 6.3 Drive: receive (landed-cost preview per line → post) → issue by scan on a handheld
+- [x] 6.1 `pnpm --filter @erp/web build && typecheck && lint` green; Storybook renders
+- [x] 6.2 Scan routes auto-apply Touch on coarse-pointer; cost columns masked without `inventory.cost.view`
+- [x] 6.3 Drive: receive (landed-cost preview per line → post) → issue by scan on a handheld
   (422 shows remaining qty) → stock card shows immutable running balance; adjustment blocked without a reason
