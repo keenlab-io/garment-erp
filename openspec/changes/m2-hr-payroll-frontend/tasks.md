@@ -11,7 +11,7 @@
 
 ## 2. Data layer
 
-- [ ] 2.1 `hr` query/mutation hooks (employees, ot, advances, attendance, payroll runs, payslips,
+- [x] 2.1 `hr` query/mutation hooks (employees, ot, advances, attendance, payroll runs, payslips,
   exports) with invalidation; job-status polling for payslip PDF + PND.1/SSO
 
 ## 3. Module components
