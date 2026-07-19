@@ -12,6 +12,7 @@ import { workOrderStepStatusToChip } from "../../../production/chip-status.js";
 import { AlertRail, deriveDelayedStepAlerts } from "../../../production/components/alert-rail.js";
 import { GanttTimelineRow } from "../../../production/components/gantt-timeline-row.js";
 import { StepDrawer } from "../../../production/components/step-drawer.js";
+import { useDateFormat } from "../../../i18n/use-formatters.js";
 
 /** The step a passing lead cares about most: running first, else the next one up. */
 function currentStepOf(entry: WorkOrderTimelineEntry): WorkOrderStep | undefined {
@@ -31,6 +32,7 @@ function currentStepOf(entry: WorkOrderTimelineEntry): WorkOrderStep | undefined
 export function ProductionTimelinePage() {
   const { t } = useTranslation("production");
   const { toast } = useToast();
+  const dateFormat = useDateFormat({ dateStyle: "medium" });
   const timeline = useWorkOrderTimelineQuery();
   const { pulsingStepIds } = useProductionRealtimeSync("timeline");
   const holdStep = useHoldWoStepMutation();
@@ -98,6 +100,7 @@ export function ProductionTimelinePage() {
                     entry={entry}
                     pulsingStepIds={pulsingStepIds}
                     onStepClick={openStep}
+                    formatDueDate={(iso) => dateFormat.format(new Date(iso))}
                     labels={{ dueLabel: t("timeline.dueLabel"), emptySteps: t("timeline.emptySteps") }}
                   />
                 ))}

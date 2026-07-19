@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useTranslation } from "react-i18next";
 import type { WorkOrderTimelineEntry } from "@erp/contracts";
-import { GanttTimelineRow } from "./gantt-timeline-row";
+import { useDateFormat } from "../../i18n/use-formatters";
+import { GanttTimelineRow, type GanttTimelineRowProps } from "./gantt-timeline-row";
 
 const ENTRY: WorkOrderTimelineEntry = {
   id: "wo-1",
@@ -68,22 +70,38 @@ const ENTRY: WorkOrderTimelineEntry = {
   ],
 };
 
+/** Wires the row's `labels`/`formatDueDate` to the real `production` namespace + the app's
+ * locale-aware date formatter so the Storybook toolbar's locale control retranslates it (M4 §5.3,
+ * mirrors `stock-card-ledger.stories.tsx`'s wiring). */
+function Demo(props: Partial<GanttTimelineRowProps> & { entry: WorkOrderTimelineEntry }) {
+  const { t } = useTranslation("production");
+  const dateFormat = useDateFormat({ dateStyle: "medium" });
+  return (
+    <GanttTimelineRow
+      customerLabel="ACME"
+      {...props}
+      formatDueDate={(iso) => dateFormat.format(new Date(iso))}
+      labels={{ dueLabel: t("timeline.dueLabel"), emptySteps: t("timeline.emptySteps") }}
+    />
+  );
+}
+
 const meta = {
   title: "Production/GanttTimelineRow",
-  component: GanttTimelineRow,
-  args: { entry: ENTRY, customerLabel: "ACME" },
   parameters: { layout: "padded" },
-} satisfies Meta<typeof GanttTimelineRow>;
+} satisfies Meta<typeof Demo>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  render: () => <Demo entry={ENTRY} />,
+};
 
 export const Pulsing: Story = {
-  args: { pulsingStepIds: new Set(["step-3"]) },
+  render: () => <Demo entry={ENTRY} pulsingStepIds={new Set(["step-3"])} />,
 };
 
 export const NoSteps: Story = {
-  args: { entry: { ...ENTRY, steps: [] } },
+  render: () => <Demo entry={{ ...ENTRY, steps: [] }} />,
 };
