@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Permission } from "@erp/contracts";
-import { MODULES, ADMIN_ROUTES, HR_ROUTES } from "./registry";
+import { MODULES, ADMIN_ROUTES, HR_ROUTES, INVENTORY_ROUTES } from "./registry";
 import { filterNav, isModuleVisible, type NavGate } from "./filter";
 
 const keys = (gate: NavGate) => filterNav(MODULES, gate).map((m) => m.key);
@@ -76,5 +76,34 @@ describe("isModuleVisible with an HR & Payroll sub-route entry", () => {
     for (const entry of HR_ROUTES) {
       expect(isModuleVisible(entry, gate)).toBe(true);
     }
+  });
+});
+
+// Inventory & Costing sub-routes follow the same pattern as HR & Payroll: gated by their own
+// inventory.* permission(s), not a blanket Super-Admin requirement.
+describe("isModuleVisible with an Inventory & Costing sub-route entry", () => {
+  it("is visible to a non-super-admin holding the exact inventory permission", () => {
+    for (const entry of INVENTORY_ROUTES) {
+      const gate = gateWith(...entry.permissions);
+      expect(isModuleVisible(entry, gate)).toBe(true);
+    }
+  });
+
+  it("is absent for a non-super-admin holding no permissions", () => {
+    for (const entry of INVENTORY_ROUTES) {
+      expect(isModuleVisible(entry, gateWith())).toBe(false);
+    }
+  });
+
+  it("is visible to a super admin for every inventory sub-route", () => {
+    const gate: NavGate = { isSuperAdmin: true, has: () => false };
+    for (const entry of INVENTORY_ROUTES) {
+      expect(isModuleVisible(entry, gate)).toBe(true);
+    }
+  });
+
+  it("only flags the scan-first goods-issue route as kiosk (Touch auto-applies there, MD2)", () => {
+    const kioskKeys = INVENTORY_ROUTES.filter((entry) => entry.kiosk).map((entry) => entry.key);
+    expect(kioskKeys).toEqual(["inventory-issues"]);
   });
 });

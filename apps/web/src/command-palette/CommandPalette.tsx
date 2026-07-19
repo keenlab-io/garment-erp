@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 import { Icon } from "@erp/ui";
 import { useSession } from "../session/session-context";
-import { MODULES, ADMIN_ROUTES, HR_ROUTES } from "../nav/registry";
+import { MODULES, ADMIN_ROUTES, HR_ROUTES, INVENTORY_ROUTES } from "../nav/registry";
 import { filterNav, isModuleVisible } from "../nav/filter";
 import { useCommandPalette } from "./command-context";
 
@@ -17,18 +17,22 @@ import { useCommandPalette } from "./command-context";
  * sidebar entry for them yet — so the palette is their only route in until M1's screens (§4) link
  * them; offered to Super Admins only, the same gate their routes enforce.
  *
- * HR & Payroll sub-routes (Employees/OT/Cash advances/Attendance/Payroll/Tax exports) follow the
- * same "palette until the screen links them" pattern, but each is gated by its own `hr.*`
- * permission(s) rather than a blanket Super-Admin requirement (M2 §1).
+ * HR & Payroll sub-routes (Employees/OT/Cash advances/Attendance/Payroll/Tax exports) and
+ * Inventory & Costing sub-routes (Items/Receipts/Issues/Counts/Adjustments/Barcodes/Reports)
+ * follow the same "palette until the screen links them" pattern, but each is gated by its own
+ * module-namespace permission(s) rather than a blanket Super-Admin requirement (M2 §1 / M3 §1).
  */
 export function CommandPalette() {
-  const { t } = useTranslation(["shell", "iam", "hr"]);
+  const { t } = useTranslation(["shell", "iam", "hr", "inventory"]);
   const { open, setOpen } = useCommandPalette();
   const navigate = useNavigate();
   const { hasPermission, isSuperAdmin } = useSession();
   const modules = filterNav(MODULES, { has: hasPermission, isSuperAdmin });
   const adminRoutes = isSuperAdmin ? ADMIN_ROUTES : [];
   const hrRoutes = HR_ROUTES.filter((entry) =>
+    isModuleVisible(entry, { has: hasPermission, isSuperAdmin }),
+  );
+  const inventoryRoutes = INVENTORY_ROUTES.filter((entry) =>
     isModuleVisible(entry, { has: hasPermission, isSuperAdmin }),
   );
 
@@ -89,6 +93,22 @@ export function CommandPalette() {
         {hrRoutes.length > 0 ? (
           <Command.Group heading={t("nav.hr")}>
             {hrRoutes.map((entry) => (
+              <Command.Item
+                key={entry.key}
+                value={t(entry.titleKey)}
+                onSelect={() => go(entry.path)}
+                className="flex cursor-pointer items-center gap-3 rounded-md px-3 text-body text-text-primary outline-none data-[selected=true]:bg-accent-subtle"
+                style={{ minHeight: "var(--density-tap-min)" }}
+              >
+                <Icon icon={entry.icon} />
+                <span>{t(entry.titleKey)}</span>
+              </Command.Item>
+            ))}
+          </Command.Group>
+        ) : null}
+        {inventoryRoutes.length > 0 ? (
+          <Command.Group heading={t("nav.inventory")}>
+            {inventoryRoutes.map((entry) => (
               <Command.Item
                 key={entry.key}
                 value={t(entry.titleKey)}

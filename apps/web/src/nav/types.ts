@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { Permission } from "@erp/contracts";
-import type { ShellKey, IamKey, HrKey } from "../i18n/keys";
+import type { ShellKey, IamKey, HrKey, InventoryKey } from "../i18n/keys";
 
 /**
  * One navigable module. This descriptor is the single source of truth: the route tree spreads it
@@ -66,4 +66,26 @@ export interface HrRouteDescriptor {
   icon: LucideIcon;
   /** The specific hr.* permission(s) that grant entry (any-of). */
   permissions: Permission[];
+}
+
+/**
+ * An Inventory & Costing sub-route (Items/Receipts/Issues/Counts/Adjustments/Barcodes/Reports —
+ * M3 §1). Kept separate from `ModuleDescriptor` for the same reason as `HrRouteDescriptor`: these
+ * aren't top-level sidebar items — the Inventory sidebar entry still points at `/inventory` —
+ * they're reached via the palette until M3's screens (§4) link them. Entry is gated by each
+ * route's own `inventory.*` permission(s), matching the `apps/api` handler(s) it fronts.
+ */
+export interface InventoryRouteDescriptor {
+  /** Stable id (React key and route-metadata back-reference). */
+  key: string;
+  /** Route path. */
+  path: string;
+  /** i18n key in the `inventory` namespace — typed, so a typo fails typecheck. */
+  titleKey: InventoryKey;
+  /** Nav glyph (lucide component passed to `@erp/ui`'s `Icon`). */
+  icon: LucideIcon;
+  /** The specific inventory.* permission(s) that grant entry (any-of). */
+  permissions: Permission[];
+  /** Scan-heavy route (e.g. goods issue) → forces Touch density, non-overridable (FD11). */
+  kiosk?: boolean;
 }
