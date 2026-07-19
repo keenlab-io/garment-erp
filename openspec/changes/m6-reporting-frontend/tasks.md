@@ -38,7 +38,7 @@
 
 ## 6. Verification
 
-- [ ] 6.1 `pnpm --filter @erp/web build && typecheck && lint` green; Storybook renders; charts theme in light/dark
-- [ ] 6.2 Cost/profit KPIs masked without `inventory.cost.view`; filter state survives URL share/reload
-- [ ] 6.3 Drive: click a month → all panels re-filter + chip rail shows the slice → drill to report rows →
+- [x] 6.1 `pnpm --filter @erp/web build && typecheck && lint` green; Storybook renders; charts theme in light/dark
+- [x] 6.2 Cost/profit KPIs masked without `inventory.cost.view`; filter state survives URL share/reload
+- [x] 6.3 Drive: click a month → all panels re-filter + chip rail shows the slice → drill to report rows →
   export (job) → alerts panel shows stock/production/finance in one glance; schedule "Every Monday 08:00" + run-now
