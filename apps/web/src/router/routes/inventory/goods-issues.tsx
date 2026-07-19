@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
   type ScanEntry,
+  type ScanFieldLabels,
   useToast,
 } from "@erp/ui";
 import { useCreateGoodsIssueMutation, useItemsQuery, usePostGoodsIssueMutation } from "../../../inventory/queries.js";
@@ -74,6 +75,17 @@ export function GoodsIssuesPage() {
     setScans((prev) => prev.filter((entry) => entry.id !== id));
   }
 
+  const scanLabels: ScanFieldLabels = {
+    placeholder: t("scan.placeholder"),
+    qtyLabel: t("scan.qtyLabel"),
+    addButton: t("scan.addButton"),
+    cameraButton: t("scan.cameraButton"),
+    undo: t("scan.undo"),
+    lastScans: t("scan.lastScans"),
+    decrement: t("scan.decrement"),
+    increment: t("scan.increment"),
+  };
+
   async function handlePost() {
     setInsufficient(null);
     if (scans.length === 0) {
@@ -130,7 +142,7 @@ export function GoodsIssuesPage() {
         </p>
       )}
 
-      <ScanField recentScans={scans} onScan={handleScan} onUndo={handleUndo} />
+      <ScanField recentScans={scans} onScan={handleScan} onUndo={handleUndo} labels={scanLabels} />
 
       <PermissionButton
         required="inventory.issue.manage"

@@ -18,7 +18,7 @@ import {
   useStockCardReportQuery,
   useValuationReportQuery,
 } from "../../../inventory/queries.js";
-import { StockCardLedger } from "../../../inventory/components/stock-card-ledger.js";
+import { StockCardLedger, type StockCardLedgerLabels } from "../../../inventory/components/stock-card-ledger.js";
 import { StockHealthChip } from "../../../inventory/components/stock-health-chip.js";
 
 const TABS = ["stock-card", "valuation", "low-stock", "dead-stock"] as const;
@@ -71,6 +71,29 @@ export function InventoryReportsPage() {
   );
 }
 
+/** Wires `StockCardLedger`'s labels to the real `inventory` namespace (M3 §5.1), mirroring
+ * `item-detail.tsx`'s wiring for the item-detail stock-card tab. */
+function useStockCardLedgerLabels(): StockCardLedgerLabels {
+  const { t } = useTranslation("inventory");
+  return {
+    dateColumn: t("stockCard.dateColumn"),
+    refColumn: t("stockCard.refColumn"),
+    inColumn: t("stockCard.inColumn"),
+    outColumn: t("stockCard.outColumn"),
+    balanceColumn: t("stockCard.balanceColumn"),
+    unitCostColumn: t("stockCard.unitCostColumn"),
+    openingRow: t("stockCard.openingRow"),
+    closingRow: t("stockCard.closingRow"),
+    refType: {
+      GOODS_RECEIPT: t("stockCard.refTypeGoodsReceipt"),
+      GOODS_ISSUE: t("stockCard.refTypeGoodsIssue"),
+      BACKFLUSH: t("stockCard.refTypeBackflush"),
+      ADJUSTMENT: t("stockCard.refTypeAdjustment"),
+      COUNT: t("stockCard.refTypeCount"),
+    },
+  };
+}
+
 function StockCardReportTab() {
   const { t } = useTranslation("inventory");
   const items = useItemsQuery({ limit: 100 });
@@ -78,6 +101,7 @@ function StockCardReportTab() {
   const [from, setFrom] = React.useState("");
   const [to, setTo] = React.useState("");
   const dateFormat = useDateFormat({ dateStyle: "medium" });
+  const labels = useStockCardLedgerLabels();
 
   const itemOptions = (items.data?.body.data ?? []).map((i) => ({ value: i.id, label: `${i.code} · ${i.name}` }));
   const report = useStockCardReportQuery(
@@ -110,7 +134,7 @@ function StockCardReportTab() {
       ) : report.isError || !report.data ? (
         <p className="text-sm text-danger">{t("reports.loadError")}</p>
       ) : (
-        <StockCardLedger report={report.data.body} formatDate={(iso) => dateFormat.format(new Date(iso))} />
+        <StockCardLedger report={report.data.body} labels={labels} formatDate={(iso) => dateFormat.format(new Date(iso))} />
       )}
     </div>
   );

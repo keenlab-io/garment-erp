@@ -17,7 +17,7 @@ import {
   type WizardStep,
 } from "@erp/ui";
 import { useCreateGoodsReceiptMutation, useConfirmGoodsReceiptMutation, useItemsQuery } from "../queries.js";
-import { LandedCostAllocator, type LandedCostLine } from "./landed-cost-allocator.js";
+import { LandedCostAllocator, type LandedCostAllocatorLabels, type LandedCostLine } from "./landed-cost-allocator.js";
 import { UomDualDisplay } from "./uom-dual-display.js";
 
 interface ReceiptLineState {
@@ -116,6 +116,19 @@ export function GoodsReceiptWizard({ open, onOpenChange, onCreated }: GoodsRecei
     { key: "landed-cost", label: t("receipts.stepLandedCost") },
     { key: "review", label: t("receipts.stepReview") },
   ];
+
+  const landedCostLabels: LandedCostAllocatorLabels = {
+    methodLabel: t("landedCost.methodLabel"),
+    methodValue: t("landedCost.methodValue"),
+    methodWeight: t("landedCost.methodWeight"),
+    methodQty: t("landedCost.methodQty"),
+    freightLabel: t("landedCost.freightLabel"),
+    itemColumn: t("landedCost.itemColumn"),
+    qtyColumn: t("landedCost.qtyColumn"),
+    allocatedColumn: t("landedCost.allocatedColumn"),
+    unitCostColumn: t("landedCost.unitCostColumn"),
+    totalLabel: t("landedCost.totalLabel"),
+  };
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -218,6 +231,7 @@ export function GoodsReceiptWizard({ open, onOpenChange, onCreated }: GoodsRecei
                   onMethodChange={setAllocMethod}
                   freightTotal={freightTotal}
                   onFreightTotalChange={setFreightTotal}
+                  labels={landedCostLabels}
                 />
                 <WizardNav onBack={() => setStep("lines")} onContinue={() => setStep("review")} continueLabel={t("receipts.continueLabel")} />
               </div>
@@ -232,6 +246,7 @@ export function GoodsReceiptWizard({ open, onOpenChange, onCreated }: GoodsRecei
                   onMethodChange={setAllocMethod}
                   freightTotal={freightTotal}
                   onFreightTotalChange={setFreightTotal}
+                  labels={landedCostLabels}
                 />
                 <div className="flex items-center gap-2">
                   <Button type="button" variant="secondary" onClick={() => setStep("landed-cost")}>

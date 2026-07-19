@@ -40,9 +40,9 @@
 
 ## 5. i18n, a11y & Storybook
 
-- [ ] 5.1 TH+EN strings for `inventory`; BE/CE dates on ledger rows
-- [ ] 5.2 WCAG AA + Touch: ≥56px scan/issue targets, stock-health chips not color-only, masked cost lock semantics
-- [ ] 5.3 Stories: StockCardLedger, ScanField, LandedCostAllocator, BomTreeEditor at theme×density×locale
+- [x] 5.1 TH+EN strings for `inventory`; BE/CE dates on ledger rows
+- [x] 5.2 WCAG AA + Touch: ≥56px scan/issue targets, stock-health chips not color-only, masked cost lock semantics
+- [x] 5.3 Stories: StockCardLedger, ScanField, LandedCostAllocator, BomTreeEditor at theme×density×locale
 
 ## 6. Verification
 
