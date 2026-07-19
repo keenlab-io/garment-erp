@@ -1,3 +1,4 @@
+import type * as React from "react";
 import { createRoute } from "@tanstack/react-router";
 import { MODULES, ADMIN_ROUTES } from "../nav/registry";
 import type { AdminRouteDescriptor, ModuleDescriptor } from "../nav/types";
@@ -6,6 +7,21 @@ import { requireModuleAccess, requireRouteAccess } from "./guards";
 import { DashboardPage } from "./routes/dashboard";
 import { ModulePlaceholder } from "./routes/placeholder";
 import { LoginPage, validateLoginSearch } from "./routes/login";
+import { UsersListPage } from "./routes/admin/users-list";
+import { UserDetailPage } from "./routes/admin/user-detail";
+import { RolesListPage } from "./routes/admin/roles-list";
+import { RoleDetailPage } from "./routes/admin/role-detail";
+import { AuditLogPage } from "./routes/admin/audit-log";
+import { PermissionImportPage } from "./routes/admin/permission-import";
+
+/** The M1 §4 screens, keyed by `AdminRouteDescriptor.key` — every other admin route (none currently)
+ * keeps the shared `ModulePlaceholder` until its screen ships. */
+const ADMIN_ROUTE_COMPONENTS: Record<string, () => React.ReactElement> = {
+  "admin-users": UsersListPage,
+  "admin-roles": RolesListPage,
+  "admin-audit": AuditLogPage,
+  "admin-import": PermissionImportPage,
+};
 
 // One route per module, generated from the single nav registry so routes, nav, and the palette
 // never drift. Dashboard gets its own page; every other module uses the shared placeholder until
@@ -26,12 +42,13 @@ function moduleRoute(module: ModuleDescriptor) {
 }
 
 // Admin & Access sub-routes (Users/Roles/Audit/Import lists) — Super-Admin gated in addition to
-// their specific iam.* permission, sharing `ModulePlaceholder` until M1's screens (§4) land.
+// their specific iam.* permission. Each now renders its M1 §4 screen; a future admin route without
+// one yet would fall back to `ModulePlaceholder`.
 function adminRoute(entry: AdminRouteDescriptor) {
   return createRoute({
     getParentRoute: () => rootRoute,
     path: entry.path,
-    component: ModulePlaceholder,
+    component: ADMIN_ROUTE_COMPONENTS[entry.key] ?? ModulePlaceholder,
     staticData: {
       title: entry.titleKey,
       breadcrumb: entry.titleKey,
@@ -48,7 +65,7 @@ function adminRoute(entry: AdminRouteDescriptor) {
 const adminUserDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/admin/users/$id",
-  component: ModulePlaceholder,
+  component: UserDetailPage,
   staticData: {
     title: "iam:nav.userDetail",
     breadcrumb: "iam:nav.userDetail",
@@ -62,7 +79,7 @@ const adminUserDetailRoute = createRoute({
 const adminRoleDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/admin/roles/$id",
-  component: ModulePlaceholder,
+  component: RoleDetailPage,
   staticData: {
     title: "iam:nav.roleDetail",
     breadcrumb: "iam:nav.roleDetail",
