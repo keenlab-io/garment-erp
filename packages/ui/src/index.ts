@@ -135,3 +135,20 @@ export {
 // into its i18next instance so the package and the app share one translation bundle (M0 §7).
 export { commonEn, commonTh, type CommonMessages } from "./i18n/resources/common.js";
 export { tableEn, tableTh, type TableMessages } from "./i18n/resources/table.js";
+
+// Wizard + ScanField primitives (Group 8, promoted from M3 §3.2/§3.3 — shared with M2/M4)
+export {
+  Wizard,
+  WizardNav,
+  type WizardStep,
+  type WizardLabels,
+  type WizardProps,
+  type WizardNavLabels,
+  type WizardNavProps,
+} from "./components/wizard/wizard.js";
+export {
+  ScanField,
+  type ScanEntry,
+  type ScanFieldLabels,
+  type ScanFieldProps,
+} from "./components/scan-field/scan-field.js";
