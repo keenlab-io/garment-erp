@@ -1,12 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { EmployeesQuery, PayrollExportQuery } from "@erp/contracts";
+import type {
+  AttendanceQuery,
+  CashAdvancesQuery,
+  EmployeesQuery,
+  OtRequestsQuery,
+  PayrollExportQuery,
+  PayrollRunsQuery,
+} from "@erp/contracts";
 import { api } from "../api/client.js";
 
 /**
- * Query keys for the `hr` domain (M2 §2.1) — one place so a mutation's invalidation and a
- * query's key can never drift apart. The contract has no list/detail endpoints for OT requests
- * or cash advances (or for payroll runs themselves) yet — only create/act-on-a-known-id — so
- * those stay mutation-only below until that lands.
+ * Query keys for the `hr` domain (M2 §2.1/§4). One place so a mutation's invalidation and a
+ * query's key can never drift apart.
  */
 export const hrKeys = {
   all: ["hr"] as const,
@@ -15,7 +20,17 @@ export const hrKeys = {
   employeesAll: () => [...hrKeys.all, "employees"] as const,
   employees: (query: Partial<EmployeesQuery> = {}) => [...hrKeys.employeesAll(), query] as const,
   employee: (id: string) => [...hrKeys.employeesAll(), id] as const,
+  employeeDocuments: (id: string) => [...hrKeys.employeesAll(), id, "documents"] as const,
+  otRequestsAll: () => [...hrKeys.all, "ot-requests"] as const,
+  otRequests: (query: Partial<OtRequestsQuery> = {}) => [...hrKeys.otRequestsAll(), query] as const,
+  cashAdvancesAll: () => [...hrKeys.all, "cash-advances"] as const,
+  cashAdvances: (query: Partial<CashAdvancesQuery> = {}) =>
+    [...hrKeys.cashAdvancesAll(), query] as const,
+  attendanceAll: () => [...hrKeys.all, "attendance"] as const,
+  attendance: (query: Partial<AttendanceQuery> = {}) => [...hrKeys.attendanceAll(), query] as const,
   payrollRunsAll: () => [...hrKeys.all, "payroll-runs"] as const,
+  payrollRuns: (query: Partial<PayrollRunsQuery> = {}) =>
+    [...hrKeys.payrollRunsAll(), query] as const,
   payslips: (runId: string) => [...hrKeys.payrollRunsAll(), runId, "payslips"] as const,
   payslipPdf: (payslipId: string) => [...hrKeys.all, "payslips", payslipId, "pdf"] as const,
 };
@@ -103,11 +118,31 @@ export function useUpdateEmployeeMutation() {
   });
 }
 
+export function useEmployeeDocumentsQuery(employeeId: string) {
+  return api.hr.listEmployeeDocuments.useQuery(hrKeys.employeeDocuments(employeeId), {
+    params: { id: employeeId },
+  });
+}
+
 export function useUploadEmployeeDocumentMutation() {
   const queryClient = useQueryClient();
   return api.hr.uploadEmployeeDocument.useMutation({
     onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: hrKeys.employee(variables.params.id) });
+      void queryClient.invalidateQueries({ queryKey: hrKeys.employeeDocuments(variables.params.id) });
+    },
+  });
+}
+
+/**
+ * A fresh signed URL is requested on demand (never cached/rendered inline) — wrapped as a
+ * mutation like the export triggers below since it's an imperative "download now" action.
+ */
+export function useEmployeeDocumentUrlMutation() {
+  return useMutation({
+    mutationFn: async (params: { id: string; documentId: string }) => {
+      const response = await api.hr.getEmployeeDocumentUrl.query({ params });
+      if (response.status !== 302) throw response;
+      return response.body.url;
     },
   });
 }
@@ -124,8 +159,10 @@ export function useAddSalaryRecordMutation() {
 }
 
 // ── Overtime ──────────────────────────────────────────────────────────────────
-// No list/detail endpoint exists yet for OT requests — these act on a known id; the approval
-// queue (M2 §4.3) invalidates whatever query backs it once that endpoint lands.
+
+export function useOtRequestsQuery(query: Partial<OtRequestsQuery> = {}) {
+  return api.hr.listOtRequests.useQuery(hrKeys.otRequests(query), { query });
+}
 
 export function useCreateOtRequestMutation() {
   return api.hr.createOtRequest.useMutation();
@@ -136,35 +173,85 @@ export function useSubmitOtRequestMutation() {
 }
 
 export function useApproveOtRequestMutation() {
-  return api.hr.approveOtRequest.useMutation();
+  const queryClient = useQueryClient();
+  return api.hr.approveOtRequest.useMutation({
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrKeys.otRequestsAll() });
+    },
+  });
 }
 
 export function useReconcileOtRequestMutation() {
-  return api.hr.reconcileOtRequest.useMutation();
+  const queryClient = useQueryClient();
+  return api.hr.reconcileOtRequest.useMutation({
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrKeys.otRequestsAll() });
+    },
+  });
 }
 
 // ── Cash advances ─────────────────────────────────────────────────────────────
-// Same shape as OT requests — create/approve/disburse only, no list endpoint yet.
+
+export function useCashAdvancesQuery(query: Partial<CashAdvancesQuery> = {}) {
+  return api.hr.listCashAdvances.useQuery(hrKeys.cashAdvances(query), { query });
+}
 
 export function useCreateCashAdvanceMutation() {
-  return api.hr.createCashAdvance.useMutation();
+  const queryClient = useQueryClient();
+  return api.hr.createCashAdvance.useMutation({
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrKeys.cashAdvancesAll() });
+    },
+  });
 }
 
 export function useApproveCashAdvanceMutation() {
-  return api.hr.approveCashAdvance.useMutation();
+  const queryClient = useQueryClient();
+  return api.hr.approveCashAdvance.useMutation({
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrKeys.cashAdvancesAll() });
+    },
+  });
+}
+
+export function useRejectCashAdvanceMutation() {
+  const queryClient = useQueryClient();
+  return api.hr.rejectCashAdvance.useMutation({
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrKeys.cashAdvancesAll() });
+    },
+  });
 }
 
 export function useDisburseCashAdvanceMutation() {
-  return api.hr.disburseCashAdvance.useMutation();
+  const queryClient = useQueryClient();
+  return api.hr.disburseCashAdvance.useMutation({
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrKeys.cashAdvancesAll() });
+    },
+  });
 }
 
 // ── Attendance ────────────────────────────────────────────────────────────────
 
+export function useAttendanceQuery(query: AttendanceQuery) {
+  return api.hr.listAttendance.useQuery(hrKeys.attendance(query), { query });
+}
+
 export function useImportAttendanceMutation() {
-  return api.hr.importAttendance.useMutation();
+  const queryClient = useQueryClient();
+  return api.hr.importAttendance.useMutation({
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrKeys.attendanceAll() });
+    },
+  });
 }
 
 // ── Payroll ───────────────────────────────────────────────────────────────────
+
+export function usePayrollRunsQuery(query: Partial<PayrollRunsQuery> = {}) {
+  return api.hr.listPayrollRuns.useQuery(hrKeys.payrollRuns(query), { query });
+}
 
 export function useCreatePayrollRunMutation() {
   const queryClient = useQueryClient();

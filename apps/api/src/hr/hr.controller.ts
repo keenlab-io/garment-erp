@@ -141,6 +141,14 @@ export class HrController {
     });
   }
 
+  @TsRestHandler(contract.hr.listEmployeeDocuments)
+  listEmployeeDocuments(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.hr.listEmployeeDocuments, async ({ params }) => {
+      assertPermissions(user, "hr.employee.view");
+      return { status: 200, body: { documents: await this.employees.listDocuments(params.id) } };
+    });
+  }
+
   @TsRestHandler(contract.hr.uploadEmployeeDocument)
   @UseInterceptors(FileInterceptor("file"))
   uploadEmployeeDocument(
@@ -157,6 +165,15 @@ export class HrController {
     });
   }
 
+  @TsRestHandler(contract.hr.getEmployeeDocumentUrl)
+  getEmployeeDocumentUrl(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.hr.getEmployeeDocumentUrl, async ({ params }) => {
+      assertPermissions(user, "hr.employee.view");
+      const url = await this.employees.getDocumentUrl(params.id, params.documentId);
+      return { status: 302, body: { url } };
+    });
+  }
+
   @TsRestHandler(contract.hr.addSalaryRecord)
   addSalaryRecord(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.addSalaryRecord, async ({ params, body }) => {
@@ -169,6 +186,14 @@ export class HrController {
   }
 
   // ── Overtime ──────────────────────────────────────────────────────────────
+
+  @TsRestHandler(contract.hr.listOtRequests)
+  listOtRequests(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.hr.listOtRequests, async ({ query }) => {
+      assertPermissions(user, "hr.ot.approve");
+      return { status: 200, body: { ot_requests: await this.ot.list(query) } };
+    });
+  }
 
   @TsRestHandler(contract.hr.createOtRequest)
   createOtRequest(@CurrentUser() user: AuthUser) {
@@ -212,6 +237,14 @@ export class HrController {
 
   // ── Cash advances ───────────────────────────────────────────────────────────
 
+  @TsRestHandler(contract.hr.listCashAdvances)
+  listCashAdvances(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.hr.listCashAdvances, async ({ query }) => {
+      assertPermissions(user, "hr.employee.manage");
+      return { status: 200, body: { cash_advances: await this.advances.list(query) } };
+    });
+  }
+
   @TsRestHandler(contract.hr.createCashAdvance)
   createCashAdvance(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.createCashAdvance, async ({ body }) => {
@@ -232,6 +265,17 @@ export class HrController {
     });
   }
 
+  @TsRestHandler(contract.hr.rejectCashAdvance)
+  rejectCashAdvance(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.hr.rejectCashAdvance, async ({ params }) => {
+      assertPermissions(user, "hr.employee.manage");
+      const cash_advance = await this.uow.withTransaction(() =>
+        this.advances.reject(params.id, user),
+      );
+      return { status: 200, body: { cash_advance } };
+    });
+  }
+
   @TsRestHandler(contract.hr.disburseCashAdvance)
   disburseCashAdvance(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.disburseCashAdvance, async ({ params }) => {
@@ -244,6 +288,14 @@ export class HrController {
   }
 
   // ── Attendance ──────────────────────────────────────────────────────────────
+
+  @TsRestHandler(contract.hr.listAttendance)
+  listAttendance(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.hr.listAttendance, async ({ query }) => {
+      assertPermissions(user, "hr.employee.manage");
+      return { status: 200, body: { attendance: await this.attendance.list(query) } };
+    });
+  }
 
   @TsRestHandler(contract.hr.importAttendance)
   @UseInterceptors(FileInterceptor("file"))
@@ -262,6 +314,14 @@ export class HrController {
   }
 
   // ── Payroll ─────────────────────────────────────────────────────────────────
+
+  @TsRestHandler(contract.hr.listPayrollRuns)
+  listPayrollRuns(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.hr.listPayrollRuns, async ({ query }) => {
+      assertPermissions(user, "hr.payroll.approve");
+      return { status: 200, body: { payroll_runs: await this.payroll.list(query) } };
+    });
+  }
 
   @TsRestHandler(contract.hr.createPayrollRun)
   createPayrollRun(@CurrentUser() user: AuthUser) {

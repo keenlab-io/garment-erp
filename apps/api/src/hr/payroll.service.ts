@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
-import { and, between, eq, inArray, sql } from "drizzle-orm";
+import { and, between, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   employee,
   otRequest,
@@ -12,6 +12,7 @@ import {
 import type {
   CreatePayrollRunRequest,
   PayrollRun,
+  PayrollRunsQuery,
   PayslipSummary,
 } from "@erp/contracts";
 import { sumMoney } from "@erp/utils";
@@ -63,6 +64,26 @@ export class PayrollService {
     private readonly payslips: PayslipService,
     private readonly events: EventBusService,
   ) {}
+
+  /** List payroll runs, newest period first (optional status facet — the run-list screen). */
+  async list(query: PayrollRunsQuery): Promise<PayrollRun[]> {
+    const ex = currentExecutor(this.db);
+    const filters = query["filter[status]"]
+      ? [eq(payrollRun.status, query["filter[status]"])]
+      : [];
+    const rows = await ex
+      .select()
+      .from(payrollRun)
+      .where(filters.length > 0 ? and(...filters) : undefined)
+      .orderBy(desc(payrollRun.period));
+    return rows.map((row) => ({
+      id: row.id,
+      period: row.period,
+      status: row.status,
+      approved_by: row.approvedBy,
+      version: row.version,
+    }));
+  }
 
   async create(input: CreatePayrollRunRequest): Promise<PayrollRun> {
     const ex = currentExecutor(this.db);

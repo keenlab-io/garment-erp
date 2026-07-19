@@ -184,6 +184,38 @@ export class EmployeeService {
     };
   }
 
+  /** List an employee's documents (Documents tab — MD4). */
+  async listDocuments(employeeId: string): Promise<EmployeeDocument[]> {
+    const ex = currentExecutor(this.db);
+    await this.assertExists(employeeId);
+    const rows = await ex
+      .select()
+      .from(employeeDocument)
+      .where(eq(employeeDocument.employeeId, employeeId))
+      .orderBy(desc(employeeDocument.uploadedAt));
+    return rows.map((row) => ({
+      id: row.id,
+      employee_id: row.employeeId,
+      type: row.type,
+      file_key: row.fileKey,
+      uploaded_at: row.uploadedAt.toISOString(),
+    }));
+  }
+
+  /** A fresh signed, expiring URL for one document — never rendered inline (MD4). */
+  async getDocumentUrl(employeeId: string, documentId: string): Promise<string> {
+    const ex = currentExecutor(this.db);
+    const [row] = await ex
+      .select({ fileKey: employeeDocument.fileKey })
+      .from(employeeDocument)
+      .where(
+        and(eq(employeeDocument.id, documentId), eq(employeeDocument.employeeId, employeeId)),
+      )
+      .limit(1);
+    if (!row) throw new NotFoundError("Document not found");
+    return this.storage.getSignedUrl(row.fileKey);
+  }
+
   // ── Org structure ──────────────────────────────────────────────────────────
 
   async createDepartment(

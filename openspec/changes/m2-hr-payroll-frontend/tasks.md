@@ -27,13 +27,13 @@
 
 ## 4. Screens / flows
 
-- [ ] 4.1 `employee-management-ui` — employees list + tabbed detail (salary masked, secure docs),
+- [x] 4.1 `employee-management-ui` — employees list + tabbed detail (salary masked, secure docs),
   create/edit (MD4)
-- [ ] 4.2 `payroll-run-ui` — run list + wizard (MD1) + payslip breakdown drawer (MD2) + guarded
+- [x] 4.2 `payroll-run-ui` — run list + wizard (MD1) + payslip breakdown drawer (MD2) + guarded
   approve (`hr.payroll.approve`)
-- [ ] 4.3 `approvals-ui` — OT approval queue + detail; mobile cash-advance approval with re-auth (MD3)
-- [ ] 4.4 `attendance-ui` — import + monthly grid
-- [ ] 4.5 `tax-exports-ui` — PND.1 / SSO async export (job-toast → download) (MD5)
+- [x] 4.3 `approvals-ui` — OT approval queue + detail; mobile cash-advance approval with re-auth (MD3)
+- [x] 4.4 `attendance-ui` — import + monthly grid
+- [x] 4.5 `tax-exports-ui` — PND.1 / SSO async export (job-toast → download) (MD5)
 
 ## 5. i18n, a11y & Storybook
 

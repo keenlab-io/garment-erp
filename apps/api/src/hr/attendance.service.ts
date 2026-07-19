@@ -1,10 +1,12 @@
 import { Inject, Injectable } from "@nestjs/common";
+import { and, between, eq } from "drizzle-orm";
 import ExcelJS from "exceljs";
 import { attendance, employee, type Db } from "@erp/db";
-import type { AttendanceImportResult } from "@erp/contracts";
+import type { AttendanceImportResult, AttendanceQuery, AttendanceRecord } from "@erp/contracts";
 import { ValidationError } from "../common/errors/app-exception.js";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
+import { periodBounds } from "./hr.util.js";
 
 /** One parsed attendance row (emp_code + day + optional clock window). */
 export interface AttendanceRow {
@@ -25,6 +27,29 @@ const HEADER_TOKENS = new Set(["emp_code", "employee", "code", "emp code"]);
 @Injectable()
 export class AttendanceService {
   constructor(@Inject(DB) private readonly db: Db) {}
+
+  /** List a period's attendance records (optional employee filter — the monthly grid). */
+  async list(query: AttendanceQuery): Promise<AttendanceRecord[]> {
+    const ex = currentExecutor(this.db);
+    const { start, end } = periodBounds(query["filter[period]"]);
+    const filters = [
+      between(attendance.workDate, start, end),
+      query["filter[employee_id]"]
+        ? eq(attendance.employeeId, query["filter[employee_id]"])
+        : undefined,
+    ].filter(Boolean);
+    const rows = await ex
+      .select()
+      .from(attendance)
+      .where(and(...filters))
+      .orderBy(attendance.workDate);
+    return rows.map((row) => ({
+      employee_id: row.employeeId,
+      work_date: row.workDate,
+      clock_in: row.clockIn ? row.clockIn.toISOString() : null,
+      clock_out: row.clockOut ? row.clockOut.toISOString() : null,
+    }));
+  }
 
   async import(buffer: Buffer): Promise<AttendanceImportResult> {
     const rows = await readWorkbook(buffer);
