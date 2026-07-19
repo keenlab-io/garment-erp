@@ -36,9 +36,9 @@
 
 ## 5. i18n, a11y & Storybook
 
-- [ ] 5.1 TH+EN strings for `sales`; BE/CE dates + Thai document-type names (`ใบเสนอราคา / Quotation`)
-- [ ] 5.2 WCAG AA: preview/editor focus order, lifecycle chips not color-only, tabular money alignment
-- [ ] 5.3 Stories: PaperPreview, VatModeCalcToggle, DocLifecycleChip, TemplateDesigner at theme×density×locale
+- [x] 5.1 TH+EN strings for `sales`; BE/CE dates + Thai document-type names (`ใบเสนอราคา / Quotation`)
+- [x] 5.2 WCAG AA: preview/editor focus order, lifecycle chips not color-only, tabular money alignment
+- [x] 5.3 Stories: PaperPreview, VatModeCalcToggle, DocLifecycleChip, TemplateDesigner at theme×density×locale
 
 ## 6. Verification
 

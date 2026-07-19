@@ -24,6 +24,7 @@ import { SALES_CUSTOMERS_PATH } from "../../../nav/sales-paths.js";
 import { AGING_BUCKET_LABEL_KEY } from "../../../sales/aging-labels.js";
 import { DocLifecycleChip } from "../../../sales/components/doc-lifecycle-chip.js";
 import { useSalesDocuments } from "../../../sales/document-store.js";
+import { DOC_LIFECYCLE_LABEL_KEY } from "../../../sales/doc-lifecycle-labels.js";
 import { useAgingReportQuery, useCreateCustomerMutation, useCustomersQuery } from "../../../sales/queries.js";
 
 interface CustomerRow {
@@ -294,7 +295,7 @@ export function CustomerDetailPage() {
               return (
                 <li key={doc.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2">
                   <span className="font-mono text-mono text-text-link">{doc.doc_no}</span>
-                  <DocLifecycleChip status={doc.status} />
+                  <DocLifecycleChip status={doc.status} label={t(DOC_LIFECYCLE_LABEL_KEY[doc.status])} />
                   <MoneyCell value={doc.grand_total} />
                 </li>
               );

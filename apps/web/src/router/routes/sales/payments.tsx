@@ -23,6 +23,7 @@ import {
 import { useDateFormat } from "../../../i18n/use-formatters.js";
 import { DocLifecycleChip } from "../../../sales/components/doc-lifecycle-chip.js";
 import { upsertInvoice, useSalesDocument, useSalesDocuments } from "../../../sales/document-store.js";
+import { DOC_LIFECYCLE_LABEL_KEY } from "../../../sales/doc-lifecycle-labels.js";
 import { useRecordPaymentMutation, useVoidInvoiceMutation } from "../../../sales/queries.js";
 
 const PAYABLE_STATUSES = new Set<string>([InvoiceStatus.ISSUED, InvoiceStatus.PARTIALLY_PAID, InvoiceStatus.OVERDUE]);
@@ -128,7 +129,7 @@ export function PaymentsPage() {
                 >
                   <span className="font-mono text-mono text-text-link">{record.invoice.doc_no}</span>
                   <span className="text-text-secondary">{record.customer?.name ?? record.invoice.customer_id}</span>
-                  <DocLifecycleChip status={record.invoice.status} />
+                  <DocLifecycleChip status={record.invoice.status} label={t(DOC_LIFECYCLE_LABEL_KEY[record.invoice.status])} />
                 </button>
               ) : null,
             )
@@ -145,7 +146,7 @@ export function PaymentsPage() {
                   <p className="font-mono text-mono text-text-primary">{invoice.doc_no}</p>
                   <p className="text-sm text-text-secondary">{selected?.customer?.name ?? invoice.customer_id}</p>
                 </div>
-                <DocLifecycleChip status={invoice.status} />
+                <DocLifecycleChip status={invoice.status} label={t(DOC_LIFECYCLE_LABEL_KEY[invoice.status])} />
               </div>
 
               <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
