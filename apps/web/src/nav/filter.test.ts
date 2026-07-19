@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Permission } from "@erp/contracts";
-import { MODULES, ADMIN_ROUTES } from "./registry";
+import { MODULES, ADMIN_ROUTES, HR_ROUTES } from "./registry";
 import { filterNav, isModuleVisible, type NavGate } from "./filter";
 
 const keys = (gate: NavGate) => filterNav(MODULES, gate).map((m) => m.key);
@@ -51,6 +51,30 @@ describe("isModuleVisible with an Admin & Access sub-route entry", () => {
     const gate: NavGate = { isSuperAdmin: true, has: () => false };
     for (const entry of ADMIN_ROUTES) {
       expect(isModuleVisible({ permissions: entry.permissions, superAdminOnly: true }, gate)).toBe(true);
+    }
+  });
+});
+
+// HR & Payroll sub-routes are gated by their own `hr.*` permission(s), not a blanket Super-Admin
+// requirement — unlike Admin & Access, a non-super-admin holding the exact permission gets in.
+describe("isModuleVisible with an HR & Payroll sub-route entry", () => {
+  it("is visible to a non-super-admin holding the exact hr permission", () => {
+    for (const entry of HR_ROUTES) {
+      const gate = gateWith(...entry.permissions);
+      expect(isModuleVisible(entry, gate)).toBe(true);
+    }
+  });
+
+  it("is absent for a non-super-admin holding no permissions", () => {
+    for (const entry of HR_ROUTES) {
+      expect(isModuleVisible(entry, gateWith())).toBe(false);
+    }
+  });
+
+  it("is visible to a super admin for every hr sub-route", () => {
+    const gate: NavGate = { isSuperAdmin: true, has: () => false };
+    for (const entry of HR_ROUTES) {
+      expect(isModuleVisible(entry, gate)).toBe(true);
     }
   });
 });
