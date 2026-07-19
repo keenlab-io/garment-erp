@@ -9,9 +9,15 @@ import {
   KeyRound,
   ScrollText,
   Upload,
+  IdCard,
+  Clock,
+  Wallet,
+  CalendarCheck,
+  Banknote,
+  FileSpreadsheet,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@erp/contracts";
-import type { AdminRouteDescriptor, ModuleDescriptor } from "./types";
+import type { AdminRouteDescriptor, HrRouteDescriptor, ModuleDescriptor } from "./types";
 
 /** All catalog permissions in a module's namespace (e.g. every `sales.*`) — any of them grants entry. */
 function permissionsFor(prefix: string): Permission[] {
@@ -117,5 +123,56 @@ export const ADMIN_ROUTES: AdminRouteDescriptor[] = [
     titleKey: "iam:nav.import",
     icon: Upload,
     permissions: ["iam.role.manage"],
+  },
+];
+
+/**
+ * HR & Payroll sub-routes (Employees/OT/Cash advances/Attendance/Payroll/Tax exports — M2 §1).
+ * Each is gated by the same `hr.*` permission(s) its `apps/api` handlers assert, so a route the
+ * user can't call is a route they never see. `/hr/employees/{id}` and `/hr/payroll/runs/{id}` have
+ * no fixed nav/palette entry (the id varies) and are registered directly in the route tree.
+ */
+export const HR_ROUTES: HrRouteDescriptor[] = [
+  {
+    key: "hr-employees",
+    path: "/hr/employees",
+    titleKey: "hr:nav.employees",
+    icon: IdCard,
+    permissions: ["hr.employee.view", "hr.employee.manage"],
+  },
+  {
+    key: "hr-ot",
+    path: "/hr/ot",
+    titleKey: "hr:nav.ot",
+    icon: Clock,
+    permissions: ["hr.ot.approve"],
+  },
+  {
+    key: "hr-advances",
+    path: "/hr/advances",
+    titleKey: "hr:nav.advances",
+    icon: Wallet,
+    permissions: ["hr.employee.manage"],
+  },
+  {
+    key: "hr-attendance",
+    path: "/hr/attendance",
+    titleKey: "hr:nav.attendance",
+    icon: CalendarCheck,
+    permissions: ["hr.employee.manage"],
+  },
+  {
+    key: "hr-payroll",
+    path: "/hr/payroll",
+    titleKey: "hr:nav.payroll",
+    icon: Banknote,
+    permissions: ["hr.payroll.approve"],
+  },
+  {
+    key: "hr-tax-exports",
+    path: "/hr/tax-exports",
+    titleKey: "hr:nav.taxExports",
+    icon: FileSpreadsheet,
+    permissions: ["hr.payroll.approve"],
   },
 ];

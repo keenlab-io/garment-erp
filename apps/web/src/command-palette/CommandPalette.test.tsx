@@ -55,4 +55,21 @@ describe("CommandPalette", () => {
     expect(screen.getByRole("option", { name: "Audit log" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Import" })).toBeInTheDocument();
   });
+
+  it("offers only the HR & Payroll sub-routes the user's hr permission grants", async () => {
+    const user = userEvent.setup();
+    await renderInShell(
+      <CommandPaletteProvider>
+        <Host />
+      </CommandPaletteProvider>,
+      { user: userWith(["hr.ot.approve"]) },
+    );
+
+    await user.keyboard("{Control>}k{/Control}");
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "OT requests" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Employees" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Payroll" })).not.toBeInTheDocument();
+  });
 });

@@ -1,7 +1,7 @@
 import type * as React from "react";
 import { createRoute } from "@tanstack/react-router";
-import { MODULES, ADMIN_ROUTES } from "../nav/registry";
-import type { AdminRouteDescriptor, ModuleDescriptor } from "../nav/types";
+import { MODULES, ADMIN_ROUTES, HR_ROUTES } from "../nav/registry";
+import type { AdminRouteDescriptor, HrRouteDescriptor, ModuleDescriptor } from "../nav/types";
 import { rootRoute } from "./root.route";
 import { requireModuleAccess, requireRouteAccess } from "./guards";
 import { DashboardPage } from "./routes/dashboard";
@@ -90,6 +90,57 @@ const adminRoleDetailRoute = createRoute({
     requireRouteAccess(context.session, { permissions: ["iam.role.manage"], superAdminOnly: true }),
 });
 
+// HR & Payroll sub-routes (Employees/OT/Cash advances/Attendance/Payroll/Tax exports) — each gated
+// by its own hr.* permission(s), unlike Admin & Access these aren't Super-Admin-only. Every entry
+// falls back to `ModulePlaceholder` until its M2 §4 screen ships.
+function hrRoute(entry: HrRouteDescriptor) {
+  return createRoute({
+    getParentRoute: () => rootRoute,
+    path: entry.path,
+    component: ModulePlaceholder,
+    staticData: {
+      title: entry.titleKey,
+      breadcrumb: entry.titleKey,
+      permissions: entry.permissions,
+      navKey: "hr",
+    },
+    beforeLoad: ({ context }) =>
+      requireRouteAccess(context.session, { permissions: entry.permissions }),
+  });
+}
+
+// The `$id` detail routes have no fixed nav/palette entry (the id varies), so they're registered
+// directly rather than through `HR_ROUTES`.
+const hrEmployeeDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/hr/employees/$id",
+  component: ModulePlaceholder,
+  staticData: {
+    title: "hr:nav.employeeDetail",
+    breadcrumb: "hr:nav.employeeDetail",
+    permissions: ["hr.employee.view", "hr.employee.manage"],
+    navKey: "hr",
+  },
+  beforeLoad: ({ context }) =>
+    requireRouteAccess(context.session, {
+      permissions: ["hr.employee.view", "hr.employee.manage"],
+    }),
+});
+
+const hrPayrollRunDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/hr/payroll/runs/$id",
+  component: ModulePlaceholder,
+  staticData: {
+    title: "hr:nav.payrollRunDetail",
+    breadcrumb: "hr:nav.payrollRunDetail",
+    permissions: ["hr.payroll.approve"],
+    navKey: "hr",
+  },
+  beforeLoad: ({ context }) =>
+    requireRouteAccess(context.session, { permissions: ["hr.payroll.approve"] }),
+});
+
 // The login route is intentionally outside the nav registry and unguarded (guarding it would loop).
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -104,5 +155,8 @@ export const routeTree = rootRoute.addChildren([
   ...ADMIN_ROUTES.map(adminRoute),
   adminUserDetailRoute,
   adminRoleDetailRoute,
+  ...HR_ROUTES.map(hrRoute),
+  hrEmployeeDetailRoute,
+  hrPayrollRunDetailRoute,
   loginRoute,
 ]);

@@ -1,4 +1,4 @@
-import type { shellEn, iamEn } from "./resources/en";
+import type { shellEn, iamEn, hrEn } from "./resources/en";
 
 /** Flattens a nested message tree into the union of its dot-path leaf keys (e.g. `"nav.dashboard"`). */
 export type DotPaths<T, Prefix extends string = ""> = {
@@ -16,3 +16,6 @@ export type ShellKey = DotPaths<typeof shellEn>;
  * the non-default namespace.
  */
 export type IamKey = `iam:${DotPaths<typeof iamEn>}`;
+
+/** Every valid key in the `hr` namespace, prefixed `hr:` for the same reason as `IamKey`. */
+export type HrKey = `hr:${DotPaths<typeof hrEn>}`;

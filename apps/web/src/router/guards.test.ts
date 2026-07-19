@@ -56,3 +56,17 @@ describe("requireRouteAccess", () => {
     expect(() => requireRouteAccess(sessionFor(superAdmin), usersRoute)).not.toThrow();
   });
 });
+
+describe("requireRouteAccess with an hr.* permission (no superAdminOnly)", () => {
+  const otRoute: GatedEntry = { permissions: ["hr.ot.approve"] };
+
+  it("redirects a signed-in user lacking the permission", () => {
+    const session = sessionFor(userWith([]));
+    expect(() => requireRouteAccess(session, otRoute)).toThrow();
+  });
+
+  it("admits a signed-in non-super-admin holding the exact permission", () => {
+    const session = sessionFor(userWith(["hr.ot.approve"]));
+    expect(() => requireRouteAccess(session, otRoute)).not.toThrow();
+  });
+});

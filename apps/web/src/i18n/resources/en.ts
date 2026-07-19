@@ -211,3 +211,18 @@ export const iamEn = {
     noRows: "Upload a file to see the validation review.",
   },
 } as const;
+
+// The `hr` namespace (M2 HR & Payroll frontend) — nav/palette/route titles for the module's
+// sub-routes (M2 §1). The module screens (§4) add their own copy under these same groups.
+export const hrEn = {
+  nav: {
+    employees: "Employees",
+    employeeDetail: "Employee",
+    ot: "OT requests",
+    advances: "Cash advances",
+    attendance: "Attendance",
+    payroll: "Payroll",
+    payrollRunDetail: "Payroll run",
+    taxExports: "Tax exports",
+  },
+} as const;

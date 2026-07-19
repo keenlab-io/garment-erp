@@ -5,9 +5,9 @@
 
 ## 1. Deps, routes & i18n
 
-- [ ] 1.1 Register `hr` routes with metadata + required `Permission`: `/hr/employees(/{id})`,
+- [x] 1.1 Register `hr` routes with metadata + required `Permission`: `/hr/employees(/{id})`,
   `/hr/ot`, `/hr/advances`, `/hr/attendance`, `/hr/payroll(/runs/{id})`, `/hr/tax-exports`
-- [ ] 1.2 Add the `hr` i18next namespace (TH+EN); nav + ⌘K entries from route metadata
+- [x] 1.2 Add the `hr` i18next namespace (TH+EN); nav + ⌘K entries from route metadata
 
 ## 2. Data layer
 

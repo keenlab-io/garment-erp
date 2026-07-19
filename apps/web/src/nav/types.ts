@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { Permission } from "@erp/contracts";
-import type { ShellKey, IamKey } from "../i18n/keys";
+import type { ShellKey, IamKey, HrKey } from "../i18n/keys";
 
 /**
  * One navigable module. This descriptor is the single source of truth: the route tree spreads it
@@ -45,5 +45,25 @@ export interface AdminRouteDescriptor {
   /** Nav glyph (lucide component passed to `@erp/ui`'s `Icon`). */
   icon: LucideIcon;
   /** The specific iam.* permission(s) that grant entry (any-of), on top of the Super-Admin gate. */
+  permissions: Permission[];
+}
+
+/**
+ * An HR & Payroll sub-route (Employees/OT/Cash advances/Attendance/Payroll/Tax exports — M2 §1).
+ * Kept separate from `ModuleDescriptor` for the same reason as `AdminRouteDescriptor`: these
+ * aren't top-level sidebar items — the HR & Payroll sidebar entry still points at `/hr` — they're
+ * reached via the palette until M2's screens (§4) link them. Unlike `AdminRouteDescriptor`, entry
+ * is gated by each route's own `hr.*` permission(s), not a blanket Super-Admin requirement.
+ */
+export interface HrRouteDescriptor {
+  /** Stable id (React key and route-metadata back-reference). */
+  key: string;
+  /** Route path. */
+  path: string;
+  /** i18n key in the `hr` namespace — typed, so a typo fails typecheck. */
+  titleKey: HrKey;
+  /** Nav glyph (lucide component passed to `@erp/ui`'s `Icon`). */
+  icon: LucideIcon;
+  /** The specific hr.* permission(s) that grant entry (any-of). */
   permissions: Permission[];
 }
