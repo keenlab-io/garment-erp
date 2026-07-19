@@ -194,8 +194,11 @@ export function usePostStockAdjustmentMutation() {
 // Cost/valuation figures are omitted server-side without `inventory.cost.view` (design MD1/FD5);
 // screens render `MaskedValue` — the query hooks themselves stay gating-agnostic.
 
-export function useStockCardReportQuery(query: StockCardQuery) {
-  return api.inventory.stockCardReport.useQuery(inventoryKeys.stockCardReport(query), { query });
+/** `enabled` lets a screen defer the fetch until the operator has picked an item (M3 §4.1/§4.5) —
+ * `item_id` is required, so firing the request with an unpicked/empty id would be a wasted 400. */
+export function useStockCardReportQuery(query: StockCardQuery, options: { enabled?: boolean } = {}) {
+  const queryKey = inventoryKeys.stockCardReport(query);
+  return api.inventory.stockCardReport.useQuery(queryKey, { query }, { queryKey, enabled: options.enabled ?? true });
 }
 
 export function useValuationReportQuery(query: Partial<ValuationQuery> = {}) {

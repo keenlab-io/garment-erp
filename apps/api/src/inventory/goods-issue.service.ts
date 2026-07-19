@@ -97,8 +97,14 @@ export class GoodsIssueService {
         !allowNegative &&
         toDecimal(balance.qtyOnHand).lessThan(toDecimal(baseQty))
       ) {
+        // `details` carries the exact remaining qty + which line it belongs to (design MD2) so the
+        // frontend can show "only 12 m left" inline instead of a generic failure message.
         throw new BusinessRuleError(
-          "Insufficient stock: issuing more than on-hand is not allowed",
+          `Insufficient stock: only ${balance.qtyOnHand} available`,
+          [
+            { field: "item_id", issue: line.item_id },
+            { field: "remaining_qty", issue: balance.qtyOnHand },
+          ],
         );
       }
 

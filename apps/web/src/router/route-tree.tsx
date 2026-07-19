@@ -26,6 +26,14 @@ import { OtApprovalsPage } from "./routes/hr/ot-approvals";
 import { CashAdvanceApprovalsPage } from "./routes/hr/cash-advance-approvals";
 import { AttendancePage } from "./routes/hr/attendance";
 import { TaxExportsPage } from "./routes/hr/tax-exports";
+import { ItemsListPage } from "./routes/inventory/items-list";
+import { ItemDetailPage } from "./routes/inventory/item-detail";
+import { GoodsReceiptsListPage } from "./routes/inventory/goods-receipts-list";
+import { GoodsIssuesPage } from "./routes/inventory/goods-issues";
+import { StockCountsPage } from "./routes/inventory/stock-counts";
+import { StockAdjustmentsPage } from "./routes/inventory/stock-adjustments";
+import { BarcodePrintingPage } from "./routes/inventory/barcode-printing";
+import { InventoryReportsPage } from "./routes/inventory/reports";
 
 /** The M1 §4 screens, keyed by `AdminRouteDescriptor.key` — every other admin route (none currently)
  * keeps the shared `ModulePlaceholder` until its screen ships. */
@@ -165,14 +173,24 @@ const hrPayrollRunDetailRoute = createRoute({
 });
 
 // Inventory & Costing sub-routes (Items/Receipts/Issues/Counts/Adjustments/Barcodes/Reports) —
-// each gated by its own inventory.* permission(s). None has a screen yet (M3 §4 ships them), so
-// every entry falls back to `ModulePlaceholder`; `kiosk` comes from the route entry itself
-// (only Goods issue sets it — design MD2) rather than a blanket module flag.
+// each gated by its own inventory.* permission(s). Every entry now renders its M3 §4 screen;
+// `kiosk` comes from the route entry itself (only Goods issue sets it — design MD2) rather than a
+// blanket module flag.
+const INVENTORY_ROUTE_COMPONENTS: Record<string, () => React.ReactElement> = {
+  "inventory-items": ItemsListPage,
+  "inventory-receipts": GoodsReceiptsListPage,
+  "inventory-issues": GoodsIssuesPage,
+  "inventory-counts": StockCountsPage,
+  "inventory-adjustments": StockAdjustmentsPage,
+  "inventory-barcodes": BarcodePrintingPage,
+  "inventory-reports": InventoryReportsPage,
+};
+
 function inventoryRoute(entry: InventoryRouteDescriptor) {
   return createRoute({
     getParentRoute: () => rootRoute,
     path: entry.path,
-    component: ModulePlaceholder,
+    component: INVENTORY_ROUTE_COMPONENTS[entry.key] ?? ModulePlaceholder,
     staticData: {
       title: entry.titleKey,
       breadcrumb: entry.titleKey,
@@ -186,11 +204,14 @@ function inventoryRoute(entry: InventoryRouteDescriptor) {
 }
 
 // The `$id` detail routes have no fixed nav/palette entry (the id varies), so they're registered
-// directly rather than through `INVENTORY_ROUTES`.
+// directly rather than through `INVENTORY_ROUTES`. Only the item detail has a screen (M3 §4.1) —
+// receipts/counts are managed inline on their list screens (the contract has no per-id GET for
+// either, so a separate detail route would have nothing to read); their `$id` routes stay reserved
+// for when the contract grows those reads.
 const inventoryItemDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/inventory/items/$id",
-  component: ModulePlaceholder,
+  component: ItemDetailPage,
   staticData: {
     title: "inventory:nav.itemDetail",
     breadcrumb: "inventory:nav.itemDetail",

@@ -31,12 +31,12 @@
 
 ## 4. Screens / flows
 
-- [ ] 4.1 `item-catalog-ui` — items list (type chips, low-stock chip, bulk barcode/export) +
+- [x] 4.1 `item-catalog-ui` — items list (type chips, low-stock chip, bulk barcode/export) +
   tabbed item detail with stock card + BOM (MD1)
-- [ ] 4.2 `goods-receipt-ui` — receipt wizard: lines → landed-cost allocator → confirm → post (MD3)
-- [ ] 4.3 `goods-issue-ui` — scan-first Touch issue; 422 insufficient-stock inline with remaining qty (MD2)
-- [ ] 4.4 `stock-count-adjustment-ui` — count grid + reconcile → adjustment (reason-gated, guarded approve) (MD4)
-- [ ] 4.5 `inventory-reports-ui` — stock-card/valuation/low/dead reports (cost masked) + barcode printing (MD5)
+- [x] 4.2 `goods-receipt-ui` — receipt wizard: lines → landed-cost allocator → confirm → post (MD3)
+- [x] 4.3 `goods-issue-ui` — scan-first Touch issue; 422 insufficient-stock inline with remaining qty (MD2)
+- [x] 4.4 `stock-count-adjustment-ui` — count grid + reconcile → adjustment (reason-gated, guarded approve) (MD4)
+- [x] 4.5 `inventory-reports-ui` — stock-card/valuation/low/dead reports (cost masked) + barcode printing (MD5)
 
 ## 5. i18n, a11y & Storybook
 
