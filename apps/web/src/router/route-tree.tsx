@@ -7,6 +7,8 @@ import {
   INVENTORY_ROUTES,
   PRODUCTION_ROUTES,
   SALES_ROUTES,
+  REPORTING_DASHBOARD_ROUTES,
+  REPORTING_ROUTES,
 } from "../nav/registry";
 import type {
   AdminRouteDescriptor,
@@ -15,9 +17,11 @@ import type {
   ModuleDescriptor,
   ProductionRouteDescriptor,
   SalesRouteDescriptor,
+  ReportingRouteDescriptor,
 } from "../nav/types";
 import { rootRoute } from "./root.route";
-import { requireModuleAccess, requireRouteAccess } from "./guards";
+import { requireModuleAccess, requireReportAccess, requireRouteAccess } from "./guards";
+import { validateDashboardSearch, validateReportSearch } from "../reporting/search";
 import { DashboardPage } from "./routes/dashboard";
 import { ModulePlaceholder } from "./routes/placeholder";
 import { LoginPage, validateLoginSearch } from "./routes/login";
@@ -67,7 +71,11 @@ const ADMIN_ROUTE_COMPONENTS: Record<string, () => React.ReactElement> = {
 
 // One route per module, generated from the single nav registry so routes, nav, and the palette
 // never drift. Dashboard gets its own page; every other module uses the shared placeholder until
-// its M1–M6 UI ships.
+// its M1–M6 UI ships. `/` doubles as the M6 reporting overview (design MD1) — its cross-filter
+// state (`dimension`/`value`) is typed search params from the start (M6 §1.2) even though the
+// current `DashboardPage` doesn't read them yet (that lands with the M6 §4.1 screen); it stays
+// ungated (every authenticated user lands somewhere, M0 design) — cost/profit masking happens at
+// the panel level, not the route level.
 function moduleRoute(module: ModuleDescriptor) {
   return createRoute({
     getParentRoute: () => rootRoute,
@@ -79,6 +87,7 @@ function moduleRoute(module: ModuleDescriptor) {
       permissions: module.permissions,
       navKey: module.key,
     },
+    validateSearch: module.key === "dashboard" ? validateDashboardSearch : undefined,
     beforeLoad: ({ context }) => requireModuleAccess(context.session, module),
   });
 }
@@ -392,6 +401,71 @@ const salesCustomerDetailRoute = createRoute({
     requireRouteAccess(context.session, { permissions: ["sales.customer.manage"] }),
 });
 
+// Reporting & Analytics domain dashboards (Inventory/Sales/Cost/Profit/Tax) — each gated by its
+// own report.<group>.view permission; cross-filter state (`dimension`/`value`) is typed search
+// params (M6 §1.2, design MD1) so a filtered dashboard is shareable via URL. None has a screen yet
+// (M6 §4 ships them), so every entry falls back to `ModulePlaceholder`.
+function reportingDashboardRoute(entry: ReportingRouteDescriptor) {
+  return createRoute({
+    getParentRoute: () => rootRoute,
+    path: entry.path,
+    component: ModulePlaceholder,
+    staticData: {
+      title: entry.titleKey,
+      breadcrumb: entry.titleKey,
+      permissions: entry.permissions,
+      navKey: "reports",
+    },
+    validateSearch: validateDashboardSearch,
+    beforeLoad: ({ context }) =>
+      requireRouteAccess(context.session, { permissions: entry.permissions }),
+  });
+}
+
+// Reporting & Analytics sub-routes with no cross-filter state of their own (currently just the
+// schedules manager, M6 §1/design MD5).
+function reportingRoute(entry: ReportingRouteDescriptor) {
+  return createRoute({
+    getParentRoute: () => rootRoute,
+    path: entry.path,
+    component: ModulePlaceholder,
+    staticData: {
+      title: entry.titleKey,
+      breadcrumb: entry.titleKey,
+      permissions: entry.permissions,
+      navKey: "reports",
+    },
+    beforeLoad: ({ context }) =>
+      requireRouteAccess(context.session, { permissions: entry.permissions }),
+  });
+}
+
+// The report viewer (`/reports/{report_key}`) serves all 16 report-catalog keys through one
+// dynamic route with no fixed nav/palette entry (browsed from the Reports module home instead of
+// enumerated individually) — gated dynamically per `report_key` via `requireReportAccess`
+// (`report.<group>.view`, computed from the contract's `reportGroupForKey`), unlike every other
+// route here which gates off a fixed `permissions` list. `ReportFilterSearch` carries `from`/`to`/
+// `dimension`/`value` plus arbitrary report-specific filters (M6 §1.2).
+const reportViewerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reports/$reportKey",
+  component: ModulePlaceholder,
+  staticData: {
+    title: "reporting:nav.reportViewer",
+    breadcrumb: "reporting:nav.reportViewer",
+    permissions: [
+      "report.inventory.view",
+      "report.sales.view",
+      "report.cost.view",
+      "report.profit.view",
+      "report.tax.view",
+    ],
+    navKey: "reports",
+  },
+  validateSearch: validateReportSearch,
+  beforeLoad: ({ context, params }) => requireReportAccess(context.session, params.reportKey),
+});
+
 // The login route is intentionally outside the nav registry and unguarded (guarding it would loop).
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -419,5 +493,8 @@ export const routeTree = rootRoute.addChildren([
   salesDocumentDetailRoute,
   salesDocumentEditRoute,
   salesCustomerDetailRoute,
+  ...REPORTING_DASHBOARD_ROUTES.map(reportingDashboardRoute),
+  ...REPORTING_ROUTES.map(reportingRoute),
+  reportViewerRoute,
   loginRoute,
 ]);

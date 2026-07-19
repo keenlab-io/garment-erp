@@ -110,4 +110,36 @@ describe("CommandPalette", () => {
     expect(screen.queryByRole("option", { name: "Customers" })).not.toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Documents" })).not.toBeInTheDocument();
   });
+
+  it("offers only the Reporting & Analytics sub-routes the user's report permission grants", async () => {
+    const user = userEvent.setup();
+    await renderInShell(
+      <CommandPaletteProvider>
+        <Host />
+      </CommandPaletteProvider>,
+      { user: userWith(["report.sales.view"]) },
+    );
+
+    await user.keyboard("{Control>}k{/Control}");
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Sales dashboard" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Cost dashboard" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Report schedules" })).not.toBeInTheDocument();
+  });
+
+  it("offers the schedules manager to a user holding report.schedule.manage", async () => {
+    const user = userEvent.setup();
+    await renderInShell(
+      <CommandPaletteProvider>
+        <Host />
+      </CommandPaletteProvider>,
+      { user: userWith(["report.schedule.manage"]) },
+    );
+
+    await user.keyboard("{Control>}k{/Control}");
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Report schedules" })).toBeInTheDocument();
+  });
 });

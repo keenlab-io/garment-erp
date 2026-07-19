@@ -11,6 +11,8 @@ import {
   INVENTORY_ROUTES,
   PRODUCTION_ROUTES,
   SALES_ROUTES,
+  REPORTING_DASHBOARD_ROUTES,
+  REPORTING_ROUTES,
 } from "../nav/registry";
 import { filterNav, isModuleVisible } from "../nav/filter";
 import { useCommandPalette } from "./command-context";
@@ -26,13 +28,14 @@ import { useCommandPalette } from "./command-context";
  *
  * HR & Payroll sub-routes (Employees/OT/Cash advances/Attendance/Payroll/Tax exports), Inventory &
  * Costing sub-routes (Items/Receipts/Issues/Counts/Adjustments/Barcodes/Reports), Production
- * Tracking sub-routes (Timeline/Work orders/Scan station/WIP board/Subcontracts), and Sales
- * sub-routes (Documents/Customers/Payments/Templates/Aging) follow the same "palette until the
- * screen links them" pattern, but each is gated by its own module-namespace permission(s) rather
- * than a blanket Super-Admin requirement (M2 §1 / M3 §1 / M4 §1 / M5 §1).
+ * Tracking sub-routes (Timeline/Work orders/Scan station/WIP board/Subcontracts), Sales
+ * sub-routes (Documents/Customers/Payments/Templates/Aging), and Reporting & Analytics sub-routes
+ * (domain dashboards + schedules) follow the same "palette until the screen links them" pattern,
+ * but each is gated by its own module-namespace permission(s) rather than a blanket Super-Admin
+ * requirement (M2 §1 / M3 §1 / M4 §1 / M5 §1 / M6 §1).
  */
 export function CommandPalette() {
-  const { t } = useTranslation(["shell", "iam", "hr", "inventory", "production", "sales"]);
+  const { t } = useTranslation(["shell", "iam", "hr", "inventory", "production", "sales", "reporting"]);
   const { open, setOpen } = useCommandPalette();
   const navigate = useNavigate();
   const { hasPermission, isSuperAdmin } = useSession();
@@ -48,6 +51,9 @@ export function CommandPalette() {
     isModuleVisible(entry, { has: hasPermission, isSuperAdmin }),
   );
   const salesRoutes = SALES_ROUTES.filter((entry) =>
+    isModuleVisible(entry, { has: hasPermission, isSuperAdmin }),
+  );
+  const reportingRoutes = [...REPORTING_DASHBOARD_ROUTES, ...REPORTING_ROUTES].filter((entry) =>
     isModuleVisible(entry, { has: hasPermission, isSuperAdmin }),
   );
 
@@ -156,6 +162,22 @@ export function CommandPalette() {
         {salesRoutes.length > 0 ? (
           <Command.Group heading={t("nav.sales")}>
             {salesRoutes.map((entry) => (
+              <Command.Item
+                key={entry.key}
+                value={t(entry.titleKey)}
+                onSelect={() => go(entry.path)}
+                className="flex cursor-pointer items-center gap-3 rounded-md px-3 text-body text-text-primary outline-none data-[selected=true]:bg-accent-subtle"
+                style={{ minHeight: "var(--density-tap-min)" }}
+              >
+                <Icon icon={entry.icon} />
+                <span>{t(entry.titleKey)}</span>
+              </Command.Item>
+            ))}
+          </Command.Group>
+        ) : null}
+        {reportingRoutes.length > 0 ? (
+          <Command.Group heading={t("nav.reports")}>
+            {reportingRoutes.map((entry) => (
               <Command.Item
                 key={entry.key}
                 value={t(entry.titleKey)}

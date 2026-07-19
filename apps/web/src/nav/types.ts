@@ -1,6 +1,14 @@
 import type { LucideIcon } from "lucide-react";
 import type { Permission } from "@erp/contracts";
-import type { ShellKey, IamKey, HrKey, InventoryKey, ProductionKey, SalesKey } from "../i18n/keys";
+import type {
+  ShellKey,
+  IamKey,
+  HrKey,
+  InventoryKey,
+  ProductionKey,
+  SalesKey,
+  ReportingKey,
+} from "../i18n/keys";
 
 /**
  * One navigable module. This descriptor is the single source of truth: the route tree spreads it
@@ -134,5 +142,31 @@ export interface SalesRouteDescriptor {
   /** Nav glyph (lucide component passed to `@erp/ui`'s `Icon`). */
   icon: LucideIcon;
   /** The specific `sales.*` (or `report.sales.view`) permission(s) that grant entry (any-of). */
+  permissions: Permission[];
+}
+
+/**
+ * A Reporting & Analytics sub-route — the five domain dashboards (`REPORTING_DASHBOARD_ROUTES`,
+ * `/reports/dashboards/{group}`) and the schedules manager (`REPORTING_ROUTES`,
+ * `/reports/schedules` — M6 §1). Kept separate from `ModuleDescriptor` for the same reason as
+ * `SalesRouteDescriptor`: these aren't top-level sidebar items — the Reports sidebar entry still
+ * points at `/reports` — they're reached via the palette until M6's screens (§4) link them. Each
+ * domain dashboard is gated by its own `report.<group>.view` permission (cost/profit masking of
+ * individual KPIs/panels for missing `inventory.cost.view` is display-only, design MD2, and
+ * happens inside the screen, not at route entry); the schedules manager needs
+ * `report.schedule.manage`. The report viewer (`/reports/{report_key}`) has no fixed nav/palette
+ * entry (the catalog has 16 keys, browsed from the Reports module home instead) and is registered
+ * directly in the route tree, gated dynamically per `report_key` via `requireReportAccess`.
+ */
+export interface ReportingRouteDescriptor {
+  /** Stable id (React key and route-metadata back-reference). */
+  key: string;
+  /** Route path. */
+  path: string;
+  /** i18n key in the `reporting` namespace — typed, so a typo fails typecheck. */
+  titleKey: ReportingKey;
+  /** Nav glyph (lucide component passed to `@erp/ui`'s `Icon`). */
+  icon: LucideIcon;
+  /** The specific `report.*` permission(s) that grant entry (any-of). */
   permissions: Permission[];
 }
