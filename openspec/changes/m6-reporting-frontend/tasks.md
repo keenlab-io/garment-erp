@@ -18,10 +18,10 @@
 
 ## 3. Module components
 
-- [ ] 3.1 **KpiStatCard** (number + delta ▲/▼ + sparkline, cost/profit masked)
-- [ ] 3.2 **ChartPanel** (recharts, token-themed, cross-filter aware)
-- [ ] 3.3 **ActiveFilterChipRail**; **AlertsPanel** (unifies stock/production/finance); **ScheduleEditor** (cron-friendly)
-- [ ] 3.4 **ReportDataTable** (columns/rows/totals + drill-down + export menu)
+- [x] 3.1 **KpiStatCard** (number + delta ▲/▼ + sparkline, cost/profit masked)
+- [x] 3.2 **ChartPanel** (recharts, token-themed, cross-filter aware)
+- [x] 3.3 **ActiveFilterChipRail**; **AlertsPanel** (unifies stock/production/finance); **ScheduleEditor** (cron-friendly)
+- [x] 3.4 **ReportDataTable** (columns/rows/totals + drill-down + export menu)
 
 ## 4. Screens / flows
 
