@@ -1,12 +1,16 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { eq } from "drizzle-orm";
-import { subcontract, workOrderStep, type Db } from "@erp/db";
+import { and, asc, eq, gt } from "drizzle-orm";
+import { subcontract, workOrder, workOrderStep, type Db } from "@erp/db";
 import type {
+  ListSubcontractsQuery,
   Subcontract as SubcontractDto,
   SubcontractRequest,
+  SubcontractWithContext,
 } from "@erp/contracts";
+import { decodeCursor } from "@erp/utils";
 import type { AuthUser } from "../auth/auth-user.js";
 import { NotFoundError, StateConflictError } from "../common/errors/app-exception.js";
+import { buildPage } from "../common/pagination/cursor.js";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
 import { EventBusService } from "../events/event-bus.service.js";
@@ -103,5 +107,40 @@ export class SubcontractService {
       }),
     );
     return toSubcontractDto(updated ?? row);
+  }
+
+  /**
+   * Cursor-paginated subcontract list for the SLA tracker (M4 §4.4) — joins the step/work order in
+   * so a row can show `wo_no`/`step_name` without the tracker screen doing its own N+1 lookups.
+   */
+  async list(
+    query: ListSubcontractsQuery,
+  ): Promise<{ data: SubcontractWithContext[]; next_cursor: string | null }> {
+    const ex = currentExecutor(this.db);
+    const after = query.cursor ? (decodeCursor(query.cursor) as { id: string }) : null;
+    const rows = await ex
+      .select({
+        subcontract,
+        woNo: workOrder.woNo,
+        stepName: workOrderStep.name,
+      })
+      .from(subcontract)
+      .innerJoin(workOrderStep, eq(subcontract.woStepId, workOrderStep.id))
+      .innerJoin(workOrder, eq(workOrderStep.woId, workOrder.id))
+      .where(
+        and(
+          query.status ? eq(subcontract.status, query.status) : undefined,
+          after ? gt(subcontract.id, after.id) : undefined,
+        ),
+      )
+      .orderBy(asc(subcontract.id))
+      .limit(query.limit + 1);
+
+    const items = rows.map((r) => ({
+      ...toSubcontractDto(r.subcontract),
+      wo_no: r.woNo,
+      step_name: r.stepName,
+    }));
+    return buildPage(items, query.limit, (item) => ({ id: item.id }));
   }
 }

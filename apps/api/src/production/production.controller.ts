@@ -136,6 +136,14 @@ export class ProductionController {
     });
   }
 
+  @TsRestHandler(contract.production.listSubcontracts)
+  listSubcontracts(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.production.listSubcontracts, async ({ query }) => {
+      assertPermissions(user, "production.subcontract.manage");
+      return { status: 200, body: await this.subcontracts.list(query) };
+    });
+  }
+
   // ── Reports (production.wo.manage) ──────────────────────────────────────────
 
   @TsRestHandler(contract.production.wipReport)
