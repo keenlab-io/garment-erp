@@ -1,4 +1,4 @@
-import type { shellEn, iamEn, hrEn, inventoryEn, productionEn, salesEn } from "./en";
+import type { shellEn, iamEn, hrEn, inventoryEn, productionEn, salesEn, reportingEn } from "./en";
 
 // Same key structure as the English resources (a missing/extra key is a compile error) but with
 // widened string values. Group 7 adds the runtime th/en completeness check.
@@ -24,6 +24,10 @@ type ProductionResources = {
 
 type SalesResources = {
   [Group in keyof typeof salesEn]: Record<keyof (typeof salesEn)[Group], string>;
+};
+
+type ReportingResources = {
+  [Group in keyof typeof reportingEn]: Record<keyof (typeof reportingEn)[Group], string>;
 };
 
 export const shellTh: ShellResources = {
@@ -1039,5 +1043,17 @@ export const salesTh: SalesResources = {
     previewDocType: "ใบเสนอราคา / Quotation",
     previewDate: "1 ม.ค. 2569",
     previewCustomer: "บริษัท ตัวอย่างลูกค้า จำกัด",
+  },
+};
+
+export const reportingTh: ReportingResources = {
+  nav: {
+    dashboardInventory: "แดชบอร์ดคลังสินค้า",
+    dashboardSales: "แดชบอร์ดการขาย",
+    dashboardCost: "แดชบอร์ดต้นทุน",
+    dashboardProfit: "แดชบอร์ดกำไร",
+    dashboardTax: "แดชบอร์ดภาษี",
+    reportViewer: "รายงาน",
+    schedules: "ตารางส่งรายงาน",
   },
 };

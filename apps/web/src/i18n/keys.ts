@@ -1,4 +1,4 @@
-import type { shellEn, iamEn, hrEn, inventoryEn, productionEn, salesEn } from "./resources/en";
+import type { shellEn, iamEn, hrEn, inventoryEn, productionEn, salesEn, reportingEn } from "./resources/en";
 
 /** Flattens a nested message tree into the union of its dot-path leaf keys (e.g. `"nav.dashboard"`). */
 export type DotPaths<T, Prefix extends string = ""> = {
@@ -28,3 +28,6 @@ export type ProductionKey = `production:${DotPaths<typeof productionEn>}`;
 
 /** Every valid key in the `sales` namespace, prefixed `sales:` for the same reason as `IamKey`. */
 export type SalesKey = `sales:${DotPaths<typeof salesEn>}`;
+
+/** Every valid key in the `reporting` namespace, prefixed `reporting:` for the same reason as `IamKey`. */
+export type ReportingKey = `reporting:${DotPaths<typeof reportingEn>}`;

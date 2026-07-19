@@ -9,7 +9,7 @@ import { Icon } from "@erp/ui";
  * module routes get a breadcrumb for free.
  */
 export function Breadcrumb() {
-  const { t } = useTranslation(["shell", "iam", "hr", "inventory", "production", "sales"]);
+  const { t } = useTranslation(["shell", "iam", "hr", "inventory", "production", "sales", "reporting"]);
   const matches = useMatches();
   const leaf = [...matches].reverse().find((m) => m.staticData?.title);
   const title = leaf?.staticData?.title;

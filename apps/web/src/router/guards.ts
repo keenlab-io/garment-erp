@@ -1,7 +1,9 @@
 import { redirect } from "@tanstack/react-router";
+import { reportGroupForKey, type Permission } from "@erp/contracts";
 import type { Session } from "../session/session-context";
 import { isModuleVisible, type GatedEntry } from "../nav/filter";
 import type { ModuleDescriptor } from "../nav/types";
+import { REPORTS_PATH } from "../nav/reporting-paths";
 
 /** Redirect to the login route when there is no authenticated session. */
 export function requireSession(session: Session): void {
@@ -41,4 +43,23 @@ export function requireRouteAccess(session: Session, access: GatedEntry): void {
   if (!visible) {
     throw redirect({ to: "/" });
   }
+}
+
+/**
+ * Guard `/reports/{report_key}` (M6 §1.2) — the report viewer serves all 16 report-catalog keys
+ * through one dynamic route, each requiring a different `report.<group>.view` permission
+ * (`REPORT_KEY_GROUP` in `@erp/contracts`), so the gate is computed from the route param rather
+ * than a fixed `permissions` list. An unrecognized `report_key` (typo'd URL) sends the user back
+ * to the Reports module home rather than the generic "/" fallback `requireRouteAccess` uses for a
+ * permission failure — this isn't a permission problem, the key just doesn't exist.
+ */
+export function requireReportAccess(session: Session, reportKey: string): void {
+  requireSession(session);
+  const group = reportGroupForKey(reportKey);
+  if (!group) {
+    throw redirect({ to: REPORTS_PATH });
+  }
+  requireRouteAccess(session, {
+    permissions: [`report.${group.toLowerCase()}.view` as Permission],
+  });
 }

@@ -5,11 +5,11 @@
 
 ## 1. Deps, routes & i18n
 
-- [ ] 1.1 Add `recharts`; a token-themed chart wrapper (reads CSS vars, categorical palette from status inks + cyan/violet)
-- [ ] 1.2 Register `reporting` routes with metadata + required `Permission` and **typed search
+- [x] 1.1 Add `recharts`; a token-themed chart wrapper (reads CSS vars, categorical palette from status inks + cyan/violet)
+- [x] 1.2 Register `reporting` routes with metadata + required `Permission` and **typed search
   params for filter state**: `/` (overview), `/reports/dashboards/{key}`, `/reports/{report_key}`,
   `/reports/schedules`
-- [ ] 1.3 Add the `reporting` i18next namespace (TH+EN); nav + ⌘K from route metadata
+- [x] 1.3 Add the `reporting` i18next namespace (TH+EN); nav + ⌘K from route metadata
 
 ## 2. Data layer
 

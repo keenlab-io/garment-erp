@@ -7,6 +7,8 @@ import {
   INVENTORY_ROUTES,
   PRODUCTION_ROUTES,
   SALES_ROUTES,
+  REPORTING_DASHBOARD_ROUTES,
+  REPORTING_ROUTES,
 } from "./registry";
 import { filterNav, isModuleVisible, type NavGate } from "./filter";
 
@@ -166,5 +168,38 @@ describe("isModuleVisible with a Sales sub-route entry", () => {
     for (const entry of SALES_ROUTES) {
       expect(isModuleVisible(entry, gate)).toBe(true);
     }
+  });
+});
+
+// Reporting & Analytics sub-routes (domain dashboards + schedules manager) follow the same
+// pattern as HR & Payroll / Inventory & Costing / Production Tracking / Sales: gated by their own
+// report.* permission(s), not a blanket Super-Admin requirement.
+describe("isModuleVisible with a Reporting & Analytics sub-route entry", () => {
+  const REPORTING_ENTRIES = [...REPORTING_DASHBOARD_ROUTES, ...REPORTING_ROUTES];
+
+  it("is visible to a non-super-admin holding the exact report permission", () => {
+    for (const entry of REPORTING_ENTRIES) {
+      const gate = gateWith(...entry.permissions);
+      expect(isModuleVisible(entry, gate)).toBe(true);
+    }
+  });
+
+  it("is absent for a non-super-admin holding no permissions", () => {
+    for (const entry of REPORTING_ENTRIES) {
+      expect(isModuleVisible(entry, gateWith())).toBe(false);
+    }
+  });
+
+  it("is visible to a super admin for every reporting sub-route", () => {
+    const gate: NavGate = { isSuperAdmin: true, has: () => false };
+    for (const entry of REPORTING_ENTRIES) {
+      expect(isModuleVisible(entry, gate)).toBe(true);
+    }
+  });
+
+  it("gates each domain dashboard by its own report.<group>.view permission, not another group's", () => {
+    const salesDashboard = REPORTING_DASHBOARD_ROUTES.find((e) => e.key === "reports-dashboard-sales")!;
+    const gate = gateWith("report.cost.view");
+    expect(isModuleVisible(salesDashboard, gate)).toBe(false);
   });
 });

@@ -1030,3 +1030,17 @@ export const salesEn = {
     previewCustomer: "Sample Customer Co., Ltd.",
   },
 } as const;
+
+// The `reporting` namespace (M6 Reporting & Analytics frontend) — nav/palette/route titles for
+// the module's sub-routes (M6 §1); the M6 §4/§5 screens add their own copy.
+export const reportingEn = {
+  nav: {
+    dashboardInventory: "Inventory dashboard",
+    dashboardSales: "Sales dashboard",
+    dashboardCost: "Cost dashboard",
+    dashboardProfit: "Profit dashboard",
+    dashboardTax: "Tax dashboard",
+    reportViewer: "Report",
+    schedules: "Report schedules",
+  },
+} as const;

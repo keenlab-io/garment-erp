@@ -31,8 +31,12 @@ import {
   Wallet2,
   LayoutTemplate,
   Hourglass,
+  Coins,
+  TrendingUp,
+  Percent,
+  CalendarClock,
 } from "lucide-react";
-import { PERMISSIONS, type Permission } from "@erp/contracts";
+import { PERMISSIONS, ReportGroup, type Permission } from "@erp/contracts";
 import type {
   AdminRouteDescriptor,
   HrRouteDescriptor,
@@ -40,7 +44,9 @@ import type {
   ModuleDescriptor,
   ProductionRouteDescriptor,
   SalesRouteDescriptor,
+  ReportingRouteDescriptor,
 } from "./types";
+import { reportDashboardPath, REPORTS_SCHEDULES_PATH } from "./reporting-paths";
 
 /** All catalog permissions in a module's namespace (e.g. every `sales.*`) — any of them grants entry. */
 function permissionsFor(prefix: string): Permission[] {
@@ -360,5 +366,64 @@ export const SALES_ROUTES: SalesRouteDescriptor[] = [
     titleKey: "sales:nav.aging",
     icon: Hourglass,
     permissions: ["report.sales.view"],
+  },
+];
+
+/**
+ * Reporting & Analytics domain dashboards (M6 §1) — one per report-catalog group (design D4),
+ * each gated by its own `report.<group>.view` permission, matching `apps/api`'s reporting
+ * endpoints. Cost/profit dashboards don't require `inventory.cost.view` to *enter* — their
+ * cost/profit KPIs and panels are individually masked without it (design MD2) — so the route
+ * gate stays a single permission, same shape as every other module's sub-routes.
+ */
+export const REPORTING_DASHBOARD_ROUTES: ReportingRouteDescriptor[] = [
+  {
+    key: "reports-dashboard-inventory",
+    path: reportDashboardPath(ReportGroup.INVENTORY.toLowerCase()),
+    titleKey: "reporting:nav.dashboardInventory",
+    icon: Boxes,
+    permissions: ["report.inventory.view"],
+  },
+  {
+    key: "reports-dashboard-sales",
+    path: reportDashboardPath(ReportGroup.SALES.toLowerCase()),
+    titleKey: "reporting:nav.dashboardSales",
+    icon: ReceiptText,
+    permissions: ["report.sales.view"],
+  },
+  {
+    key: "reports-dashboard-cost",
+    path: reportDashboardPath(ReportGroup.COST.toLowerCase()),
+    titleKey: "reporting:nav.dashboardCost",
+    icon: Coins,
+    permissions: ["report.cost.view"],
+  },
+  {
+    key: "reports-dashboard-profit",
+    path: reportDashboardPath(ReportGroup.PROFIT.toLowerCase()),
+    titleKey: "reporting:nav.dashboardProfit",
+    icon: TrendingUp,
+    permissions: ["report.profit.view"],
+  },
+  {
+    key: "reports-dashboard-tax",
+    path: reportDashboardPath(ReportGroup.TAX.toLowerCase()),
+    titleKey: "reporting:nav.dashboardTax",
+    icon: Percent,
+    permissions: ["report.tax.view"],
+  },
+];
+
+/**
+ * Reporting & Analytics sub-routes with no natural place in the dashboard group above — currently
+ * just the digest schedule manager (M6 §1), gated by `report.schedule.manage` per design MD5.
+ */
+export const REPORTING_ROUTES: ReportingRouteDescriptor[] = [
+  {
+    key: "reports-schedules",
+    path: REPORTS_SCHEDULES_PATH,
+    titleKey: "reporting:nav.schedules",
+    icon: CalendarClock,
+    permissions: ["report.schedule.manage"],
   },
 ];
