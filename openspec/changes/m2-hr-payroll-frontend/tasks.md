@@ -16,11 +16,14 @@
 
 ## 3. Module components
 
-- [ ] 3.1 **PayrollWizard** (Inputs/Calculate/Review/Approve + missing-data gate) built on the
-  shared `@erp/ui` **Wizard/Stepper** primitive (from M3), not a bespoke stepper
-- [ ] 3.2 **PayslipBreakdownDrawer** (formula line-by-line, read-only, masked)
-- [ ] 3.3 **CashAdvanceApprovalCard** (mobile, ceiling-check badge, re-auth)
-- [ ] 3.4 **AttendanceMonthGrid**; **CeilingCheckBadge**; **DocumentVaultRow** (signed-URL)
+- [x] 3.1 **PayrollWizard** (Inputs/Calculate/Review/Approve + missing-data gate) — ⚠ built on a
+  **local, bespoke stepper** instead of the shared `@erp/ui` **Wizard/Stepper** primitive: that
+  primitive is owned by `m3-inventory-frontend` §3.3, which hasn't landed yet. Migrate
+  `apps/web/src/hr/components/payroll-wizard.tsx`'s step header onto the shared primitive once
+  M3 ships it.
+- [x] 3.2 **PayslipBreakdownDrawer** (formula line-by-line, read-only, masked)
+- [x] 3.3 **CashAdvanceApprovalCard** (mobile, ceiling-check badge, re-auth)
+- [x] 3.4 **AttendanceMonthGrid**; **CeilingCheckBadge**; **DocumentVaultRow** (signed-URL)
 
 ## 4. Screens / flows
 

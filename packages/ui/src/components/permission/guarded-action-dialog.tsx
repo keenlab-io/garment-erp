@@ -73,7 +73,7 @@ export const GUARDED_ACTION_PRESETS: Record<GuardedActionKind, GuardedActionPres
     confirmLabel: "Approve payroll",
     title: (subject) => `Approve payroll run ${subject}?`,
     consequence: (subject) =>
-      `This finalizes payroll run ${subject} and pulls outstanding advances into deductions.`,
+      `This locks payroll run ${subject}, pulls outstanding advances into deductions, and generates payslips.`,
   },
 };
 
