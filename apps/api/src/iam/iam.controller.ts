@@ -69,6 +69,14 @@ export class IamController {
     });
   }
 
+  @TsRestHandler(contract.iam.getRole)
+  getRole(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.iam.getRole, async ({ params }) => {
+      assertPermissions(user, "iam.role.manage");
+      return { status: 200, body: { role: await this.roles.get(params.id) } };
+    });
+  }
+
   @TsRestHandler(contract.iam.createRole)
   createRole(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.iam.createRole, async ({ body }) => {
@@ -116,6 +124,14 @@ export class IamController {
     });
   }
 
+  @TsRestHandler(contract.iam.listRoleTemplates)
+  listRoleTemplates(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.iam.listRoleTemplates, async () => {
+      assertPermissions(user, "iam.role.manage");
+      return { status: 200, body: await this.permissions.listTemplates() };
+    });
+  }
+
   @TsRestHandler(contract.iam.createRoleTemplate)
   createRoleTemplate(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.iam.createRoleTemplate, async ({ body }) => {
@@ -139,6 +155,14 @@ export class IamController {
         query["filter[status]"],
       );
       return { status: 200, body: page };
+    });
+  }
+
+  @TsRestHandler(contract.iam.getUser)
+  getUser(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.iam.getUser, async ({ params }) => {
+      assertPermissions(user, "iam.user.manage");
+      return { status: 200, body: { user: await this.users.get(params.id) } };
     });
   }
 

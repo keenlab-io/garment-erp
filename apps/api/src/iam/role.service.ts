@@ -46,6 +46,11 @@ export class RoleService {
     private readonly events: EventBusService,
   ) {}
 
+  /** Get a role with its full permission-code set; 404 if absent. */
+  async get(id: string): Promise<Role> {
+    return this.loadRole(id);
+  }
+
   /** List roles with their permission and bound-user counts. */
   async list(): Promise<RoleSummary[]> {
     const ex = currentExecutor(this.db);

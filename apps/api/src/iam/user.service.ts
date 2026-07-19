@@ -45,6 +45,11 @@ export class UserService {
     private readonly events: EventBusService,
   ) {}
 
+  /** Get a single user by id; 404 if absent. */
+  async get(id: string): Promise<User> {
+    return this.loadUser(id);
+  }
+
   /** Cursor-paginated user list, newest first, with an optional status filter. */
   async list(
     limit: number,

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { inArray } from "drizzle-orm";
+import { inArray, asc } from "drizzle-orm";
 import { permission, roleTemplate, type Db } from "@erp/db";
 import type {
   CreateRoleTemplateRequest,
@@ -36,6 +36,36 @@ export class PermissionService {
       .from(permission)
       .orderBy(permission.code);
     return rows.map((r) => ({ code: r.code as Permission }));
+  }
+
+  /** List role templates with their resolved permission codes, ordered by name. */
+  async listTemplates(): Promise<RoleTemplate[]> {
+    const ex = currentExecutor(this.db);
+    const templates = await ex
+      .select({
+        id: roleTemplate.id,
+        name: roleTemplate.name,
+        defaultPermissionIds: roleTemplate.defaultPermissionIds,
+      })
+      .from(roleTemplate)
+      .orderBy(asc(roleTemplate.name));
+
+    const allIds = [...new Set(templates.flatMap((t) => t.defaultPermissionIds))];
+    const perms = allIds.length
+      ? await ex
+          .select({ id: permission.id, code: permission.code })
+          .from(permission)
+          .where(inArray(permission.id, allIds))
+      : [];
+    const codeById = new Map(perms.map((p) => [p.id, p.code as Permission]));
+
+    return templates.map((t) => ({
+      id: t.id,
+      name: t.name,
+      permission_codes: t.defaultPermissionIds
+        .map((id) => codeById.get(id))
+        .filter((code): code is Permission => code !== undefined),
+    }));
   }
 
   async createTemplate(

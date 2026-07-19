@@ -180,6 +180,9 @@ importers:
       '@tanstack/react-router':
         specifier: ^1.170.17
         version: 1.170.17(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@tanstack/react-table':
+        specifier: ^8.21.3
+        version: 8.21.3(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ts-rest/core':
         specifier: ^3.51.0
         version: 3.52.1(@types/node@22.20.0)(zod@3.25.76)

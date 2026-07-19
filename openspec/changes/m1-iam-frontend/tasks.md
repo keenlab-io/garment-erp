@@ -27,13 +27,13 @@
 
 ## 4. Screens / flows
 
-- [ ] 4.1 `authentication-ui` — `/login` screen + token lifecycle + re-auth flow (MD1)
-- [ ] 4.2 `users-admin` — users list (DataTable), user detail (roles/sessions/activity),
+- [x] 4.1 `authentication-ui` — `/login` screen + token lifecycle + re-auth flow (MD1)
+- [x] 4.2 `users-admin` — users list (DataTable), user detail (roles/sessions/activity),
   create/edit drawer, force-logout (guarded ConfirmDialog + re-auth), session revoke
-- [ ] 4.3 `role-editor` — roles list, matrix editor (MD2: live affects-N, save confirm, last-perm
+- [x] 4.3 `role-editor` — roles list, matrix editor (MD2: live affects-N, save confirm, last-perm
   block), clone flow, guarded delete (MD3: 409 reassign inline), role templates
-- [ ] 4.4 `audit-log-viewer` — filterable immutable table + diff expansion (MD4)
-- [ ] 4.5 `permission-import` — upload + validation review + partial import (MD5)
+- [x] 4.4 `audit-log-viewer` — filterable immutable table + diff expansion (MD4)
+- [x] 4.5 `permission-import` — upload + validation review + partial import (MD5)
 
 ## 5. i18n, a11y & Storybook
 

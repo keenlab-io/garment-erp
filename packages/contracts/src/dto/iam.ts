@@ -259,6 +259,13 @@ export const iamContract = c.router(
       responses: withErrors({ 200: z.array(RoleSummary) }),
       summary: "List roles with permission and user counts",
     },
+    getRole: {
+      method: "GET",
+      path: "/roles/:id",
+      pathParams: z.object({ id: uuid }),
+      responses: withErrors({ 200: z.object({ role: Role }) }),
+      summary: "Get a role with its full permission set",
+    },
     createRole: {
       method: "POST",
       path: "/roles",
@@ -296,6 +303,12 @@ export const iamContract = c.router(
       responses: withErrors({ 200: z.array(PermissionEntry) }),
       summary: "The permission catalog",
     },
+    listRoleTemplates: {
+      method: "GET",
+      path: "/role-templates",
+      responses: withErrors({ 200: z.array(RoleTemplate) }),
+      summary: "List reusable role templates",
+    },
     createRoleTemplate: {
       method: "POST",
       path: "/role-templates",
@@ -311,6 +324,13 @@ export const iamContract = c.router(
       query: UsersQuery,
       responses: withErrors({ 200: paginated(User) }),
       summary: "List users (paginated, optional status filter)",
+    },
+    getUser: {
+      method: "GET",
+      path: "/users/:id",
+      pathParams: z.object({ id: uuid }),
+      responses: withErrors({ 200: z.object({ user: User }) }),
+      summary: "Get a user",
     },
     createUser: {
       method: "POST",
