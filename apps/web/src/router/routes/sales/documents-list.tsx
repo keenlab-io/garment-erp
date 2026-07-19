@@ -20,9 +20,11 @@ import {
 } from "@erp/ui";
 import { useDensity } from "../../../density/density-context.js";
 import { useDateFormat } from "../../../i18n/use-formatters.js";
-import { AgingBucketChip } from "../../../sales/components/aging-bucket-chip.js";
+import { AGING_BUCKET_LABEL_KEY } from "../../../sales/aging-labels.js";
+import { AgingBucketChip, resolveAgingBucket } from "../../../sales/components/aging-bucket-chip.js";
 import { docLifecycleToChip, type DocLifecycleStatus } from "../../../sales/components/doc-lifecycle-chip.js";
 import { isQuotationExpired, upsertQuotation, useSalesDocuments } from "../../../sales/document-store.js";
+import { DOC_LIFECYCLE_LABEL_KEY } from "../../../sales/doc-lifecycle-labels.js";
 import { useCreateQuotationMutation, useExportInvoiceMutation } from "../../../sales/queries.js";
 
 type WorklistType = "quotation" | "invoice";
@@ -162,7 +164,9 @@ export function DocumentsListPage() {
       {
         id: "status",
         header: t("worklist.columnStatus"),
-        cell: ({ row }) => <InkChip status={docLifecycleToChip(row.original.status)} />,
+        cell: ({ row }) => (
+          <InkChip status={docLifecycleToChip(row.original.status)} label={t(DOC_LIFECYCLE_LABEL_KEY[row.original.status])} />
+        ),
       },
       {
         id: "aging",
@@ -170,7 +174,10 @@ export function DocumentsListPage() {
         meta: { secondary: true },
         cell: ({ row }) =>
           row.original.type === "invoice" && row.original.relevantDate ? (
-            <AgingBucketChip daysOverdue={row.original.daysOverdue} />
+            <AgingBucketChip
+              daysOverdue={row.original.daysOverdue}
+              label={t(AGING_BUCKET_LABEL_KEY[resolveAgingBucket(row.original.daysOverdue)])}
+            />
           ) : (
             <span className="text-text-muted">—</span>
           ),
@@ -241,7 +248,7 @@ export function DocumentsListPage() {
                 <SelectItem value="ALL">{t("worklist.filterAll")}</SelectItem>
                 {statusOptions.map((status) => (
                   <SelectItem key={status} value={status}>
-                    {status}
+                    {t(DOC_LIFECYCLE_LABEL_KEY[status])}
                   </SelectItem>
                 ))}
               </SelectContent>

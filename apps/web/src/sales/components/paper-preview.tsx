@@ -57,10 +57,13 @@ const defaultLabels: PaperPreviewLabels = {
 };
 
 export interface PaperPreviewProps {
-  /** e.g. "ใบเสนอราคา / Quotation" — the document type name (spec §5.1 BE/CE + Thai names land §5.1). */
+  /** e.g. "ใบเสนอราคา / Quotation" — bilingual and locale-invariant, the printed document's own
+   * type name rather than the app chrome's (`documentEditor.docTypeQuotationBilingual`/
+   * `docTypeInvoiceBilingual`, §5.1). */
   docTypeLabel: string;
   docNo?: string;
-  /** Already formatted by the caller (BE/CE date formatting is the screen's job, not this surface's). */
+  /** Already formatted by the caller — `sales/use-document-date-format.ts#useDocumentDateFormat`
+   * appends the Buddhist-Era year for the Thai locale (§5.1); this surface stays a pure renderer. */
   date?: string;
   customer?: PaperPreviewCustomer;
   lines: PaperPreviewLine[];

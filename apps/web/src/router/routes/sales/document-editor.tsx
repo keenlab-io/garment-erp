@@ -15,7 +15,6 @@ import {
   SelectValue,
   useToast,
 } from "@erp/ui";
-import { useDateFormat } from "../../../i18n/use-formatters.js";
 import { useItemsQuery } from "../../../inventory/queries.js";
 import { SALES_DOCUMENTS_PATH, SALES_PAYMENTS_PATH } from "../../../nav/sales-paths.js";
 import { CustomerAutocomplete } from "../../../sales/components/customer-autocomplete.js";
@@ -29,6 +28,7 @@ import { PaperPreview, type PaperPreviewLine } from "../../../sales/components/p
 import { PromptPayQrBlock } from "../../../sales/components/promptpay-qr-block.js";
 import { VatModeCalcToggle } from "../../../sales/components/vat-mode-calc-toggle.js";
 import { WhtNetToReceivePanel } from "../../../sales/components/wht-net-to-receive-panel.js";
+import { DOC_LIFECYCLE_LABEL_KEY } from "../../../sales/doc-lifecycle-labels.js";
 import {
   getDocument,
   upsertInvoice,
@@ -47,6 +47,7 @@ import {
   useSendQuotationMutation,
 } from "../../../sales/queries.js";
 import { computeDocumentTotals, lineTotal } from "../../../sales/totals.js";
+import { useDocumentDateFormat } from "../../../sales/use-document-date-format.js";
 
 type DocKind = "quotation" | "invoice";
 
@@ -66,7 +67,7 @@ function DocumentEditorScreen({ id }: { id: string }) {
   const { t } = useTranslation("sales");
   const { toast } = useToast();
   const navigate = useNavigate();
-  const dateFormat = useDateFormat({ dateStyle: "medium" });
+  const documentDateFormat = useDocumentDateFormat();
 
   const record = useSalesDocument(id === "new" ? undefined : id);
   const isNew = !record;
@@ -206,7 +207,7 @@ function DocumentEditorScreen({ id }: { id: string }) {
   const status = record?.kind === "quotation" ? record.quotation.status : record?.kind === "invoice" ? record.invoice.status : null;
   const customerIdFallback = record?.kind === "quotation" ? record.quotation.customer_id : record?.kind === "invoice" ? record.invoice.customer_id : undefined;
   // Quotations carry no created/issued date field in the contract — only invoices do (`issue_date`).
-  const previewDate = record?.kind === "invoice" ? dateFormat.format(new Date(record.invoice.issue_date)) : dateFormat.format(new Date());
+  const previewDate = record?.kind === "invoice" ? documentDateFormat(record.invoice.issue_date) : documentDateFormat(new Date());
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -218,7 +219,7 @@ function DocumentEditorScreen({ id }: { id: string }) {
           <h1 className="font-display text-h1 font-semibold text-text-primary">
             {isNew ? t("documentEditor.newTitle") : docNo}
           </h1>
-          {status && <DocLifecycleChip status={status} />}
+          {status && <DocLifecycleChip status={status} label={t(DOC_LIFECYCLE_LABEL_KEY[status])} />}
         </div>
       </div>
 
@@ -257,7 +258,20 @@ function DocumentEditorScreen({ id }: { id: string }) {
 
               {docKind === "quotation" ? (
                 <>
-                  <VatModeCalcToggle vatMode={vatMode} onVatModeChange={setVatMode} vatCalc={vatCalc} onVatCalcChange={setVatCalc} />
+                  <VatModeCalcToggle
+                    vatMode={vatMode}
+                    onVatModeChange={setVatMode}
+                    vatCalc={vatCalc}
+                    onVatCalcChange={setVatCalc}
+                    labels={{
+                      vatModeLabel: t("vatToggle.vatModeLabel"),
+                      vatOptionVat: t("vatToggle.vatOptionVat"),
+                      vatOptionNonVat: t("vatToggle.vatOptionNonVat"),
+                      calcLabel: t("vatToggle.calcLabel"),
+                      calcOptionInclusive: t("vatToggle.calcOptionInclusive"),
+                      calcOptionExclusive: t("vatToggle.calcOptionExclusive"),
+                    }}
+                  />
                   <FormField label={t("documentEditor.validUntilLabel")}>
                     <Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
                   </FormField>
@@ -276,6 +290,15 @@ function DocumentEditorScreen({ id }: { id: string }) {
                     grandTotal={totals.grand_total}
                     whtRate={whtRate}
                     onWhtRateChange={setWhtRate}
+                    labels={{
+                      subtotalLabel: t("documentEditor.subtotalLabel"),
+                      vatLabel: t("documentEditor.vatLabel"),
+                      whtRateLabel: t("documentEditor.whtRateLabel"),
+                      whtAmountLabel: t("documentEditor.whtLabel"),
+                      grandTotalLabel: t("documentEditor.grandTotalLabel"),
+                      netToReceiveLabel: t("documentEditor.netToReceiveLabel"),
+                      noWht: t("documentEditor.noWht"),
+                    }}
                   />
                 </>
               )}
@@ -285,6 +308,18 @@ function DocumentEditorScreen({ id }: { id: string }) {
                 onLinesChange={setLines}
                 itemOptions={itemOptions}
                 itemLoading={itemsQuery.isLoading}
+                labels={{
+                  itemLabel: t("lineEditor.itemLabel"),
+                  itemPlaceholder: t("lineEditor.itemPlaceholder"),
+                  itemSearchPlaceholder: t("lineEditor.itemSearchPlaceholder"),
+                  descriptionLabel: t("lineEditor.descriptionLabel"),
+                  qtyLabel: t("lineEditor.qtyLabel"),
+                  unitPriceLabel: t("lineEditor.unitPriceLabel"),
+                  discountLabel: t("lineEditor.discountLabel"),
+                  totalLabel: t("lineEditor.totalLabel"),
+                  addLine: t("lineEditor.addLine"),
+                  removeLine: t("lineEditor.removeLine"),
+                }}
               />
             </>
           ) : (
@@ -298,14 +333,14 @@ function DocumentEditorScreen({ id }: { id: string }) {
                   <div>
                     <dt className="text-caption text-text-muted">{t("documentEditor.validUntilLabel")}</dt>
                     <dd className="text-text-primary">
-                      {record.quotation.valid_until ? dateFormat.format(new Date(record.quotation.valid_until)) : "—"}
+                      {record.quotation.valid_until ? documentDateFormat(record.quotation.valid_until) : "—"}
                     </dd>
                   </div>
                 )}
                 {record?.kind === "invoice" && (
                   <div>
                     <dt className="text-caption text-text-muted">{t("documentEditor.dueDateLabel")}</dt>
-                    <dd className="text-text-primary">{record.invoice.due_date ? dateFormat.format(new Date(record.invoice.due_date)) : "—"}</dd>
+                    <dd className="text-text-primary">{record.invoice.due_date ? documentDateFormat(record.invoice.due_date) : "—"}</dd>
                   </div>
                 )}
               </dl>
@@ -372,7 +407,7 @@ function DocumentEditorScreen({ id }: { id: string }) {
         </div>
 
         <PaperPreview
-          docTypeLabel={docKind === "quotation" ? t("documentEditor.docTypeQuotation") : t("documentEditor.docTypeInvoice")}
+          docTypeLabel={docKind === "quotation" ? t("documentEditor.docTypeQuotationBilingual") : t("documentEditor.docTypeInvoiceBilingual")}
           docNo={docNo}
           date={previewDate}
           customer={
