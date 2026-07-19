@@ -91,6 +91,12 @@ export function AuditLogPage() {
           previousPage: t("audit.previousPage"),
           nextPage: t("audit.nextPage"),
         }}
+        diffLabels={{
+          beforeHeading: t("diff.beforeHeading"),
+          afterHeading: t("diff.afterHeading"),
+          emptyValue: t("diff.emptyValue"),
+          noChanges: t("diff.noChanges"),
+        }}
       />
     </div>
   );

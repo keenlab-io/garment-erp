@@ -109,7 +109,7 @@ describe("PermissionImportPage", () => {
     await user.upload(screen.getByLabelText("Browse files"), file);
     await waitFor(() => expect(importCalls).toBe(1));
 
-    await user.click(screen.getByRole("button", { name: "Import 1 valid row" }));
+    await user.click(screen.getByRole("button", { name: "Import 1 valid row(s)" }));
     await waitFor(() => expect(importCalls).toBe(2));
   });
 });

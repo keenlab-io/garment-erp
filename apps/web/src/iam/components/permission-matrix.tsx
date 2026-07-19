@@ -79,6 +79,132 @@ const defaultLabels: PermissionMatrixLabels = {
   expandGroup: (module) => `Expand ${module}`,
 };
 
+interface MatrixCell {
+  row: number;
+  col: number;
+}
+
+interface MatrixGroupTableProps {
+  group: ModuleGroup;
+  granted: Set<Permission>;
+  onToggle: (code: Permission, checked: boolean) => void;
+}
+
+/** Finds the first `(row, col)` that actually has a permission cell (the grid is sparse — not every
+ * resource has every action). Falls back to `{ row: 0, col: 0 }` if the group is somehow empty. */
+function firstCellOf(group: ModuleGroup): MatrixCell {
+  for (let row = 0; row < group.resources.length; row++) {
+    for (let col = 0; col < group.actions.length; col++) {
+      if (group.resources[row]!.cells[group.actions[col]!]) return { row, col };
+    }
+  }
+  return { row: 0, col: 0 };
+}
+
+/**
+ * One module's grid (M1 §5.2 WCAG AA): implements the ARIA `grid` roving-tabindex pattern — exactly
+ * one checkbox is a tab stop at a time, arrow keys move it (skipping the sparse gaps where a resource
+ * has no cell for a given action), matching the same pattern as `@erp/ui`'s DataTable.
+ */
+function MatrixGroupTable({ group, granted, onToggle }: MatrixGroupTableProps) {
+  const tableRef = React.useRef<HTMLTableElement>(null);
+  const [active, setActive] = React.useState<MatrixCell>(() => firstCellOf(group));
+
+  function cellAt(row: number, col: number): Permission | undefined {
+    const resource = group.resources[row];
+    const action = group.actions[col];
+    return resource && action ? resource.cells[action] : undefined;
+  }
+
+  function focusCell(row: number, col: number) {
+    setActive({ row, col });
+    tableRef.current
+      ?.querySelector<HTMLButtonElement>(`[data-row-index="${row}"][data-col-index="${col}"] button`)
+      ?.focus();
+  }
+
+  function moveRow(delta: number) {
+    for (let row = active.row + delta; row >= 0 && row < group.resources.length; row += delta) {
+      if (cellAt(row, active.col)) return focusCell(row, active.col);
+    }
+  }
+
+  function moveCol(delta: number) {
+    for (let col = active.col + delta; col >= 0 && col < group.actions.length; col += delta) {
+      if (cellAt(active.row, col)) return focusCell(active.row, col);
+    }
+  }
+
+  function onKeyDown(event: React.KeyboardEvent<HTMLTableElement>) {
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault();
+        moveRow(1);
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        moveRow(-1);
+        break;
+      case "ArrowRight":
+        event.preventDefault();
+        moveCol(1);
+        break;
+      case "ArrowLeft":
+        event.preventDefault();
+        moveCol(-1);
+        break;
+      default:
+        break;
+    }
+  }
+
+  return (
+    <table ref={tableRef} role="grid" onKeyDown={onKeyDown} className="w-full border-collapse text-left text-sm">
+      <thead>
+        <tr className="border-b border-border">
+          <th scope="col" className="px-3 py-2 text-caption font-semibold uppercase tracking-wide text-text-muted">
+            &nbsp;
+          </th>
+          {group.actions.map((action) => (
+            <th
+              key={action}
+              scope="col"
+              className="px-3 py-2 text-center text-caption font-semibold uppercase tracking-wide text-text-muted"
+            >
+              {action}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {group.resources.map((row, rowIdx) => (
+          <tr key={row.resource} className="border-b border-border last:border-b-0">
+            <th scope="row" className="px-3 py-2 text-left font-normal text-text-primary">
+              {row.resource}
+            </th>
+            {group.actions.map((action, colIdx) => {
+              const code = row.cells[action];
+              return (
+                <td key={action} data-row-index={rowIdx} data-col-index={colIdx} className="px-3 py-2 text-center">
+                  {code ? (
+                    <Checkbox
+                      aria-label={code}
+                      checked={granted.has(code)}
+                      onCheckedChange={(checked) => onToggle(code, checked === true)}
+                      tabIndex={active.row === rowIdx && active.col === colIdx ? 0 : -1}
+                      onFocus={() => setActive({ row: rowIdx, col: colIdx })}
+                    />
+                  ) : null}
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 export interface PermissionMatrixProps {
   /** The permission catalog to render; defaults to the full `@erp/contracts` `PERMISSIONS` list. */
   catalog?: readonly Permission[];
@@ -180,47 +306,7 @@ export function PermissionMatrix({
               </button>
 
               {!isCollapsed && (
-                <table role="grid" className="w-full border-collapse text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th scope="col" className="px-3 py-2 text-caption font-semibold uppercase tracking-wide text-text-muted">
-                        &nbsp;
-                      </th>
-                      {group.actions.map((action) => (
-                        <th
-                          key={action}
-                          scope="col"
-                          className="px-3 py-2 text-center text-caption font-semibold uppercase tracking-wide text-text-muted"
-                        >
-                          {action}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {group.resources.map((row) => (
-                      <tr key={row.resource} className="border-b border-border last:border-b-0">
-                        <th scope="row" className="px-3 py-2 text-left font-normal text-text-primary">
-                          {row.resource}
-                        </th>
-                        {group.actions.map((action) => {
-                          const code = row.cells[action];
-                          return (
-                            <td key={action} className="px-3 py-2 text-center">
-                              {code ? (
-                                <Checkbox
-                                  aria-label={code}
-                                  checked={granted.has(code)}
-                                  onCheckedChange={(checked) => setChecked(code, checked === true)}
-                                />
-                              ) : null}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <MatrixGroupTable group={group} granted={granted} onToggle={setChecked} />
               )}
             </div>
           );

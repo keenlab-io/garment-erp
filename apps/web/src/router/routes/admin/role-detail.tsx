@@ -131,6 +131,13 @@ export function RoleDetailPage() {
           isSystemRole={role.is_system}
           initialValue={role.permission_codes}
           affectedUserCount={summary?.user_count}
+          labels={{
+            affectsUsers: (count) => t("matrix.affectsUsers", { count }),
+            specialGroupCaption: t("matrix.specialGroupCaption"),
+            lastPermissionBlocked: t("matrix.lastPermissionBlocked"),
+            collapseGroup: (module) => t("matrix.collapseGroup", { module }),
+            expandGroup: (module) => t("matrix.expandGroup", { module }),
+          }}
         />
 
         <div>

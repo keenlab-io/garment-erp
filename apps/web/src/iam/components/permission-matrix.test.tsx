@@ -73,6 +73,31 @@ describe("PermissionMatrix", () => {
     expect(screen.getByRole("checkbox", { name: "iam.user.manage" })).toBeChecked();
   });
 
+  it("supports roving-tabindex arrow-key navigation within a group's grid", async () => {
+    const user = userEvent.setup();
+    render(<PermissionMatrix catalog={CATALOG} value={[]} onChange={() => {}} />);
+
+    // Columns sort to [force_logout, manage]; rows sort to [role, user]. The first non-empty cell
+    // in row-major order is role×manage (role has no force_logout action) — that's the default
+    // roving-tabindex anchor; every other cell starts at -1.
+    const roleManageCheckbox = screen.getByRole("checkbox", { name: "iam.role.manage" });
+    const userManageCheckbox = screen.getByRole("checkbox", { name: "iam.user.manage" });
+    const userForceLogoutCheckbox = screen.getByRole("checkbox", { name: "iam.user.force_logout" });
+
+    expect(roleManageCheckbox).toHaveAttribute("tabindex", "0");
+    expect(userManageCheckbox).toHaveAttribute("tabindex", "-1");
+    expect(userForceLogoutCheckbox).toHaveAttribute("tabindex", "-1");
+
+    roleManageCheckbox.focus();
+    await user.keyboard("{ArrowDown}");
+    expect(userManageCheckbox).toHaveFocus();
+    expect(userManageCheckbox).toHaveAttribute("tabindex", "0");
+    expect(roleManageCheckbox).toHaveAttribute("tabindex", "-1");
+
+    await user.keyboard("{ArrowLeft}");
+    expect(userForceLogoutCheckbox).toHaveFocus();
+  });
+
   it("shows the live affects-N caption only once the selection is dirty", () => {
     const { rerender } = render(
       <PermissionMatrix

@@ -37,9 +37,9 @@
 
 ## 5. i18n, a11y & Storybook
 
-- [ ] 5.1 TH+EN strings for the `iam` namespace; matrix/diff/import labels
-- [ ] 5.2 WCAG AA: matrix keyboard nav, focus rings, aria on icon buttons, audit-action chips not color-only
-- [ ] 5.3 Stories: PermissionMatrix, BeforeAfterDiff, ImportValidationTable at theme×density×locale
+- [x] 5.1 TH+EN strings for the `iam` namespace; matrix/diff/import labels
+- [x] 5.2 WCAG AA: matrix keyboard nav, focus rings, aria on icon buttons, audit-action chips not color-only
+- [x] 5.3 Stories: PermissionMatrix, BeforeAfterDiff, ImportValidationTable at theme×density×locale
 
 ## 6. Verification
 
