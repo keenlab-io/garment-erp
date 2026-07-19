@@ -5,10 +5,10 @@
 
 ## 1. Deps, routes & i18n
 
-- [ ] 1.1 Register `sales` routes with metadata + required `Permission`: `/sales/documents(/{id})`,
+- [x] 1.1 Register `sales` routes with metadata + required `Permission`: `/sales/documents(/{id})`,
   `/sales/documents/{id}/edit`, `/sales/customers(/{id})`, `/sales/payments`, `/sales/templates`,
   `/sales/aging`
-- [ ] 1.2 Add the `sales` i18next namespace (TH+EN); nav + ⌘K from route metadata
+- [x] 1.2 Add the `sales` i18next namespace (TH+EN); nav + ⌘K from route metadata
 
 ## 2. Data layer
 

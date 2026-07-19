@@ -93,4 +93,21 @@ describe("CommandPalette", () => {
     expect(screen.queryByRole("option", { name: "Timeline" })).not.toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Subcontracts" })).not.toBeInTheDocument();
   });
+
+  it("offers only the Sales sub-routes the user's sales permission grants", async () => {
+    const user = userEvent.setup();
+    await renderInShell(
+      <CommandPaletteProvider>
+        <Host />
+      </CommandPaletteProvider>,
+      { user: userWith(["sales.payment.record"]) },
+    );
+
+    await user.keyboard("{Control>}k{/Control}");
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Payments" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Customers" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Documents" })).not.toBeInTheDocument();
+  });
 });

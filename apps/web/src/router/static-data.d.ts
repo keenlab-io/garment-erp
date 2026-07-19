@@ -1,14 +1,14 @@
 import type { Permission } from "@erp/contracts";
-import type { ShellKey, IamKey, HrKey, InventoryKey, ProductionKey } from "../i18n/keys";
+import type { ShellKey, IamKey, HrKey, InventoryKey, ProductionKey, SalesKey } from "../i18n/keys";
 
 // Types the per-route `staticData` the shell reads generically via useMatches: breadcrumb/title,
 // the kiosk density flag, the entry permissions, and a back-reference into the nav registry.
 declare module "@tanstack/react-router" {
   interface StaticDataRouteOption {
     /** i18n key (shell:nav / shell:… ) for the page title and breadcrumb leaf — typed (M0 §7.2). */
-    title?: ShellKey | IamKey | HrKey | InventoryKey | ProductionKey;
+    title?: ShellKey | IamKey | HrKey | InventoryKey | ProductionKey | SalesKey;
     /** Override key when the breadcrumb label differs from the title. */
-    breadcrumb?: ShellKey | IamKey | HrKey | InventoryKey | ProductionKey;
+    breadcrumb?: ShellKey | IamKey | HrKey | InventoryKey | ProductionKey | SalesKey;
     /** Floor/kiosk route → forces Touch density, non-overridable. */
     kiosk?: boolean;
     /** Full kiosk lockdown (design MD2) → `AppChrome` renders the outlet with no nav chrome. */

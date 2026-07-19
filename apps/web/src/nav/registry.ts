@@ -26,6 +26,11 @@ import {
   ScanLine,
   Layers3,
   Handshake,
+  FileText,
+  UserRound,
+  Wallet2,
+  LayoutTemplate,
+  Hourglass,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@erp/contracts";
 import type {
@@ -34,6 +39,7 @@ import type {
   InventoryRouteDescriptor,
   ModuleDescriptor,
   ProductionRouteDescriptor,
+  SalesRouteDescriptor,
 } from "./types";
 
 /** All catalog permissions in a module's namespace (e.g. every `sales.*`) — any of them grants entry. */
@@ -305,5 +311,54 @@ export const PRODUCTION_ROUTES: ProductionRouteDescriptor[] = [
     titleKey: "production:nav.subcontracts",
     icon: Handshake,
     permissions: ["production.subcontract.manage"],
+  },
+];
+
+/**
+ * Sales sub-routes (Documents worklist/Customers/Payments/Templates/Aging — M5 §1). Each is gated
+ * by the same `sales.*` (or `report.sales.view`) permission(s) its `apps/api` `SalesController`
+ * handler(s) assert: the documents worklist covers both quotations (`sales.quotation.manage`) and
+ * invoices (`sales.invoice.create`), customers `sales.customer.manage`, payments
+ * `sales.payment.record`, the template designer reuses the document-management permissions (the
+ * contract has no dedicated template permission yet), and the aging dashboard
+ * `report.sales.view`. `/sales/documents/{id}`, `/sales/documents/{id}/edit`, and
+ * `/sales/customers/{id}` have no fixed nav/palette entry (the id varies) and are registered
+ * directly in the route tree.
+ */
+export const SALES_ROUTES: SalesRouteDescriptor[] = [
+  {
+    key: "sales-documents",
+    path: "/sales/documents",
+    titleKey: "sales:nav.documents",
+    icon: FileText,
+    permissions: ["sales.quotation.manage", "sales.invoice.create"],
+  },
+  {
+    key: "sales-customers",
+    path: "/sales/customers",
+    titleKey: "sales:nav.customers",
+    icon: UserRound,
+    permissions: ["sales.customer.manage"],
+  },
+  {
+    key: "sales-payments",
+    path: "/sales/payments",
+    titleKey: "sales:nav.payments",
+    icon: Wallet2,
+    permissions: ["sales.payment.record"],
+  },
+  {
+    key: "sales-templates",
+    path: "/sales/templates",
+    titleKey: "sales:nav.templates",
+    icon: LayoutTemplate,
+    permissions: ["sales.quotation.manage", "sales.invoice.create"],
+  },
+  {
+    key: "sales-aging",
+    path: "/sales/aging",
+    titleKey: "sales:nav.aging",
+    icon: Hourglass,
+    permissions: ["report.sales.view"],
   },
 ];
