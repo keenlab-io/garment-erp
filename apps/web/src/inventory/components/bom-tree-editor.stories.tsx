@@ -1,7 +1,8 @@
 import * as React from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useTranslation } from "react-i18next";
 import { PermissionsProvider } from "@erp/ui";
-import { BomTreeEditor, type BomTreeNode } from "./bom-tree-editor";
+import { BomTreeEditor, type BomTreeEditorLabels, type BomTreeNode } from "./bom-tree-editor";
 
 const ROOT: BomTreeNode = {
   id: "finished",
@@ -35,8 +36,26 @@ const ROOT: BomTreeNode = {
   ],
 };
 
+/** Wires the tree editor's `labels` to the real `inventory` namespace so the Storybook toolbar's
+ * locale control retranslates it (M3 §5.3, mirrors `item-detail.tsx`'s wiring). */
+function useTreeLabels(): BomTreeEditorLabels {
+  const { t } = useTranslation("inventory");
+  return {
+    itemColumn: t("bom.itemColumn"),
+    qtyColumn: t("bom.qtyColumn"),
+    scrapColumn: t("bom.scrapColumn"),
+    unitCostColumn: t("bom.unitCostColumn"),
+    extendedCostColumn: t("bom.extendedCostColumn"),
+    rolledUpCostLabel: t("bom.rolledUpCostLabel"),
+    conversionCostLabel: t("bom.conversionCostLabel"),
+    expand: t("bom.expand"),
+    collapse: t("bom.collapse"),
+  };
+}
+
 function ExpandableDemo() {
   const [expandedIds, setExpandedIds] = React.useState<string[]>([]);
+  const labels = useTreeLabels();
   return (
     <PermissionsProvider permissions={["inventory.cost.view"]} isSuperAdmin={false}>
       <BomTreeEditor
@@ -47,6 +66,7 @@ function ExpandableDemo() {
         onToggleExpand={(id) =>
           setExpandedIds((prev) => (prev.includes(id) ? prev.filter((existing) => existing !== id) : [...prev, id]))
         }
+        labels={labels}
         className="max-w-2xl"
       />
     </PermissionsProvider>
@@ -68,16 +88,20 @@ export const ExpandCollapse: Story = {
 };
 
 export const CostMasked: Story = {
-  render: () => (
-    <PermissionsProvider permissions={[]} isSuperAdmin={false}>
-      <BomTreeEditor
-        root={ROOT}
-        conversionCost="5.0000"
-        rolledUpCost="141.5700"
-        expandedIds={["zipper-assembly"]}
-        onToggleExpand={() => {}}
-        className="max-w-2xl"
-      />
-    </PermissionsProvider>
-  ),
+  render: () => {
+    const labels = useTreeLabels();
+    return (
+      <PermissionsProvider permissions={[]} isSuperAdmin={false}>
+        <BomTreeEditor
+          root={ROOT}
+          conversionCost="5.0000"
+          rolledUpCost="141.5700"
+          expandedIds={["zipper-assembly"]}
+          onToggleExpand={() => {}}
+          labels={labels}
+          className="max-w-2xl"
+        />
+      </PermissionsProvider>
+    );
+  },
 };

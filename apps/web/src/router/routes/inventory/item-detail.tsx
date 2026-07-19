@@ -15,6 +15,7 @@ import {
   useToast,
 } from "@erp/ui";
 import { INVENTORY_ITEMS_PATH } from "../../../nav/inventory-paths.js";
+import { useDateFormat } from "../../../i18n/use-formatters.js";
 import {
   useCreateBomMutation,
   useCreateSkuMutation,
@@ -22,8 +23,8 @@ import {
   useRollupBomMutation,
   useStockCardReportQuery,
 } from "../../../inventory/queries.js";
-import { StockCardLedger } from "../../../inventory/components/stock-card-ledger.js";
-import { BomTreeEditor, type BomTreeNode } from "../../../inventory/components/bom-tree-editor.js";
+import { StockCardLedger, type StockCardLedgerLabels } from "../../../inventory/components/stock-card-ledger.js";
+import { BomTreeEditor, type BomTreeEditorLabels, type BomTreeNode } from "../../../inventory/components/bom-tree-editor.js";
 
 const TABS = ["overview", "skus", "lots", "stock-card", "bom"] as const;
 type ItemTab = (typeof TABS)[number];
@@ -188,9 +189,34 @@ function SkusTab({ itemId }: { itemId: string }) {
   );
 }
 
+/** Wires `StockCardLedger`'s labels to the real `inventory` namespace (M3 §5.1) so the ledger
+ * retranslates with the app locale instead of falling back to the component's English defaults. */
+function useStockCardLedgerLabels(): StockCardLedgerLabels {
+  const { t } = useTranslation("inventory");
+  return {
+    dateColumn: t("stockCard.dateColumn"),
+    refColumn: t("stockCard.refColumn"),
+    inColumn: t("stockCard.inColumn"),
+    outColumn: t("stockCard.outColumn"),
+    balanceColumn: t("stockCard.balanceColumn"),
+    unitCostColumn: t("stockCard.unitCostColumn"),
+    openingRow: t("stockCard.openingRow"),
+    closingRow: t("stockCard.closingRow"),
+    refType: {
+      GOODS_RECEIPT: t("stockCard.refTypeGoodsReceipt"),
+      GOODS_ISSUE: t("stockCard.refTypeGoodsIssue"),
+      BACKFLUSH: t("stockCard.refTypeBackflush"),
+      ADJUSTMENT: t("stockCard.refTypeAdjustment"),
+      COUNT: t("stockCard.refTypeCount"),
+    },
+  };
+}
+
 function StockCardTab({ itemId }: { itemId: string }) {
   const { t } = useTranslation(["inventory", "common"]);
   const report = useStockCardReportQuery({ item_id: itemId });
+  const labels = useStockCardLedgerLabels();
+  const dateFormat = useDateFormat({ dateStyle: "medium" });
 
   if (report.isLoading) return <Skeleton className="h-40 w-full" />;
   if (report.isError || !report.data) {
@@ -208,12 +234,35 @@ function StockCardTab({ itemId }: { itemId: string }) {
     return <p className="text-sm text-text-muted">{t("itemDetail.stockCardEmpty")}</p>;
   }
 
-  return <StockCardLedger report={report.data.body} />;
+  return (
+    <StockCardLedger
+      report={report.data.body}
+      labels={labels}
+      formatDate={(iso) => dateFormat.format(new Date(iso))}
+    />
+  );
+}
+
+/** Wires `BomTreeEditor`'s labels to the real `inventory` namespace (M3 §5.1). */
+function useBomTreeEditorLabels(): BomTreeEditorLabels {
+  const { t } = useTranslation("inventory");
+  return {
+    itemColumn: t("bom.itemColumn"),
+    qtyColumn: t("bom.qtyColumn"),
+    scrapColumn: t("bom.scrapColumn"),
+    unitCostColumn: t("bom.unitCostColumn"),
+    extendedCostColumn: t("bom.extendedCostColumn"),
+    rolledUpCostLabel: t("bom.rolledUpCostLabel"),
+    conversionCostLabel: t("bom.conversionCostLabel"),
+    expand: t("bom.expand"),
+    collapse: t("bom.collapse"),
+  };
 }
 
 function BomTab({ itemId, itemName, isFinished }: { itemId: string; itemName: string; isFinished: boolean }) {
   const { t } = useTranslation("inventory");
   const { toast } = useToast();
+  const bomLabels = useBomTreeEditorLabels();
   const items = useItemsQuery({ limit: 100 });
   const createBom = useCreateBomMutation();
   const rollupBom = useRollupBomMutation();
@@ -271,6 +320,7 @@ function BomTab({ itemId, itemName, isFinished }: { itemId: string; itemName: st
           rolledUpCost={rollup.rolled_up_cost}
           expandedIds={[]}
           onToggleExpand={() => {}}
+          labels={bomLabels}
         />
       </div>
     );

@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useTranslation } from "react-i18next";
 import { asMoney, asQty, type StockCardReport } from "@erp/contracts";
 import { PermissionsProvider } from "@erp/ui";
-import { StockCardLedger } from "./stock-card-ledger";
+import { StockCardLedger, type StockCardLedgerLabels } from "./stock-card-ledger";
 
 const REPORT: StockCardReport = {
   item_id: "item-1",
@@ -17,6 +18,29 @@ const REPORT: StockCardReport = {
   closing_value: asMoney("5750.0000"),
 };
 
+/** Wires the ledger's `labels` to the real `inventory` namespace so the Storybook toolbar's
+ * locale control retranslates it (M3 §5.3, mirrors HR's `payroll-wizard.stories.tsx` wiring). */
+function useLedgerLabels(): StockCardLedgerLabels {
+  const { t } = useTranslation("inventory");
+  return {
+    dateColumn: t("stockCard.dateColumn"),
+    refColumn: t("stockCard.refColumn"),
+    inColumn: t("stockCard.inColumn"),
+    outColumn: t("stockCard.outColumn"),
+    balanceColumn: t("stockCard.balanceColumn"),
+    unitCostColumn: t("stockCard.unitCostColumn"),
+    openingRow: t("stockCard.openingRow"),
+    closingRow: t("stockCard.closingRow"),
+    refType: {
+      GOODS_RECEIPT: t("stockCard.refTypeGoodsReceipt"),
+      GOODS_ISSUE: t("stockCard.refTypeGoodsIssue"),
+      BACKFLUSH: t("stockCard.refTypeBackflush"),
+      ADJUSTMENT: t("stockCard.refTypeAdjustment"),
+      COUNT: t("stockCard.refTypeCount"),
+    },
+  };
+}
+
 const meta = {
   title: "Inventory/StockCardLedger",
   component: StockCardLedger,
@@ -28,17 +52,23 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const WithCostVisible: Story = {
-  render: (args) => (
-    <PermissionsProvider permissions={["inventory.cost.view"]} isSuperAdmin={false}>
-      <StockCardLedger {...args} />
-    </PermissionsProvider>
-  ),
+  render: (args) => {
+    const labels = useLedgerLabels();
+    return (
+      <PermissionsProvider permissions={["inventory.cost.view"]} isSuperAdmin={false}>
+        <StockCardLedger {...args} labels={labels} />
+      </PermissionsProvider>
+    );
+  },
 };
 
 export const CostMasked: Story = {
-  render: (args) => (
-    <PermissionsProvider permissions={[]} isSuperAdmin={false}>
-      <StockCardLedger {...args} />
-    </PermissionsProvider>
-  ),
+  render: (args) => {
+    const labels = useLedgerLabels();
+    return (
+      <PermissionsProvider permissions={[]} isSuperAdmin={false}>
+        <StockCardLedger {...args} labels={labels} />
+      </PermissionsProvider>
+    );
+  },
 };

@@ -1,8 +1,9 @@
 import * as React from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useTranslation } from "react-i18next";
 import { AllocMethod } from "@erp/contracts";
 import { PermissionsProvider } from "@erp/ui";
-import { LandedCostAllocator, type LandedCostLine } from "./landed-cost-allocator";
+import { LandedCostAllocator, type LandedCostAllocatorLabels, type LandedCostLine } from "./landed-cost-allocator";
 
 const LINES: LandedCostLine[] = [
   { id: "l1", itemLabel: "Cotton twill 32/1", qty: "100", unitPrice: "50.0000", unitWeight: "2" },
@@ -10,9 +11,28 @@ const LINES: LandedCostLine[] = [
   { id: "l3", itemLabel: "YKK zipper 20cm", qty: "300", unitPrice: "3.5000", unitWeight: "0.02" },
 ];
 
+/** Wires the allocator's `labels` to the real `inventory` namespace so the Storybook toolbar's
+ * locale control retranslates it (M3 §5.3, mirrors `goods-receipt-wizard.tsx`'s wiring). */
+function useAllocatorLabels(): LandedCostAllocatorLabels {
+  const { t } = useTranslation("inventory");
+  return {
+    methodLabel: t("landedCost.methodLabel"),
+    methodValue: t("landedCost.methodValue"),
+    methodWeight: t("landedCost.methodWeight"),
+    methodQty: t("landedCost.methodQty"),
+    freightLabel: t("landedCost.freightLabel"),
+    itemColumn: t("landedCost.itemColumn"),
+    qtyColumn: t("landedCost.qtyColumn"),
+    allocatedColumn: t("landedCost.allocatedColumn"),
+    unitCostColumn: t("landedCost.unitCostColumn"),
+    totalLabel: t("landedCost.totalLabel"),
+  };
+}
+
 function LiveAllocatorDemo() {
   const [method, setMethod] = React.useState<AllocMethod>(AllocMethod.VALUE);
   const [freightTotal, setFreightTotal] = React.useState("450");
+  const labels = useAllocatorLabels();
   return (
     <PermissionsProvider permissions={["inventory.cost.view"]} isSuperAdmin={false}>
       <LandedCostAllocator
@@ -21,6 +41,7 @@ function LiveAllocatorDemo() {
         onMethodChange={setMethod}
         freightTotal={freightTotal}
         onFreightTotalChange={setFreightTotal}
+        labels={labels}
         className="max-w-2xl"
       />
     </PermissionsProvider>
@@ -48,16 +69,20 @@ export const Live: Story = {
 };
 
 export const CostMasked: Story = {
-  render: () => (
-    <PermissionsProvider permissions={[]} isSuperAdmin={false}>
-      <LandedCostAllocator
-        lines={LINES}
-        method={AllocMethod.VALUE}
-        onMethodChange={() => {}}
-        freightTotal="450"
-        onFreightTotalChange={() => {}}
-        className="max-w-2xl"
-      />
-    </PermissionsProvider>
-  ),
+  render: () => {
+    const labels = useAllocatorLabels();
+    return (
+      <PermissionsProvider permissions={[]} isSuperAdmin={false}>
+        <LandedCostAllocator
+          lines={LINES}
+          method={AllocMethod.VALUE}
+          onMethodChange={() => {}}
+          freightTotal="450"
+          onFreightTotalChange={() => {}}
+          labels={labels}
+          className="max-w-2xl"
+        />
+      </PermissionsProvider>
+    );
+  },
 };
