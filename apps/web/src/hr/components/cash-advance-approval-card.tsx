@@ -10,7 +10,7 @@ import {
   usePermissions,
   type ConfirmResult,
 } from "@erp/ui";
-import { CeilingCheckBadge } from "./ceiling-check-badge.js";
+import { CeilingCheckBadge, type CeilingCheckBadgeLabels } from "./ceiling-check-badge.js";
 
 export interface CashAdvanceApprovalCardLabels {
   amountLabel: string;
@@ -54,6 +54,7 @@ export interface CashAdvanceApprovalCardProps {
   approving?: boolean;
   rejecting?: boolean;
   labels?: Partial<CashAdvanceApprovalCardLabels>;
+  ceilingLabels?: Partial<CeilingCheckBadgeLabels>;
   className?: string;
 }
 
@@ -73,6 +74,7 @@ export function CashAdvanceApprovalCard({
   approving = false,
   rejecting = false,
   labels: labelsProp,
+  ceilingLabels,
   className,
 }: CashAdvanceApprovalCardProps) {
   const labels = { ...defaultLabels, ...labelsProp };
@@ -111,7 +113,7 @@ export function CashAdvanceApprovalCard({
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-body-strong text-text-primary">{employeeName}</span>
-        <CeilingCheckBadge amount={amount} ceiling={ceiling} />
+        <CeilingCheckBadge amount={amount} ceiling={ceiling} labels={ceilingLabels} />
       </div>
 
       <div className="flex flex-col gap-1">

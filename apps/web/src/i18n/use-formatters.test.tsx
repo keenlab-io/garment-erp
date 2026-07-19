@@ -1,8 +1,9 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import type { ReactNode } from "react";
+import i18n from "./i18n";
 import { LocaleProvider, useLocale } from "./locale-context";
-import { useDateFormat, useNumberFormat, useMoneyFormat, useQtyFormat } from "./use-formatters";
+import { useDateFormat, useNumberFormat, useMoneyFormat, useQtyFormat, usePeriodFormat } from "./use-formatters";
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <LocaleProvider>{children}</LocaleProvider>
@@ -10,6 +11,9 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 afterEach(() => {
   window.localStorage.clear();
+  // `i18n` is a module-level singleton — reset it so a toggle in one test never leaks the
+  // starting locale into the next (each "re-resolves" test assumes it starts from `th`).
+  void i18n.changeLanguage("th");
 });
 
 describe("useDateFormat", () => {
@@ -63,5 +67,35 @@ describe("useQtyFormat", () => {
     const { result } = renderHook(() => useQtyFormat(), { wrapper });
     expect(result.current("1200")).toBe("1,200.00");
     expect(result.current("1200", "pcs")).toBe("1,200.00 pcs");
+  });
+});
+
+describe("usePeriodFormat", () => {
+  it("formats a YYYY-MM period as a Gregorian/CE month+year label", () => {
+    const { result } = renderHook(() => usePeriodFormat(), { wrapper });
+    const formatted = result.current("2026-07");
+    expect(formatted).toContain("2026");
+    expect(formatted).not.toContain("2569"); // BE would read 2026 + 543
+  });
+
+  it("re-resolves when the locale toggles", () => {
+    const { result } = renderHook(
+      () => {
+        const { toggleLocale } = useLocale();
+        const formatPeriod = usePeriodFormat();
+        return { toggleLocale, formatPeriod };
+      },
+      { wrapper },
+    );
+    const th = result.current.formatPeriod("2026-07");
+    act(() => result.current.toggleLocale());
+    const en = result.current.formatPeriod("2026-07");
+    expect(th).not.toBe(en);
+    expect(en).toContain("July");
+  });
+
+  it("falls back to the raw string for a malformed period", () => {
+    const { result } = renderHook(() => usePeriodFormat(), { wrapper });
+    expect(result.current("not-a-period")).toBe("not-a-period");
   });
 });

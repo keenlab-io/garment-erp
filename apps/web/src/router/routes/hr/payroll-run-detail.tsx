@@ -2,6 +2,7 @@ import * as React from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Button, Skeleton, useToast, type ConfirmResult } from "@erp/ui";
+import { usePeriodFormat } from "../../../i18n/use-formatters.js";
 import { HR_PAYROLL_PATH } from "../../../nav/hr-paths.js";
 import {
   useApprovePayrollRunMutation,
@@ -39,6 +40,7 @@ export function PayrollRunDetailPage() {
   const { id } = useParams({ from: "/hr/payroll/runs/$id" });
   const { t } = useTranslation("hr");
   const { toast } = useToast();
+  const formatPeriod = usePeriodFormat();
 
   const runs = usePayrollRunsQuery();
   const run = runs.data?.body.payroll_runs.find((r) => r.id === id);
@@ -137,6 +139,7 @@ export function PayrollRunDetailPage() {
 
       <PayrollWizard
         period={run.period}
+        formatPeriod={formatPeriod}
         status={run.status}
         step={step}
         onStepChange={setStep}
@@ -168,6 +171,26 @@ export function PayrollRunDetailPage() {
             review: t("payroll.stepReview"),
             approve: t("payroll.stepApprove"),
           },
+          stepsAriaLabel: t("payroll.stepsAriaLabel"),
+          scopeColumn: t("payroll.scopeColumn"),
+          flagsColumn: t("payroll.flagsColumn"),
+          excludeColumn: t("payroll.excludeColumn"),
+          missingSalary: t("payroll.missingSalary"),
+          unreconciledOt: t("payroll.unreconciledOt"),
+          noBlockingFlags: t("payroll.noBlockingFlags"),
+          blockingNotice: t("payroll.blockingNotice"),
+          continueToCalculate: t("payroll.continueToCalculate"),
+          runCalculation: t("payroll.runCalculation"),
+          calculating: t("payroll.calculating"),
+          continueToReview: t("payroll.continueToReview"),
+          continueToApprove: t("payroll.continueToApprove"),
+          employeeColumn: t("payroll.employeeColumn"),
+          netColumn: t("payroll.netColumn"),
+          outlier: t("payroll.outlier"),
+          viewBreakdown: t("payroll.viewBreakdown"),
+          approveCount: (count) => t("payroll.approveCount", { count }),
+          netTotalLabel: t("payroll.netTotalLabel"),
+          approve: t("payroll.approveRun"),
         }}
       />
 
@@ -178,7 +201,12 @@ export function PayrollRunDetailPage() {
         }}
         employeeName={breakdownPayslip?.employeeName ?? ""}
         period={run.period}
+        formatPeriod={formatPeriod}
         lines={breakdownLines}
+        labels={{
+          title: (employeeName) => t("payroll.payslipTitle", { employeeName }),
+          period: t("payroll.periodLabel"),
+        }}
       />
     </div>
   );

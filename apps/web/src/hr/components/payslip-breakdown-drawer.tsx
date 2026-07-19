@@ -36,6 +36,8 @@ export interface PayslipBreakdownDrawerProps {
   employeeName: string;
   /** Payroll period, e.g. "2026-07". */
   period: string;
+  /** Formats `period` for display — defaults to the raw string. */
+  formatPeriod?: (period: string) => string;
   /** Every term of the net-pay formula, in display order — nothing is hidden. */
   lines: PayslipLine[];
   labels?: Partial<PayslipBreakdownDrawerLabels>;
@@ -51,6 +53,7 @@ export function PayslipBreakdownDrawer({
   onOpenChange,
   employeeName,
   period,
+  formatPeriod = (p) => p,
   lines,
   labels: labelsProp,
   className,
@@ -65,7 +68,7 @@ export function PayslipBreakdownDrawer({
             {labels.title(employeeName)}
           </DrawerTitle>
           <p className="text-caption text-text-muted">
-            {labels.period}: {period}
+            {labels.period}: {formatPeriod(period)}
           </p>
         </DrawerHeader>
         <DrawerBody>

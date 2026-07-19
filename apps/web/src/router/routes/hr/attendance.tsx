@@ -89,7 +89,23 @@ export function AttendancePage() {
           </Button>
         </div>
       ) : (
-        <AttendanceMonthGrid period={period} employees={gridEmployees} records={records} />
+        <AttendanceMonthGrid
+          period={period}
+          employees={gridEmployees}
+          records={records}
+          labels={{
+            employeeColumn: t("attendance.columnEmployee"),
+            legendTitle: t("attendance.legendTitle"),
+            empty: t("attendance.noEmployeesInScope"),
+          }}
+          statusLabels={{
+            present: t("attendance.statusPresent"),
+            absent: t("attendance.statusAbsent"),
+            leave: t("attendance.statusLeave"),
+            holiday: t("attendance.statusHoliday"),
+          }}
+          noRecordLabel={t("attendance.statusNoRecord")}
+        />
       )}
     </div>
   );
