@@ -42,7 +42,7 @@
 
 ## 6. Verification
 
-- [ ] 6.1 `pnpm --filter @erp/web build && typecheck && lint` green; Storybook renders
-- [ ] 6.2 Preview matches the exported PDF 1:1 (shared token CSS); VAT toggle re-breaks totals correctly
-- [ ] 6.3 Drive: new quotation (customer autocomplete fills tax fields) → live preview → send → approve →
+- [x] 6.1 `pnpm --filter @erp/web build && typecheck && lint` green; Storybook renders
+- [x] 6.2 Preview matches the exported PDF 1:1 (shared token CSS); VAT toggle re-breaks totals correctly
+- [x] 6.3 Drive: new quotation (customer autocomplete fills tax fields) → live preview → send → approve →
   convert → issue (PromptPay QR) → record payment → receipt; void blocked when a receipt exists (explanatory dialog)
