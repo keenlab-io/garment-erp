@@ -207,6 +207,12 @@ export function UserDetailPage() {
             system: t("audit.system"),
             empty: t("userDetail.noActivity"),
           }}
+          diffLabels={{
+            beforeHeading: t("diff.beforeHeading"),
+            afterHeading: t("diff.afterHeading"),
+            emptyValue: t("diff.emptyValue"),
+            noChanges: t("diff.noChanges"),
+          }}
         />
       </section>
 

@@ -114,7 +114,17 @@ function CreateRoleDrawer({ open, onOpenChange }: { open: boolean; onOpenChange:
                 </SelectContent>
               </Select>
             </FormField>
-            <PermissionMatrix value={codes} onChange={setCodes} />
+            <PermissionMatrix
+              value={codes}
+              onChange={setCodes}
+              labels={{
+                affectsUsers: (count) => t("matrix.affectsUsers", { count }),
+                specialGroupCaption: t("matrix.specialGroupCaption"),
+                lastPermissionBlocked: t("matrix.lastPermissionBlocked"),
+                collapseGroup: (module) => t("matrix.collapseGroup", { module }),
+                expandGroup: (module) => t("matrix.expandGroup", { module }),
+              }}
+            />
             <Button type="button" variant="secondary" onClick={handleSaveAsTemplate} loading={createTemplate.isPending}>
               {t("roles.saveAsTemplate")}
             </Button>

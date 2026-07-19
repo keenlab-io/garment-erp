@@ -2,7 +2,7 @@ import * as React from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { AuditEntry } from "@erp/contracts";
 import { Button, InkChip, Skeleton, cn } from "@erp/ui";
-import { BeforeAfterDiff } from "./before-after-diff.js";
+import { BeforeAfterDiff, type BeforeAfterDiffLabels } from "./before-after-diff.js";
 import { auditActionToChip } from "../status-chips.js";
 
 export interface AuditTableLabels {
@@ -55,6 +55,8 @@ export interface AuditTableProps {
   onNextPage?: () => void;
   onPrevPage?: () => void;
   labels?: Partial<AuditTableLabels>;
+  /** Forwarded to the row-expansion `BeforeAfterDiff`. */
+  diffLabels?: Partial<BeforeAfterDiffLabels>;
   className?: string;
 }
 
@@ -77,6 +79,7 @@ export function AuditTable({
   onNextPage,
   onPrevPage,
   labels: labelsProp,
+  diffLabels,
   className,
 }: AuditTableProps) {
   const labels = React.useMemo(() => ({ ...defaultLabels, ...labelsProp }), [labelsProp]);
@@ -168,7 +171,11 @@ export function AuditTable({
                   {isOpen && (
                     <tr className="border-b border-border last:border-b-0">
                       <td colSpan={6} className="bg-bg-surface p-3">
-                        <BeforeAfterDiff before={asRecord(entry.before)} after={asRecord(entry.after)} />
+                        <BeforeAfterDiff
+                          before={asRecord(entry.before)}
+                          after={asRecord(entry.after)}
+                          labels={diffLabels}
+                        />
                       </td>
                     </tr>
                   )}

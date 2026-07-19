@@ -90,6 +90,19 @@ export function PermissionImportPage() {
         onImport={() => {
           if (selectedFile) runImport(selectedFile);
         }}
+        labels={{
+          dropzoneLabel: t("import.dropzoneLabel"),
+          dropzoneHint: t("import.dropzoneHint"),
+          browseButton: t("import.browseButton"),
+          rowColumn: t("import.rowColumn"),
+          statusColumn: t("import.statusColumn"),
+          reasonColumn: t("import.reasonColumn"),
+          okStatus: t("import.okStatus"),
+          errorStatus: t("import.errorStatus"),
+          importValid: (count) => t("import.importValid", { count }),
+          reupload: t("import.reupload"),
+          noRows: t("import.noRows"),
+        }}
       />
     </div>
   );
