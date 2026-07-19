@@ -14,9 +14,9 @@
 
 ## 2. Data layer
 
-- [ ] 2.1 `production` query/mutation hooks (routing templates, work orders, timeline feed,
+- [x] 2.1 `production` query/mutation hooks (routing templates, work orders, timeline feed,
   wo-steps scan/hold/defects/subcontract, wip, subcontracts) + invalidation
-- [ ] 2.2 Realtime event handlers (`StepStarted`/`StepFinished`/`StepDelayed`) merging into the
+- [x] 2.2 Realtime event handlers (`StepStarted`/`StepFinished`/`StepDelayed`) merging into the
   timeline/query cache with soft animation (idempotent apply)
 
 ## 3. Module components
