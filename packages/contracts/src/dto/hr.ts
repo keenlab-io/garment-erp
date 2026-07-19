@@ -252,12 +252,36 @@ export const CreatePayrollRunRequest = z.object({
 });
 export type CreatePayrollRunRequest = z.infer<typeof CreatePayrollRunRequest>;
 
-/** A payslip summary row — `gross`/`net` are monetary and gated by `hr.salary.view`. */
+/** One named line of a payslip breakdown (an allowance or a non-statutory deduction). */
+export const PayLine = z.object({
+  name: z.string(),
+  amount: moneyString,
+});
+export type PayLine = z.infer<typeof PayLine>;
+
+/** The immutable snapshot of a payslip's inputs (spec §2.2's `payslip.breakdown` jsonb). */
+export const PayslipBreakdown = z.object({
+  base: moneyString,
+  ot: moneyString,
+  allowances: z.array(PayLine),
+  sso: moneyString,
+  tax: moneyString,
+  advance: moneyString,
+  deductions: z.array(PayLine),
+});
+export type PayslipBreakdown = z.infer<typeof PayslipBreakdown>;
+
+/**
+ * A payslip summary row — `gross`/`net`/`breakdown` are monetary and gated by
+ * `hr.salary.view`. `breakdown` is every term of the net-pay formula, line by line, for the
+ * payslip breakdown drawer (M2 frontend §3.2) — nothing is hidden from a permitted viewer.
+ */
 export const PayslipSummary = z.object({
   id: uuid,
   employee_id: uuid,
   gross: moneyString.optional(),
   net: moneyString.optional(),
+  breakdown: PayslipBreakdown.optional(),
 });
 export type PayslipSummary = z.infer<typeof PayslipSummary>;
 

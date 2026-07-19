@@ -30,9 +30,9 @@ function gateEmployee(user: AuthUser, e: Employee): Employee {
   return gateSalaryFields(user, e, ["national_id", "base_salary"]);
 }
 
-/** Strip `gross` + `net` from a payslip summary unless the caller can view salary. */
+/** Strip `gross` + `net` + `breakdown` from a payslip summary unless the caller can view salary. */
 function gatePayslip(user: AuthUser, p: PayslipSummary): PayslipSummary {
-  return gateSalaryFields(user, p, ["gross", "net"]);
+  return gateSalaryFields(user, p, ["gross", "net", "breakdown"]);
 }
 
 /**

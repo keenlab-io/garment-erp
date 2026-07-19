@@ -13,6 +13,7 @@ import type {
   CreatePayrollRunRequest,
   PayrollRun,
   PayrollRunsQuery,
+  PayslipBreakdown as ContractPayslipBreakdown,
   PayslipSummary,
 } from "@erp/contracts";
 import { sumMoney } from "@erp/utils";
@@ -43,6 +44,19 @@ export const PAYROLL_CALCULATE_JOB = "payroll.calculate";
 export interface PayrollCalculateJob {
   run_id: string;
   actor_user_id: string;
+}
+
+/** Tag the raw `payslip.breakdown` jsonb's decimal strings with the wire `Money` brand. */
+function toContractBreakdown(breakdown: PayslipBreakdown): ContractPayslipBreakdown {
+  return {
+    base: m(breakdown.base),
+    ot: m(breakdown.ot),
+    allowances: breakdown.allowances.map((a) => ({ name: a.name, amount: m(a.amount) })),
+    sso: m(breakdown.sso),
+    tax: m(breakdown.tax),
+    advance: m(breakdown.advance),
+    deductions: breakdown.deductions.map((d) => ({ name: d.name, amount: m(d.amount) })),
+  };
 }
 
 /**
@@ -179,6 +193,7 @@ export class PayrollService {
         employeeId: payslip.employeeId,
         gross: payslip.gross,
         net: payslip.net,
+        breakdown: payslip.breakdown,
       })
       .from(payslip)
       .where(eq(payslip.runId, runId))
@@ -188,6 +203,7 @@ export class PayrollService {
       employee_id: r.employeeId,
       gross: m(r.gross),
       net: m(r.net),
+      breakdown: toContractBreakdown(r.breakdown as PayslipBreakdown),
     }));
   }
 

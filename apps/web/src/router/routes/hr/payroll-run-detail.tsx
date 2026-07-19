@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { formatMoney, sumMoney, toDecimal } from "@erp/utils";
 import { Button, Skeleton, useToast, type ConfirmResult } from "@erp/ui";
 import { usePeriodFormat } from "../../../i18n/use-formatters.js";
 import { HR_PAYROLL_PATH } from "../../../nav/hr-paths.js";
@@ -31,10 +32,11 @@ const STEP_FOR_STATUS: Record<string, PayrollWizardStep> = {
 /**
  * The payroll run workspace (M2 §4.2, design MD1/MD2): the run wizard over `PayrollWizard`, the
  * payslip breakdown drawer, and the guarded approve. The `hr` contract has no `GET` for a single
- * run — its status/period come from the run list query, matched by id (M2 §2.1 note). Likewise
- * `PayslipSummary` only exposes `gross`/`net` (not the full breakdown) — the preview/breakdown
- * rows below fill the unavailable terms with "0" rather than fabricate figures; only net/gross
- * are real. `unreconciledOt` is derived from the OT queue (APPROVED-but-not-RECONCILED requests).
+ * run — its status/period come from the run list query, matched by id (M2 §2.1 note).
+ * `PayslipSummary.breakdown` carries every term of the net-pay formula (gated by
+ * `hr.salary.view`, same as `gross`/`net`); a viewer without that permission never receives it,
+ * so the preview/breakdown rows fall back to "0"/net-only rather than fabricate figures.
+ * `unreconciledOt` is derived from the OT queue (APPROVED-but-not-RECONCILED requests).
  */
 export function PayrollRunDetailPage() {
   const { id } = useParams({ from: "/hr/payroll/runs/$id" });
@@ -92,24 +94,54 @@ export function PayrollRunDetailPage() {
         id: p.id,
         employeeId: p.employee_id,
         employeeName: employeeNameById.get(p.employee_id) ?? p.employee_id,
-        base: "0",
-        ot: "0",
-        allowances: "0",
-        deductions: "0",
-        sso: "0",
-        tax: "0",
-        advance: "0",
+        base: p.breakdown?.base ?? "0",
+        ot: p.breakdown?.ot ?? "0",
+        allowances: p.breakdown ? sumMoney(p.breakdown.allowances.map((a) => a.amount)) : "0",
+        deductions: p.breakdown ? sumMoney(p.breakdown.deductions.map((d) => d.amount)) : "0",
+        sso: p.breakdown?.sso ?? "0",
+        tax: p.breakdown?.tax ?? "0",
+        advance: p.breakdown?.advance ?? "0",
         net: p.net ?? "0",
       })),
     [payslips.data, employeeNameById],
   );
 
-  const breakdownPayslip = payslipRows.find((p) => p.id === breakdownPayslipId);
-  const breakdownLines: PayslipLine[] = breakdownPayslip
-    ? [
-        { key: "net", label: t("payroll.breakdownNet"), amount: breakdownPayslip.net, kind: "net" },
-      ]
-    : [];
+  // Deduction terms come back as positive magnitudes; negate for `MoneyCell`'s accounting parens.
+  const negated = (amount: string) => formatMoney(toDecimal(amount).negated());
+
+  const breakdownPayslip = payslips.data?.body.payslips.find((p) => p.id === breakdownPayslipId);
+  const breakdownEmployeeName = breakdownPayslip
+    ? (employeeNameById.get(breakdownPayslip.employee_id) ?? breakdownPayslip.employee_id)
+    : "";
+  const breakdownLines: PayslipLine[] = !breakdownPayslip
+    ? []
+    : breakdownPayslip.breakdown
+      ? [
+          { key: "base", label: t("payroll.breakdownBase"), amount: breakdownPayslip.breakdown.base, kind: "earning" },
+          { key: "ot", label: t("payroll.breakdownOt"), amount: breakdownPayslip.breakdown.ot, kind: "earning" },
+          ...breakdownPayslip.breakdown.allowances.map((a, i) => ({
+            key: `allowance-${i}`,
+            label: a.name,
+            amount: a.amount,
+            kind: "earning" as const,
+          })),
+          { key: "sso", label: t("payroll.breakdownSso"), amount: negated(breakdownPayslip.breakdown.sso), kind: "deduction" as const },
+          { key: "tax", label: t("payroll.breakdownTax"), amount: negated(breakdownPayslip.breakdown.tax), kind: "deduction" as const },
+          {
+            key: "advance",
+            label: t("payroll.breakdownAdvance"),
+            amount: negated(breakdownPayslip.breakdown.advance),
+            kind: "deduction" as const,
+          },
+          ...breakdownPayslip.breakdown.deductions.map((d, i) => ({
+            key: `deduction-${i}`,
+            label: d.name,
+            amount: negated(d.amount),
+            kind: "deduction" as const,
+          })),
+          { key: "net", label: t("payroll.breakdownNet"), amount: breakdownPayslip.net ?? "0", kind: "net" as const },
+        ]
+      : [{ key: "net", label: t("payroll.breakdownNet"), amount: breakdownPayslip.net ?? "0", kind: "net" as const }];
 
   if (runs.isLoading || step === null) {
     return (
@@ -199,7 +231,7 @@ export function PayrollRunDetailPage() {
         onOpenChange={(open) => {
           if (!open) setBreakdownPayslipId(null);
         }}
-        employeeName={breakdownPayslip?.employeeName ?? ""}
+        employeeName={breakdownEmployeeName}
         period={run.period}
         formatPeriod={formatPeriod}
         lines={breakdownLines}
