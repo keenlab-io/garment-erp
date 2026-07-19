@@ -49,6 +49,12 @@ import { WorkOrderDetailPage } from "./routes/production/work-order-detail";
 import { ProductionScanPage } from "./routes/production/scan";
 import { WipBoardPage } from "./routes/production/wip-board";
 import { SubcontractsPage } from "./routes/production/subcontracts";
+import { DocumentsListPage } from "./routes/sales/documents-list";
+import { DocumentEditPage, DocumentViewPage } from "./routes/sales/document-editor";
+import { PaymentsPage } from "./routes/sales/payments";
+import { CustomersListPage, CustomerDetailPage } from "./routes/sales/customers";
+import { AgingDashboardPage } from "./routes/sales/aging-dashboard";
+import { DocumentTemplatesPage } from "./routes/sales/templates";
 
 /** The M1 §4 screens, keyed by `AdminRouteDescriptor.key` — every other admin route (none currently)
  * keeps the shared `ModulePlaceholder` until its screen ships. */
@@ -312,13 +318,20 @@ const productionWorkOrderDetailRoute = createRoute({
 });
 
 // Sales sub-routes (Documents worklist/Customers/Payments/Templates/Aging) — each gated by its own
-// sales.* (or report.sales.view) permission(s). None has a screen yet (M5 §4 ships them), so every
-// entry falls back to `ModulePlaceholder`.
+// sales.* (or report.sales.view) permission(s). Every entry now renders its M5 §4 screen.
+const SALES_ROUTE_COMPONENTS: Record<string, () => React.ReactElement> = {
+  "sales-documents": DocumentsListPage,
+  "sales-customers": CustomersListPage,
+  "sales-payments": PaymentsPage,
+  "sales-templates": DocumentTemplatesPage,
+  "sales-aging": AgingDashboardPage,
+};
+
 function salesRoute(entry: SalesRouteDescriptor) {
   return createRoute({
     getParentRoute: () => rootRoute,
     path: entry.path,
-    component: ModulePlaceholder,
+    component: SALES_ROUTE_COMPONENTS[entry.key] ?? ModulePlaceholder,
     staticData: {
       title: entry.titleKey,
       breadcrumb: entry.titleKey,
@@ -336,7 +349,7 @@ function salesRoute(entry: SalesRouteDescriptor) {
 const salesDocumentDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/sales/documents/$id",
-  component: ModulePlaceholder,
+  component: DocumentViewPage,
   staticData: {
     title: "sales:nav.documentDetail",
     breadcrumb: "sales:nav.documentDetail",
@@ -352,7 +365,7 @@ const salesDocumentDetailRoute = createRoute({
 const salesDocumentEditRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/sales/documents/$id/edit",
-  component: ModulePlaceholder,
+  component: DocumentEditPage,
   staticData: {
     title: "sales:nav.documentEdit",
     breadcrumb: "sales:nav.documentEdit",
@@ -368,7 +381,7 @@ const salesDocumentEditRoute = createRoute({
 const salesCustomerDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/sales/customers/$id",
-  component: ModulePlaceholder,
+  component: CustomerDetailPage,
   staticData: {
     title: "sales:nav.customerDetail",
     breadcrumb: "sales:nav.customerDetail",

@@ -25,14 +25,14 @@
 
 ## 4. Screens / flows
 
-- [ ] 4.1 `document-editor-ui` — split editor ⟷ live preview; VAT toggle re-breaks totals; WHT
+- [x] 4.1 `document-editor-ui` — split editor ⟷ live preview; VAT toggle re-breaks totals; WHT
   net-to-receive; PromptPay QR; convert-to-invoice; sticky footer (MD1–MD3)
-- [ ] 4.2 `documents-worklist-ui` — unified worklist, lifecycle chips, aging column, filters, bulk
+- [x] 4.2 `documents-worklist-ui` — unified worklist, lifecycle chips, aging column, filters, bulk
   export, overdue reminder, expired duplicate (MD4)
-- [ ] 4.3 `payments-ui` — record payment (full/partial) → receipt/tax-invoice; guarded void (blocked if receipt exists) (MD5)
-- [ ] 4.4 `customers-ui` — customer list, detail (docs/aging), quick-create (tax autocomplete)
-- [ ] 4.5 `aging-dashboard-ui` — AR aging by bucket
-- [ ] 4.6 `document-templates-ui` — template designer (assets + named-range map) (MD6)
+- [x] 4.3 `payments-ui` — record payment (full/partial) → receipt/tax-invoice; guarded void (blocked if receipt exists) (MD5)
+- [x] 4.4 `customers-ui` — customer list, detail (docs/aging), quick-create (tax autocomplete)
+- [x] 4.5 `aging-dashboard-ui` — AR aging by bucket
+- [x] 4.6 `document-templates-ui` — template designer (assets + named-range map) (MD6)
 
 ## 5. i18n, a11y & Storybook
 
