@@ -21,13 +21,13 @@
 > which M0 deferred. It **promotes both to `@erp/ui`** as shared primitives so M4 (kiosk) and
 > M2/M4 (wizards) reuse them rather than re-implementing — see MD6.
 
-- [ ] 3.1 **StockCardLedger** table (running balance, immutable, cost columns masked)
-- [ ] 3.2 **ScanField** — new shared `@erp/ui` primitive (persistent input, last-5 + undo, camera/HID,
+- [x] 3.1 **StockCardLedger** table (running balance, immutable, cost columns masked)
+- [x] 3.2 **ScanField** — new shared `@erp/ui` primitive (persistent input, last-5 + undo, camera/HID,
   qty stepper); M3 owns it, M4 reuses it
-- [ ] 3.3 **Wizard/Stepper** — new shared `@erp/ui` primitive (steps + per-step validation + review);
+- [x] 3.3 **Wizard/Stepper** — new shared `@erp/ui` primitive (steps + per-step validation + review);
   M3 owns it (goods-receipt), M2 (payroll) and M4 (create-WO) reuse it
-- [ ] 3.4 **LandedCostAllocator** (method selector + live per-line cost-impact preview)
-- [ ] 3.5 **BomTreeEditor** (expand/collapse, roll-up cost preview); **UomDualDisplay**; **StockHealthChip**
+- [x] 3.4 **LandedCostAllocator** (method selector + live per-line cost-impact preview)
+- [x] 3.5 **BomTreeEditor** (expand/collapse, roll-up cost preview); **UomDualDisplay**; **StockHealthChip**
 
 ## 4. Screens / flows
 
