@@ -29,11 +29,11 @@
 
 ## 4. Screens / flows
 
-- [ ] 4.1 `production-timeline-ui` — Gantt command center + alert rail + step drawer, live updates,
+- [x] 4.1 `production-timeline-ui` — Gantt command center + alert rail + step drawer, live updates,
   mobile read-only list (MD1)
-- [ ] 4.2 `work-orders-ui` — WO list, WO detail (steps/mockup viewer/defect log/history), create-from-routing wizard
-- [ ] 4.3 `scan-station-kiosk` — Touch kiosk: scan → WO card → START/FINISH → defect tiles; offline queue + sync (MD2, MD3)
-- [ ] 4.4 `wip-subcontract-ui` — by-department bottleneck board + subcontract SLA tracker (MD4)
+- [x] 4.2 `work-orders-ui` — WO list, WO detail (steps/mockup viewer/defect log/history), create-from-routing wizard
+- [x] 4.3 `scan-station-kiosk` — Touch kiosk: scan → WO card → START/FINISH → defect tiles; offline queue + sync (MD2, MD3)
+- [x] 4.4 `wip-subcontract-ui` — by-department bottleneck board + subcontract SLA tracker (MD4)
 
 ## 5. i18n, a11y & Storybook
 

@@ -183,6 +183,19 @@ export const SubcontractRequest = z.object({
 });
 export type SubcontractRequest = z.infer<typeof SubcontractRequest>;
 
+/** A subcontract row for the SLA tracker (M4 §4.4), with its work order/step joined in for display —
+ * the bare `Subcontract` DTO only carries `wo_step_id`, which isn't enough to label a tracker row. */
+export const SubcontractWithContext = Subcontract.extend({
+  wo_no: z.string(),
+  step_name: z.string(),
+});
+export type SubcontractWithContext = z.infer<typeof SubcontractWithContext>;
+
+export const ListSubcontractsQuery = paginationQuery.extend({
+  status: subcontractStatus.optional(),
+});
+export type ListSubcontractsQuery = z.infer<typeof ListSubcontractsQuery>;
+
 // ── Reports ───────────────────────────────────────────────────────────────────
 
 /** One department's WIP row — bottleneck view over in-progress and delayed steps. */
@@ -278,6 +291,13 @@ export const productionContract = c.router(
       body: z.void(),
       responses: withErrors({ 200: z.object({ subcontract: Subcontract }) }),
       summary: "Receive a subcontracted step back onto the line",
+    },
+    listSubcontracts: {
+      method: "GET",
+      path: "/subcontracts",
+      query: ListSubcontractsQuery,
+      responses: withErrors({ 200: paginated(SubcontractWithContext) }),
+      summary: "List subcontracts (paginated), optionally filtered by status — SLA tracker feed",
     },
 
     // Reports

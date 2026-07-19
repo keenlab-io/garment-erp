@@ -35,6 +35,12 @@ import { StockCountsPage } from "./routes/inventory/stock-counts";
 import { StockAdjustmentsPage } from "./routes/inventory/stock-adjustments";
 import { BarcodePrintingPage } from "./routes/inventory/barcode-printing";
 import { InventoryReportsPage } from "./routes/inventory/reports";
+import { ProductionTimelinePage } from "./routes/production/timeline";
+import { WorkOrdersListPage } from "./routes/production/work-orders-list";
+import { WorkOrderDetailPage } from "./routes/production/work-order-detail";
+import { ProductionScanPage } from "./routes/production/scan";
+import { WipBoardPage } from "./routes/production/wip-board";
+import { SubcontractsPage } from "./routes/production/subcontracts";
 
 /** The M1 §4 screens, keyed by `AdminRouteDescriptor.key` — every other admin route (none currently)
  * keeps the shared `ModulePlaceholder` until its screen ships. */
@@ -252,14 +258,22 @@ const inventoryCountDetailRoute = createRoute({
 });
 
 // Production Tracking sub-routes (Timeline/Work orders/Scan station/WIP board/Subcontracts) — each
-// gated by its own production.* permission(s). None has a screen yet (M4 §4 ships them), so every
-// entry falls back to `ModulePlaceholder`; `kiosk` comes from the route entry itself (only Scan
-// station sets it — design MD2) rather than a blanket module flag.
+// gated by its own production.* permission(s). Every entry now renders its M4 §4 screen; `kiosk`
+// comes from the route entry itself (only Scan station sets it — design MD2) rather than a
+// blanket module flag.
+const PRODUCTION_ROUTE_COMPONENTS: Record<string, () => React.ReactElement> = {
+  "production-timeline": ProductionTimelinePage,
+  "production-work-orders": WorkOrdersListPage,
+  "production-scan": ProductionScanPage,
+  "production-wip": WipBoardPage,
+  "production-subcontracts": SubcontractsPage,
+};
+
 function productionRoute(entry: ProductionRouteDescriptor) {
   return createRoute({
     getParentRoute: () => rootRoute,
     path: entry.path,
-    component: ModulePlaceholder,
+    component: PRODUCTION_ROUTE_COMPONENTS[entry.key] ?? ModulePlaceholder,
     staticData: {
       title: entry.titleKey,
       breadcrumb: entry.titleKey,
@@ -277,7 +291,7 @@ function productionRoute(entry: ProductionRouteDescriptor) {
 const productionWorkOrderDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/production/work-orders/$id",
-  component: ModulePlaceholder,
+  component: WorkOrderDetailPage,
   staticData: {
     title: "production:nav.workOrderDetail",
     breadcrumb: "production:nav.workOrderDetail",

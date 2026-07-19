@@ -210,6 +210,23 @@ describe.skipIf(!url)("Production services (integration)", () => {
     expect(back?.status).toBe("IN_PROGRESS");
   });
 
+  it("lists subcontracts with their wo_no/step_name joined in, optionally filtered by status", async () => {
+    const tid = await makeTemplate([{ seq: 1, name: "Embroidery", standard_time_min: 15 }]);
+    const wo = await makeWorkOrder(tid);
+    const [step] = await stepsOf(wo.id);
+
+    const sent = await uow.withTransaction(() =>
+      subcontracts.send(step!.id, { vendor: "Acme", sla_due: "2026-01-01T00:00:00.000Z" } as never, actor),
+    );
+
+    const page = await subcontracts.list({ limit: 50 } as never);
+    const row = page.data.find((r) => r.id === sent.id);
+    expect(row).toMatchObject({ wo_no: wo.wo_no, step_name: "Embroidery", status: "SENT" });
+
+    const receivedOnly = await subcontracts.list({ limit: 50, status: "RECEIVED" } as never);
+    expect(receivedOnly.data.some((r) => r.id === sent.id)).toBe(false);
+  });
+
   // ── §5.3 completion emits exactly one WorkOrderCompleted ───────────────────────
 
   it("completing the final step ⇒ WO COMPLETED and exactly one WorkOrderCompleted", async () => {

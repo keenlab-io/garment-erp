@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { WorkOrderTimelineQuery } from "@erp/contracts";
+import type { ListSubcontractsQuery, WorkOrderTimelineQuery } from "@erp/contracts";
 import { api } from "../api/client.js";
 
 /** Shape of the contract's shared `paginationQuery` (no exported type — mirrors `inventory/queries.ts`). */
@@ -24,6 +24,9 @@ export const productionKeys = {
     [...productionKeys.timelineAll(), query] as const,
   reportsAll: () => [...productionKeys.all, "reports"] as const,
   wipReport: () => [...productionKeys.reportsAll(), "wip"] as const,
+  subcontractsAll: () => [...productionKeys.all, "subcontracts"] as const,
+  subcontracts: (query: Partial<ListSubcontractsQuery> = {}) =>
+    [...productionKeys.subcontractsAll(), query] as const,
 };
 
 // ── Routing templates ─────────────────────────────────────────────────────────
@@ -45,8 +48,15 @@ export function useCreateRoutingTemplateMutation() {
 
 // ── Work orders ───────────────────────────────────────────────────────────────
 
-export function useWorkOrderQuery(id: string) {
-  return api.production.getWorkOrder.useQuery(productionKeys.workOrder(id), { params: { id } });
+/** `enabled` lets a caller defer the fetch until an id is actually known (the kiosk only resolves
+ * one after a scan, M4 §4.3). */
+export function useWorkOrderQuery(id: string, options: { enabled?: boolean } = {}) {
+  const queryKey = productionKeys.workOrder(id);
+  return api.production.getWorkOrder.useQuery(
+    queryKey,
+    { params: { id } },
+    { queryKey, enabled: (options.enabled ?? true) && Boolean(id) },
+  );
 }
 
 export function useWorkOrderTimelineQuery(query: Partial<WorkOrderTimelineQuery> = {}) {
@@ -105,6 +115,7 @@ export function useSubcontractWoStepMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: productionKeys.workOrdersAll() });
       void queryClient.invalidateQueries({ queryKey: productionKeys.wipReport() });
+      void queryClient.invalidateQueries({ queryKey: productionKeys.subcontractsAll() });
     },
   });
 }
@@ -115,8 +126,13 @@ export function useReceiveSubcontractMutation() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: productionKeys.workOrdersAll() });
       void queryClient.invalidateQueries({ queryKey: productionKeys.wipReport() });
+      void queryClient.invalidateQueries({ queryKey: productionKeys.subcontractsAll() });
     },
   });
+}
+
+export function useSubcontractsQuery(query: Partial<ListSubcontractsQuery> = {}) {
+  return api.production.listSubcontracts.useQuery(productionKeys.subcontracts(query), { query });
 }
 
 // ── Reports ───────────────────────────────────────────────────────────────────
