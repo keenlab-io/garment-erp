@@ -1,4 +1,4 @@
-import type { shellEn, iamEn, hrEn, inventoryEn } from "./en";
+import type { shellEn, iamEn, hrEn, inventoryEn, productionEn } from "./en";
 
 // Same key structure as the English resources (a missing/extra key is a compile error) but with
 // widened string values. Group 7 adds the runtime th/en completeness check.
@@ -16,6 +16,10 @@ type HrResources = {
 
 type InventoryResources = {
   [Group in keyof typeof inventoryEn]: Record<keyof (typeof inventoryEn)[Group], string>;
+};
+
+type ProductionResources = {
+  [Group in keyof typeof productionEn]: Record<keyof (typeof productionEn)[Group], string>;
 };
 
 export const shellTh: ShellResources = {
@@ -681,5 +685,16 @@ export const inventoryTh: InventoryResources = {
     conversionCostLabel: "ต้นทุนแปรรูป",
     expand: "ขยาย",
     collapse: "ย่อ",
+  },
+};
+
+export const productionTh: ProductionResources = {
+  nav: {
+    timeline: "ไทม์ไลน์",
+    workOrders: "ใบสั่งผลิต",
+    workOrderDetail: "ใบสั่งผลิต",
+    scan: "จุดสแกน",
+    wip: "งานระหว่างทำ",
+    subcontracts: "งานจ้างเหมาช่วง",
   },
 };

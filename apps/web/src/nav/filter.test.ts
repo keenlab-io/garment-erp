@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Permission } from "@erp/contracts";
-import { MODULES, ADMIN_ROUTES, HR_ROUTES, INVENTORY_ROUTES } from "./registry";
+import { MODULES, ADMIN_ROUTES, HR_ROUTES, INVENTORY_ROUTES, PRODUCTION_ROUTES } from "./registry";
 import { filterNav, isModuleVisible, type NavGate } from "./filter";
 
 const keys = (gate: NavGate) => filterNav(MODULES, gate).map((m) => m.key);
@@ -105,5 +105,34 @@ describe("isModuleVisible with an Inventory & Costing sub-route entry", () => {
   it("only flags the scan-first goods-issue route as kiosk (Touch auto-applies there, MD2)", () => {
     const kioskKeys = INVENTORY_ROUTES.filter((entry) => entry.kiosk).map((entry) => entry.key);
     expect(kioskKeys).toEqual(["inventory-issues"]);
+  });
+});
+
+// Production Tracking sub-routes follow the same pattern as HR & Payroll / Inventory & Costing:
+// gated by their own production.* permission(s), not a blanket Super-Admin requirement.
+describe("isModuleVisible with a Production Tracking sub-route entry", () => {
+  it("is visible to a non-super-admin holding the exact production permission", () => {
+    for (const entry of PRODUCTION_ROUTES) {
+      const gate = gateWith(...entry.permissions);
+      expect(isModuleVisible(entry, gate)).toBe(true);
+    }
+  });
+
+  it("is absent for a non-super-admin holding no permissions", () => {
+    for (const entry of PRODUCTION_ROUTES) {
+      expect(isModuleVisible(entry, gateWith())).toBe(false);
+    }
+  });
+
+  it("is visible to a super admin for every production sub-route", () => {
+    const gate: NavGate = { isSuperAdmin: true, has: () => false };
+    for (const entry of PRODUCTION_ROUTES) {
+      expect(isModuleVisible(entry, gate)).toBe(true);
+    }
+  });
+
+  it("only flags the scan station as kiosk (Touch auto-applies there, MD2)", () => {
+    const kioskKeys = PRODUCTION_ROUTES.filter((entry) => entry.kiosk).map((entry) => entry.key);
+    expect(kioskKeys).toEqual(["production-scan"]);
   });
 });

@@ -76,4 +76,21 @@ describe("CommandPalette", () => {
     expect(screen.queryByRole("option", { name: "Employees" })).not.toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Payroll" })).not.toBeInTheDocument();
   });
+
+  it("offers only the Production Tracking sub-routes the user's production permission grants", async () => {
+    const user = userEvent.setup();
+    await renderInShell(
+      <CommandPaletteProvider>
+        <Host />
+      </CommandPaletteProvider>,
+      { user: userWith(["production.scan"]) },
+    );
+
+    await user.keyboard("{Control>}k{/Control}");
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Scan station" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Timeline" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Subcontracts" })).not.toBeInTheDocument();
+  });
 });

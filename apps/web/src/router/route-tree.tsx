@@ -1,11 +1,12 @@
 import type * as React from "react";
 import { createRoute } from "@tanstack/react-router";
-import { MODULES, ADMIN_ROUTES, HR_ROUTES, INVENTORY_ROUTES } from "../nav/registry";
+import { MODULES, ADMIN_ROUTES, HR_ROUTES, INVENTORY_ROUTES, PRODUCTION_ROUTES } from "../nav/registry";
 import type {
   AdminRouteDescriptor,
   HrRouteDescriptor,
   InventoryRouteDescriptor,
   ModuleDescriptor,
+  ProductionRouteDescriptor,
 } from "../nav/types";
 import { rootRoute } from "./root.route";
 import { requireModuleAccess, requireRouteAccess } from "./guards";
@@ -250,6 +251,43 @@ const inventoryCountDetailRoute = createRoute({
     requireRouteAccess(context.session, { permissions: ["inventory.issue.manage"] }),
 });
 
+// Production Tracking sub-routes (Timeline/Work orders/Scan station/WIP board/Subcontracts) — each
+// gated by its own production.* permission(s). None has a screen yet (M4 §4 ships them), so every
+// entry falls back to `ModulePlaceholder`; `kiosk` comes from the route entry itself (only Scan
+// station sets it — design MD2) rather than a blanket module flag.
+function productionRoute(entry: ProductionRouteDescriptor) {
+  return createRoute({
+    getParentRoute: () => rootRoute,
+    path: entry.path,
+    component: ModulePlaceholder,
+    staticData: {
+      title: entry.titleKey,
+      breadcrumb: entry.titleKey,
+      kiosk: entry.kiosk,
+      permissions: entry.permissions,
+      navKey: "production",
+    },
+    beforeLoad: ({ context }) =>
+      requireRouteAccess(context.session, { permissions: entry.permissions }),
+  });
+}
+
+// The `$id` detail route has no fixed nav/palette entry (the id varies), so it's registered
+// directly rather than through `PRODUCTION_ROUTES`.
+const productionWorkOrderDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/production/work-orders/$id",
+  component: ModulePlaceholder,
+  staticData: {
+    title: "production:nav.workOrderDetail",
+    breadcrumb: "production:nav.workOrderDetail",
+    permissions: ["production.wo.manage"],
+    navKey: "production",
+  },
+  beforeLoad: ({ context }) =>
+    requireRouteAccess(context.session, { permissions: ["production.wo.manage"] }),
+});
+
 // The login route is intentionally outside the nav registry and unguarded (guarding it would loop).
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -271,5 +309,7 @@ export const routeTree = rootRoute.addChildren([
   inventoryItemDetailRoute,
   inventoryReceiptDetailRoute,
   inventoryCountDetailRoute,
+  ...PRODUCTION_ROUTES.map(productionRoute),
+  productionWorkOrderDetailRoute,
   loginRoute,
 ]);

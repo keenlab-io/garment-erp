@@ -5,12 +5,12 @@
 
 ## 1. Deps, routes & i18n
 
-- [ ] 1.1 Add `socket.io-client`; a realtime client that joins the `wo:{id}` / `timeline` rooms
+- [x] 1.1 Add `socket.io-client`; a realtime client that joins the `wo:{id}` / `timeline` rooms
   (JWT handshake) and resubscribes on reconnect
-- [ ] 1.2 Register `production` routes with metadata (kiosk flag on the scan route → Touch,
+- [x] 1.2 Register `production` routes with metadata (kiosk flag on the scan route → Touch,
   required `Permission`): `/production/timeline`, `/production/work-orders(/{id})`,
   `/production/scan`, `/production/wip`, `/production/subcontracts`
-- [ ] 1.3 Add the `production` i18next namespace (TH+EN); nav + ⌘K from route metadata
+- [x] 1.3 Add the `production` i18next namespace (TH+EN); nav + ⌘K from route metadata
 
 ## 2. Data layer
 

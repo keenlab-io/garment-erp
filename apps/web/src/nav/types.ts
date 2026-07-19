@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { Permission } from "@erp/contracts";
-import type { ShellKey, IamKey, HrKey, InventoryKey } from "../i18n/keys";
+import type { ShellKey, IamKey, HrKey, InventoryKey, ProductionKey } from "../i18n/keys";
 
 /**
  * One navigable module. This descriptor is the single source of truth: the route tree spreads it
@@ -87,5 +87,28 @@ export interface InventoryRouteDescriptor {
   /** The specific inventory.* permission(s) that grant entry (any-of). */
   permissions: Permission[];
   /** Scan-heavy route (e.g. goods issue) → forces Touch density, non-overridable (FD11). */
+  kiosk?: boolean;
+}
+
+/**
+ * A Production Tracking sub-route (Timeline/Work orders/Scan station/WIP board/Subcontracts —
+ * M4 §1). Kept separate from `ModuleDescriptor` for the same reason as `InventoryRouteDescriptor`:
+ * these aren't top-level sidebar items — the Production sidebar entry still points at `/production`
+ * — they're reached via the palette until M4's screens (§4) link them. Entry is gated by each
+ * route's own `production.*` permission(s), matching the `apps/api` `ProductionController` handler(s)
+ * it fronts.
+ */
+export interface ProductionRouteDescriptor {
+  /** Stable id (React key and route-metadata back-reference). */
+  key: string;
+  /** Route path. */
+  path: string;
+  /** i18n key in the `production` namespace — typed, so a typo fails typecheck. */
+  titleKey: ProductionKey;
+  /** Nav glyph (lucide component passed to `@erp/ui`'s `Icon`). */
+  icon: LucideIcon;
+  /** The specific production.* permission(s) that grant entry (any-of). */
+  permissions: Permission[];
+  /** Scan-first floor route (design MD2) → forces Touch density, non-overridable (FD11). */
   kiosk?: boolean;
 }
