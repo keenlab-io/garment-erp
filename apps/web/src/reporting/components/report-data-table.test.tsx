@@ -101,7 +101,14 @@ describe("ReportDataTable", () => {
           return Promise.resolve(jsonResponse({ job_id: "job1" }, 202));
         }
         if (url.includes("/exports/job1")) {
-          return Promise.resolve(jsonResponse({ status: "DONE", file_url: "https://storage.example/report.pdf" }));
+          // A small delay so the pending job-toast is observably rendered before it resolves,
+          // instead of racing the mutation's own resolution within the same microtask flush.
+          return new Promise((resolve) =>
+            setTimeout(
+              () => resolve(jsonResponse({ status: "DONE", file_url: "https://storage.example/report.pdf" })),
+              20,
+            ),
+          );
         }
         return Promise.resolve(jsonResponse({}, 404));
       }),
