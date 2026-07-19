@@ -12,7 +12,7 @@
 
 ## 2. Data layer
 
-- [ ] 2.1 `sales` query/mutation hooks (customers, quotations, invoices, payments, receipts,
+- [x] 2.1 `sales` query/mutation hooks (customers, quotations, invoices, payments, receipts,
   templates, aging, promptpay-qr, export, etax) + invalidation; job-status polling for export/e-Tax
 
 ## 3. Module components
