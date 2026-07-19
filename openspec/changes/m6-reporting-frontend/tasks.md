@@ -13,7 +13,7 @@
 
 ## 2. Data layer
 
-- [ ] 2.1 `reporting` query hooks (`/reports/{key}`, `/dashboards/{key}`, exports, schedules) +
+- [x] 2.1 `reporting` query hooks (`/reports/{key}`, `/dashboards/{key}`, exports, schedules) +
   job-status polling for exports; filter state read/written via router search params
 
 ## 3. Module components
