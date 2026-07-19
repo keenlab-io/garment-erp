@@ -12,7 +12,7 @@
 
 ## 2. Data layer
 
-- [ ] 2.1 `inventory` query/mutation hooks (items, SKUs, lots, stock card, receipts, issues,
+- [x] 2.1 `inventory` query/mutation hooks (items, SKUs, lots, stock card, receipts, issues,
   counts, adjustments, reports, barcode job) + invalidation; job-status polling for label jobs
 
 ## 3. Module components
