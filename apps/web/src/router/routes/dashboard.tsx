@@ -1,114 +1,144 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { Badge, DataTable, Skeleton, textColumn } from "@erp/ui";
-import type { Customer } from "@erp/contracts";
-import { api } from "../../api/client";
-import { useDensity } from "../../density/density-context";
-import { useNumberFormat } from "../../i18n/use-formatters";
+import { useNavigate } from "@tanstack/react-router";
+import { usePermissions } from "@erp/ui";
+import { KpiStatCard } from "../../reporting/components/kpi-stat-card.js";
+import { ChartPanel } from "../../reporting/components/chart-panel.js";
+import { ActiveFilterChipRail } from "../../reporting/components/active-filter-chip-rail.js";
+import { AlertsPanel } from "../../reporting/components/alerts-panel.js";
+import { useDashboardFilter, useDashboardQuery } from "../../reporting/queries.js";
+import { dimensionFilterValue, panelChartConfig, panelHeadlineTotal, panelResult } from "../../reporting/dashboard-panels.js";
+import {
+  financeAlertsFromAging,
+  productionAlertsFromTimeline,
+  stockAlertsFromLowStock,
+} from "../../reporting/alerts.js";
+import { useItemsQuery, useLowStockReportQuery } from "../../inventory/queries.js";
+import { useWorkOrderTimelineQuery } from "../../production/queries.js";
+import { useAgingReportQuery } from "../../sales/queries.js";
 
-/** A flattened, display-ready projection of `Customer` for the demo table's text columns. */
-interface CustomerRow {
-  id: string;
-  name: string;
-  taxId: string;
-  branchCode: string;
-  creditTerms: string;
+interface DashboardCard {
+  key: string;
+  title: string;
+  query: ReturnType<typeof useDashboardQuery>;
+  permission?: "inventory.cost.view";
 }
 
 /**
- * Landing page. M0 shows a token-styled API-health panel and a customer list on the Data Table
- * organism, both fed by the real `@ts-rest/react-query` client (contract untouched). The M5 Sales
- * contract has no invoice-listing endpoint (only single-document sub-routes), so the closest real
- * paginated list — `sales.listCustomers` — stands in for the original antd demo's invoice table.
+ * The Overview dashboard (M6 §4.1, design MD1/MD2/MD3/MD6) — the Owner's daily glance. `/` doubles
+ * as this screen (route-tree.tsx); it's ungated (every authenticated user lands here), so each
+ * section only renders for the report groups the viewer actually holds `report.<group>.view` for.
+ * Cost/profit KPIs additionally need `inventory.cost.view`: the backend 403s a cost/profit
+ * dashboard wholesale without it (`apps/api/src/reporting/report-access.ts`), so those two queries
+ * only *fire* when the viewer holds it — `KpiStatCard`'s built-in `MaskedValue` then renders the
+ * lock in the same layout slot either way (design MD2). KPI cards render first (mobile glance),
+ * each with its own `loading` flag so no single slow group blocks the rest (design MD6).
  */
 export function DashboardPage() {
-  const { t } = useTranslation();
-  const { density } = useDensity();
-  const uptimeFormat = useNumberFormat({ minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  const creditTermsFormat = useNumberFormat();
+  const { t } = useTranslation("reporting");
+  const { has } = usePermissions();
+  const navigate = useNavigate();
+  const { filter, setFilter, clearFilter } = useDashboardFilter("/");
 
-  const health = api.health.check.useQuery(["health"]);
+  const hasCostAccess = has("inventory.cost.view");
+  const access = {
+    inventory: has("report.inventory.view"),
+    sales: has("report.sales.view"),
+    cost: has("report.cost.view"),
+    profit: has("report.profit.view"),
+    tax: has("report.tax.view"),
+  };
 
-  const [cursorStack, setCursorStack] = React.useState<Array<string | undefined>>([undefined]);
-  const cursor = cursorStack[cursorStack.length - 1];
-  const customers = api.sales.listCustomers.useQuery(
-    ["customers", cursor],
-    { query: cursor ? { cursor } : {} },
+  const inventoryDashboard = useDashboardQuery("inventory", filter, { enabled: access.inventory });
+  const salesDashboard = useDashboardQuery("sales", filter, { enabled: access.sales });
+  const costDashboard = useDashboardQuery("cost", filter, { enabled: access.cost && hasCostAccess });
+  const profitDashboard = useDashboardQuery("profit", filter, { enabled: access.profit && hasCostAccess });
+  const taxDashboard = useDashboardQuery("tax", filter, { enabled: access.tax });
+
+  const cardCandidates: Array<DashboardCard | false> = [
+    access.inventory && { key: "inventory", title: t("nav.dashboardInventory"), query: inventoryDashboard },
+    access.sales && { key: "sales", title: t("nav.dashboardSales"), query: salesDashboard },
+    access.cost && { key: "cost", title: t("nav.dashboardCost"), query: costDashboard, permission: "inventory.cost.view" as const },
+    access.profit && { key: "profit", title: t("nav.dashboardProfit"), query: profitDashboard, permission: "inventory.cost.view" as const },
+    access.tax && { key: "tax", title: t("nav.dashboardTax"), query: taxDashboard },
+  ];
+  const cards = cardCandidates.filter((card): card is DashboardCard => card !== false);
+
+  const salesPanel = salesDashboard.data?.body.panels.find((p) => p.key === "sales.overview");
+  const salesResult = salesPanel && panelResult(salesPanel);
+  const salesChart = salesResult && panelChartConfig(salesResult.columns, salesResult.rows);
+  const salesDimension = salesChart?.dimension;
+
+  const itemsQuery = useItemsQuery({ limit: 200 });
+  const lowStockQuery = useLowStockReportQuery();
+  const timelineQuery = useWorkOrderTimelineQuery();
+  const agingQuery = useAgingReportQuery();
+  const itemNameById = React.useMemo(
+    () => new Map((itemsQuery.data?.body.data ?? []).map((item) => [item.id, item.name])),
+    [itemsQuery.data],
   );
-
-  const rows = React.useMemo<CustomerRow[]>(
-    () =>
-      (customers.data?.body.data ?? []).map((customer: Customer) => ({
-        id: customer.id,
-        name: customer.name,
-        taxId: customer.tax_id ?? "—",
-        branchCode: customer.branch_code ?? "—",
-        creditTerms: creditTermsFormat.format(customer.credit_terms_days),
-      })),
-    [customers.data, creditTermsFormat],
-  );
-
-  const columns = React.useMemo(
+  const alerts = React.useMemo(
     () => [
-      textColumn<CustomerRow>("name", { header: t("dashboard.columnName"), sortable: true }),
-      textColumn<CustomerRow>("taxId", { header: t("dashboard.columnTaxId"), secondary: true }),
-      textColumn<CustomerRow>("branchCode", {
-        header: t("dashboard.columnBranchCode"),
-        secondary: true,
-      }),
-      textColumn<CustomerRow>("creditTerms", { header: t("dashboard.columnCreditTerms") }),
+      ...stockAlertsFromLowStock(lowStockQuery.data?.body.rows ?? [], itemNameById),
+      ...productionAlertsFromTimeline(timelineQuery.data?.body.data ?? []),
+      ...financeAlertsFromAging(agingQuery.data?.body.rows ?? []),
     ],
-    [t],
+    [lowStockQuery.data, timelineQuery.data, agingQuery.data, itemNameById],
   );
+  const alertsLoading = lowStockQuery.isLoading || timelineQuery.isLoading || agingQuery.isLoading;
 
-  const nextCursor = customers.data?.body.next_cursor ?? null;
+  const chips = filter.dimension && filter.value ? [{ key: filter.dimension, label: `${filter.dimension}: ${filter.value}` }] : [];
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <h1 className="font-display text-h1 font-semibold text-text-primary">
-        {t("dashboard.title")}
-      </h1>
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+      <h1 className="font-display text-h1 font-semibold text-text-primary">{t("overview.title")}</h1>
 
-      <section className="rounded-lg border border-border bg-bg-surface p-5 shadow-sm">
-        <h2 className="mb-3 text-body-strong text-text-primary">{t("dashboard.apiHealth")}</h2>
-        {health.isLoading ? (
-          <Skeleton className="w-48" />
-        ) : health.isError ? (
-          <Badge tone="danger">{t("dashboard.unreachable")}</Badge>
-        ) : (
-          <div className="flex flex-wrap items-center gap-3">
-            <Badge tone="success">{t("dashboard.healthy")}</Badge>
-            <span className="text-sm text-text-secondary">
-              {t("dashboard.uptime", {
-                seconds: health.data ? uptimeFormat.format(health.data.body.uptime) : "0.0",
-              })}
-            </span>
-          </div>
-        )}
-      </section>
+      <ActiveFilterChipRail chips={chips} onClear={clearFilter} />
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-body-strong text-text-primary">{t("dashboard.customers")}</h2>
-        <DataTable
-          data={rows}
-          columns={columns}
-          getRowId={(row) => row.id}
-          density={density}
-          isLoading={customers.isLoading}
-          error={customers.isError ? { message: t("dashboard.customersLoadError") } : null}
-          onRetry={() => customers.refetch()}
-          emptyState={{ title: t("dashboard.customersEmpty") }}
-          nextCursor={nextCursor}
-          onNextPage={() => {
-            if (nextCursor) setCursorStack((stack) => [...stack, nextCursor]);
-          }}
-          onPrevPage={
-            cursorStack.length > 1
-              ? () => setCursorStack((stack) => stack.slice(0, -1))
+      {cards.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {cards.map((card) => {
+            const panel = card.query.data?.body.panels[0];
+            const headline = panel && panelHeadlineTotal(panelResult(panel).columns, panelResult(panel).totals);
+            return (
+              <KpiStatCard
+                key={card.key}
+                label={card.title}
+                value={headline?.value ?? "0"}
+                format="money"
+                loading={card.query.isLoading}
+                permission={card.permission}
+              />
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-sm text-text-muted">{t("overview.noAccess")}</p>
+      )}
+
+      {salesChart && salesResult && (
+        <ChartPanel
+          title={t("overview.salesTrend")}
+          kind={salesChart.kind}
+          data={salesResult.rows}
+          xKey={salesChart.xKey}
+          series={salesChart.series}
+          activeValue={filter.value}
+          loading={salesDashboard.isLoading}
+          onSelect={
+            salesDimension
+              ? (value) => setFilter({ dimension: salesDimension, value: dimensionFilterValue(salesDimension, value) })
               : undefined
           }
         />
-      </section>
+      )}
+
+      <AlertsPanel
+        title={t("overview.alerts")}
+        alerts={alerts}
+        loading={alertsLoading}
+        onSelect={(alert) => void navigate({ to: alert.href })}
+      />
     </div>
   );
 }

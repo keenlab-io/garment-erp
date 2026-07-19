@@ -25,10 +25,10 @@
 
 ## 4. Screens / flows
 
-- [ ] 4.1 `dashboards-ui` — overview + domain dashboards; cross-filtering + chip rail; alerts panel;
+- [x] 4.1 `dashboards-ui` — overview + domain dashboards; cross-filtering + chip rail; alerts panel;
   cost/profit masking; shareable URL filter state; progressive load; mobile glance (MD1–MD3, MD6)
-- [ ] 4.2 `report-viewer-ui` — tabular report + drill-down + async export (PDF/Excel/CSV) (MD4)
-- [ ] 4.3 `report-schedules-ui` — schedule manager (cron-friendly), recipients, run-now, failure surfacing (MD5)
+- [x] 4.2 `report-viewer-ui` — tabular report + drill-down + async export (PDF/Excel/CSV) (MD4)
+- [x] 4.3 `report-schedules-ui` — schedule manager (cron-friendly), recipients, run-now, failure surfacing (MD5)
 
 ## 5. i18n, a11y & Storybook
 

@@ -25,5 +25,9 @@ declare module "@tanstack/react-router" {
     permissions?: Permission[];
     /** Back-reference into the nav registry (icon/section live there). */
     navKey?: string;
+    /** Lowercased `ReportGroup` this route's dashboard shows (M6 §4.1) — the five domain-dashboard
+     * routes share one `component`, so each reads its group back off its own route match instead
+     * of a `$param` (their paths are static per `nav/registry.ts` `REPORTING_DASHBOARD_ROUTES`). */
+    reportGroup?: string;
   }
 }

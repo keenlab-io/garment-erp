@@ -71,12 +71,20 @@ export function useExportStatusQuery(jobId: string, options: { enabled?: boolean
 
 // ── Dashboards (report.<group>.view) ─────────────────────────────────────────────────────────────
 
-export function useDashboardQuery(key: string, query: Partial<DashboardQuery> = {}) {
+/** `options.enabled` lets a screen defer/skip the fetch (M6 §4.1 dashboards-ui) — e.g. the cost/
+ * profit dashboards without `inventory.cost.view`, which the backend 403s wholesale rather than
+ * field-masking (design MD2's "masked without `inventory.cost.view`" is therefore enforced by not
+ * firing the request at all, not by an in-page mask over a successful response). */
+export function useDashboardQuery(
+  key: string,
+  query: Partial<DashboardQuery> = {},
+  options: { enabled?: boolean } = {},
+) {
   const queryKey = reportingKeys.dashboard(key, query);
   return api.reporting.getDashboard.useQuery(
     queryKey,
     { params: { key }, query },
-    { queryKey, enabled: Boolean(key) },
+    { queryKey, enabled: (options.enabled ?? true) && Boolean(key) },
   );
 }
 
