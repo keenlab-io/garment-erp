@@ -43,7 +43,7 @@
 
 ## 6. Verification
 
-- [ ] 6.1 `pnpm --filter @erp/web build && typecheck && lint` green; Storybook renders
-- [ ] 6.2 Routes mount only for permitted users (nav absent otherwise); login → session → gated nav works
-- [ ] 6.3 Drive: edit role (affects-N shown before save) → save (re-auth notice) → delete bound role
+- [x] 6.1 `pnpm --filter @erp/web build && typecheck && lint` green; Storybook renders
+- [x] 6.2 Routes mount only for permitted users (nav absent otherwise); login → session → gated nav works
+- [x] 6.3 Drive: edit role (affects-N shown before save) → save (re-auth notice) → delete bound role
   (blocked, reassign link) → audit diff expands, rows non-interactive → import shows valid/invalid split
