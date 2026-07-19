@@ -15,15 +15,20 @@ export interface ChipMeta {
 }
 
 /**
- * Statuses beyond the six tokenized `InkChipStatus` values: the document lifecycle and stock-health
- * states. They have no dedicated chip token — they reuse the semantic color roles (issued → info,
- * paid → success, overdue → danger, near-min → warning) per the LOCKED tokens doc. None of these
- * exist as a `@erp/contracts` enum yet (they land with M4/M5); they are design-only for now.
+ * Statuses beyond the six tokenized `InkChipStatus` values: the document lifecycle, stock-health,
+ * and AR-aging states. They have no dedicated chip token — they reuse the semantic color roles
+ * (issued → info, paid → success, overdue → danger, near-min → warning) per the LOCKED tokens doc.
+ * None of these exist as a `@erp/contracts` enum yet (they land with M4/M5); they are design-only
+ * for now.
  */
 export type SemanticChipStatus =
   | "draft"
+  | "sent"
   | "issued"
   | "approved"
+  | "converted"
+  | "expired"
+  | "rejected"
   | "paid"
   | "posted"
   | "overdue"
@@ -31,15 +36,24 @@ export type SemanticChipStatus =
   | "void"
   | "stock-ok"
   | "stock-near-min"
-  | "stock-dead";
+  | "stock-dead"
+  | "aging-current"
+  | "aging-1-30"
+  | "aging-31-60"
+  | "aging-61-90"
+  | "aging-90-plus";
 
 /** Every status the Ink-Chip can render. A value outside this union is a compile error. */
 export type ChipStatus = InkChipStatus | SemanticChipStatus;
 
 const SEMANTIC_CHIPS: Record<SemanticChipStatus, ChipMeta> = {
   draft: { glyph: "◇", label: "Draft", swatch: "var(--color-text-muted)" },
+  sent: { glyph: "→", label: "Sent", swatch: "var(--color-info)" },
   issued: { glyph: "◐", label: "Issued", swatch: "var(--color-info)" },
   approved: { glyph: "✓", label: "Approved", swatch: "var(--color-info)" },
+  converted: { glyph: "⇄", label: "Converted", swatch: "var(--color-success)" },
+  expired: { glyph: "◷", label: "Expired", swatch: "var(--color-warning)" },
+  rejected: { glyph: "✕", label: "Rejected", swatch: "var(--color-danger)" },
   paid: { glyph: "✓", label: "Paid", swatch: "var(--color-success)" },
   posted: { glyph: "✓", label: "Posted", swatch: "var(--color-success)" },
   overdue: { glyph: "▲", label: "Overdue", swatch: "var(--color-danger)" },
@@ -48,6 +62,11 @@ const SEMANTIC_CHIPS: Record<SemanticChipStatus, ChipMeta> = {
   "stock-ok": { glyph: "✓", label: "In stock", swatch: "var(--color-success)" },
   "stock-near-min": { glyph: "!", label: "Near minimum", swatch: "var(--color-warning)" },
   "stock-dead": { glyph: "▲", label: "Dead stock", swatch: "var(--color-danger)" },
+  "aging-current": { glyph: "✓", label: "Current", swatch: "var(--color-success)" },
+  "aging-1-30": { glyph: "◐", label: "1–30 days", swatch: "var(--color-info)" },
+  "aging-31-60": { glyph: "!", label: "31–60 days", swatch: "var(--color-warning)" },
+  "aging-61-90": { glyph: "▲", label: "61–90 days", swatch: "var(--color-danger)" },
+  "aging-90-plus": { glyph: "▲▲", label: "90+ days", swatch: "var(--color-danger)" },
 };
 
 /** Resolve any `ChipStatus` to its glyph, label, and swatch — bridging the two status sets. */
