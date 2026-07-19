@@ -29,7 +29,11 @@ describe("CommandPalette", () => {
     await user.keyboard("{Control>}k{/Control}");
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByText("Inventory")).toBeInTheDocument();
+    // "Inventory" appears twice — the "Go to" module entry and this group's own heading (the user
+    // holds `inventory.receipt.manage`, which reveals the Goods receipts sub-route) — so assert via
+    // the option role rather than text (which would ambiguously match both).
+    expect(screen.getByRole("option", { name: "Inventory" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Goods receipts" })).toBeInTheDocument();
     expect(screen.queryByText("Sales")).not.toBeInTheDocument();
     expect(screen.queryByText("Admin & Access")).not.toBeInTheDocument();
     expect(screen.queryByText("Users")).not.toBeInTheDocument();

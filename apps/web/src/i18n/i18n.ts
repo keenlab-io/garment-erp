@@ -1,8 +1,8 @@
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import { commonEn, commonTh, tableEn, tableTh } from "@erp/ui";
-import { shellEn, iamEn, hrEn } from "./resources/en";
-import { shellTh, iamTh, hrTh } from "./resources/th";
+import { shellEn, iamEn, hrEn, inventoryEn } from "./resources/en";
+import { shellTh, iamTh, hrTh, inventoryTh } from "./resources/th";
 
 /** Supported locales — Thai is the default and fallback (Thai-first product). */
 export const LOCALES = ["th", "en"] as const;
@@ -24,10 +24,10 @@ void i18next.use(initReactI18next).init({
   lng: readStoredLocale(),
   fallbackLng: "th",
   defaultNS: "shell",
-  ns: ["shell", "common", "table", "iam", "hr"],
+  ns: ["shell", "common", "table", "iam", "hr", "inventory"],
   resources: {
-    en: { shell: shellEn, common: commonEn, table: tableEn, iam: iamEn, hr: hrEn },
-    th: { shell: shellTh, common: commonTh, table: tableTh, iam: iamTh, hr: hrTh },
+    en: { shell: shellEn, common: commonEn, table: tableEn, iam: iamEn, hr: hrEn, inventory: inventoryEn },
+    th: { shell: shellTh, common: commonTh, table: tableTh, iam: iamTh, hr: hrTh, inventory: inventoryTh },
   },
   interpolation: { escapeValue: false },
 });

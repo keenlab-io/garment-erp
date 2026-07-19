@@ -1,7 +1,12 @@
 import type * as React from "react";
 import { createRoute } from "@tanstack/react-router";
-import { MODULES, ADMIN_ROUTES, HR_ROUTES } from "../nav/registry";
-import type { AdminRouteDescriptor, HrRouteDescriptor, ModuleDescriptor } from "../nav/types";
+import { MODULES, ADMIN_ROUTES, HR_ROUTES, INVENTORY_ROUTES } from "../nav/registry";
+import type {
+  AdminRouteDescriptor,
+  HrRouteDescriptor,
+  InventoryRouteDescriptor,
+  ModuleDescriptor,
+} from "../nav/types";
 import { rootRoute } from "./root.route";
 import { requireModuleAccess, requireRouteAccess } from "./guards";
 import { DashboardPage } from "./routes/dashboard";
@@ -159,6 +164,71 @@ const hrPayrollRunDetailRoute = createRoute({
     requireRouteAccess(context.session, { permissions: ["hr.payroll.approve"] }),
 });
 
+// Inventory & Costing sub-routes (Items/Receipts/Issues/Counts/Adjustments/Barcodes/Reports) —
+// each gated by its own inventory.* permission(s). None has a screen yet (M3 §4 ships them), so
+// every entry falls back to `ModulePlaceholder`; `kiosk` comes from the route entry itself
+// (only Goods issue sets it — design MD2) rather than a blanket module flag.
+function inventoryRoute(entry: InventoryRouteDescriptor) {
+  return createRoute({
+    getParentRoute: () => rootRoute,
+    path: entry.path,
+    component: ModulePlaceholder,
+    staticData: {
+      title: entry.titleKey,
+      breadcrumb: entry.titleKey,
+      kiosk: entry.kiosk,
+      permissions: entry.permissions,
+      navKey: "inventory",
+    },
+    beforeLoad: ({ context }) =>
+      requireRouteAccess(context.session, { permissions: entry.permissions }),
+  });
+}
+
+// The `$id` detail routes have no fixed nav/palette entry (the id varies), so they're registered
+// directly rather than through `INVENTORY_ROUTES`.
+const inventoryItemDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/inventory/items/$id",
+  component: ModulePlaceholder,
+  staticData: {
+    title: "inventory:nav.itemDetail",
+    breadcrumb: "inventory:nav.itemDetail",
+    permissions: ["inventory.product.create"],
+    navKey: "inventory",
+  },
+  beforeLoad: ({ context }) =>
+    requireRouteAccess(context.session, { permissions: ["inventory.product.create"] }),
+});
+
+const inventoryReceiptDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/inventory/receipts/$id",
+  component: ModulePlaceholder,
+  staticData: {
+    title: "inventory:nav.receiptDetail",
+    breadcrumb: "inventory:nav.receiptDetail",
+    permissions: ["inventory.receipt.manage"],
+    navKey: "inventory",
+  },
+  beforeLoad: ({ context }) =>
+    requireRouteAccess(context.session, { permissions: ["inventory.receipt.manage"] }),
+});
+
+const inventoryCountDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/inventory/counts/$id",
+  component: ModulePlaceholder,
+  staticData: {
+    title: "inventory:nav.countDetail",
+    breadcrumb: "inventory:nav.countDetail",
+    permissions: ["inventory.issue.manage"],
+    navKey: "inventory",
+  },
+  beforeLoad: ({ context }) =>
+    requireRouteAccess(context.session, { permissions: ["inventory.issue.manage"] }),
+});
+
 // The login route is intentionally outside the nav registry and unguarded (guarding it would loop).
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -176,5 +246,9 @@ export const routeTree = rootRoute.addChildren([
   ...HR_ROUTES.map(hrRoute),
   hrEmployeeDetailRoute,
   hrPayrollRunDetailRoute,
+  ...INVENTORY_ROUTES.map(inventoryRoute),
+  inventoryItemDetailRoute,
+  inventoryReceiptDetailRoute,
+  inventoryCountDetailRoute,
   loginRoute,
 ]);

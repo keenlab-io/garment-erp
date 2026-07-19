@@ -5,10 +5,10 @@
 
 ## 1. Deps, routes & i18n
 
-- [ ] 1.1 Register `inventory` routes with metadata (kiosk/Touch flag on scan routes, required
+- [x] 1.1 Register `inventory` routes with metadata (kiosk/Touch flag on scan routes, required
   `Permission`): `/inventory/items(/{id})`, `/inventory/receipts(/{id})`, `/inventory/issues`,
   `/inventory/counts(/{id})`, `/inventory/adjustments`, `/inventory/barcodes`, `/inventory/reports`
-- [ ] 1.2 Add the `inventory` i18next namespace (TH+EN); nav + ⌘K from route metadata
+- [x] 1.2 Add the `inventory` i18next namespace (TH+EN); nav + ⌘K from route metadata
 
 ## 2. Data layer
 

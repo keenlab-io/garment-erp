@@ -396,3 +396,20 @@ export const hrEn = {
     jobFailed: "{{kind}} export failed",
   },
 } as const;
+
+// The `inventory` namespace (M3 Inventory & Costing frontend) — nav/palette/route titles for the
+// module's sub-routes (M3 §1); the M3 §4/§5 screens add their own copy.
+export const inventoryEn = {
+  nav: {
+    items: "Items",
+    itemDetail: "Item",
+    receipts: "Goods receipts",
+    receiptDetail: "Goods receipt",
+    issues: "Goods issues",
+    counts: "Stock counts",
+    countDetail: "Stock count",
+    adjustments: "Stock adjustments",
+    barcodes: "Barcode printing",
+    reports: "Reports",
+  },
+} as const;

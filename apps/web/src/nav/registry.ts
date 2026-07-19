@@ -15,9 +15,21 @@ import {
   CalendarCheck,
   Banknote,
   FileSpreadsheet,
+  Package,
+  PackageCheck,
+  PackageMinus,
+  ClipboardList,
+  SlidersHorizontal,
+  Barcode,
+  FileBarChart2,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@erp/contracts";
-import type { AdminRouteDescriptor, HrRouteDescriptor, ModuleDescriptor } from "./types";
+import type {
+  AdminRouteDescriptor,
+  HrRouteDescriptor,
+  InventoryRouteDescriptor,
+  ModuleDescriptor,
+} from "./types";
 
 /** All catalog permissions in a module's namespace (e.g. every `sales.*`) — any of them grants entry. */
 function permissionsFor(prefix: string): Permission[] {
@@ -174,5 +186,66 @@ export const HR_ROUTES: HrRouteDescriptor[] = [
     titleKey: "hr:nav.taxExports",
     icon: FileSpreadsheet,
     permissions: ["hr.payroll.approve"],
+  },
+];
+
+/**
+ * Inventory & Costing sub-routes (Items/Receipts/Issues/Counts/Adjustments/Barcodes/Reports —
+ * M3 §1). Each is gated by the same `inventory.*` permission(s) its `apps/api` handler(s) assert,
+ * matching `inventory.controller.ts`. `/inventory/items/{id}`, `/inventory/receipts/{id}`, and
+ * `/inventory/counts/{id}` have no fixed nav/palette entry (the id varies) and are registered
+ * directly in the route tree. Goods issue is scan-first on a handheld (design MD2), so its route
+ * carries `kiosk: true` — Touch density auto-applies there, non-overridable (FD11).
+ */
+export const INVENTORY_ROUTES: InventoryRouteDescriptor[] = [
+  {
+    key: "inventory-items",
+    path: "/inventory/items",
+    titleKey: "inventory:nav.items",
+    icon: Package,
+    permissions: ["inventory.product.create"],
+  },
+  {
+    key: "inventory-receipts",
+    path: "/inventory/receipts",
+    titleKey: "inventory:nav.receipts",
+    icon: PackageCheck,
+    permissions: ["inventory.receipt.manage"],
+  },
+  {
+    key: "inventory-issues",
+    path: "/inventory/issues",
+    titleKey: "inventory:nav.issues",
+    icon: PackageMinus,
+    permissions: ["inventory.issue.manage"],
+    kiosk: true,
+  },
+  {
+    key: "inventory-counts",
+    path: "/inventory/counts",
+    titleKey: "inventory:nav.counts",
+    icon: ClipboardList,
+    permissions: ["inventory.issue.manage"],
+  },
+  {
+    key: "inventory-adjustments",
+    path: "/inventory/adjustments",
+    titleKey: "inventory:nav.adjustments",
+    icon: SlidersHorizontal,
+    permissions: ["inventory.issue.manage", "inventory.adjustment.approve"],
+  },
+  {
+    key: "inventory-barcodes",
+    path: "/inventory/barcodes",
+    titleKey: "inventory:nav.barcodes",
+    icon: Barcode,
+    permissions: ["inventory.product.create"],
+  },
+  {
+    key: "inventory-reports",
+    path: "/inventory/reports",
+    titleKey: "inventory:nav.reports",
+    icon: FileBarChart2,
+    permissions: ["inventory.issue.manage", "inventory.cost.view"],
   },
 ];
