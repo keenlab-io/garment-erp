@@ -27,6 +27,11 @@ describe("ChartPanel", () => {
     expect(container.querySelector(".recharts-responsive-container")).toBeInTheDocument();
   });
 
+  it("exposes the chart as an accessible image labelled by its title", () => {
+    render(<ChartPanel title="Sales by month" kind="bar" data={DATA} xKey="d" series={SERIES} />);
+    expect(screen.getByRole("img", { name: "Sales by month" })).toBeInTheDocument();
+  });
+
   it("shows an empty message instead of a chart when there is no data", () => {
     render(<ChartPanel title="Sales by month" kind="bar" data={[]} xKey="d" series={SERIES} />);
     expect(screen.getByText("No data for this selection.")).toBeInTheDocument();

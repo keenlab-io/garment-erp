@@ -20,6 +20,13 @@ describe("ActiveFilterChipRail", () => {
     expect(screen.getByText("Clear")).toBeInTheDocument();
   });
 
+  it("labels the group distinctly from the Clear action (not color/text-only ambiguous)", () => {
+    render(
+      <ActiveFilterChipRail chips={[{ key: "dimension", label: "Month: 2026-01" }]} onClear={vi.fn()} />,
+    );
+    expect(screen.getByRole("group", { name: "Active filters" })).toBeInTheDocument();
+  });
+
   it("calls onClear when Clear is clicked", async () => {
     const user = userEvent.setup();
     const onClear = vi.fn();

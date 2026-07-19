@@ -11,11 +11,15 @@ export interface ActiveFilterChip {
 }
 
 export interface ActiveFilterChipRailLabels {
+  /** Accessible name for the chip rail's `role="group"` — never the same text as `clear` (a
+   * group labeled "Clear" reads as if the group itself were a button). */
+  groupLabel: string;
   clear: string;
   remove: (label: string) => string;
 }
 
 const defaultLabels: ActiveFilterChipRailLabels = {
+  groupLabel: "Active filters",
   clear: "Clear",
   remove: (label) => `Remove filter: ${label}`,
 };
@@ -45,7 +49,7 @@ export function ActiveFilterChipRail({
   if (chips.length === 0) return null;
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-2", className)} role="group" aria-label={labels.clear}>
+    <div className={cn("flex flex-wrap items-center gap-2", className)} role="group" aria-label={labels.groupLabel}>
       {chips.map((chip) => (
         <Badge key={chip.key} tone="accent" className="gap-1.5 py-1 pr-1.5">
           {chip.label}

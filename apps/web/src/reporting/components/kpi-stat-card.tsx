@@ -130,22 +130,26 @@ function KpiDeltaIndicator({ delta }: { delta: KpiDelta }) {
   );
 }
 
+/** Purely decorative (the value + `KpiDeltaIndicator`'s ▲/▼ already carry the trend), so it's
+ * `aria-hidden` rather than an unlabeled image in the accessibility tree (M6 §5.2). */
 function KpiSparkline({ values, negative }: { values: number[]; negative: boolean }) {
   const data = values.map((v, i) => ({ i, v }));
   const stroke = negative ? "var(--color-danger)" : "var(--color-accent)";
   return (
-    <ChartWrapper height={40}>
-      <AreaChart data={data} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
-        <Area
-          type="monotone"
-          dataKey="v"
-          stroke={stroke}
-          fill={stroke}
-          fillOpacity={0.15}
-          strokeWidth={1.5}
-          isAnimationActive={false}
-        />
-      </AreaChart>
-    </ChartWrapper>
+    <div aria-hidden="true">
+      <ChartWrapper height={40}>
+        <AreaChart data={data} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+          <Area
+            type="monotone"
+            dataKey="v"
+            stroke={stroke}
+            fill={stroke}
+            fillOpacity={0.15}
+            strokeWidth={1.5}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ChartWrapper>
+    </div>
   );
 }

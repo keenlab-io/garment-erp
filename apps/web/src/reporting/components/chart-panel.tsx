@@ -103,17 +103,22 @@ export function ChartPanel({
   emptyLabel = "No data for this selection.",
   className,
 }: ChartPanelProps) {
+  const headingId = React.useId();
   return (
     <div className={cn("flex flex-col gap-2 rounded-md border border-border bg-bg-surface p-4", className)}>
-      <h3 className="text-caption font-medium text-text-secondary">{title}</h3>
+      <h3 id={headingId} className="text-caption font-medium text-text-secondary">
+        {title}
+      </h3>
       {loading ? (
         <Skeleton variant="block" style={{ height }} />
       ) : data.length === 0 ? (
         <p className="py-8 text-center text-caption text-text-secondary">{emptyLabel}</p>
       ) : (
-        <ChartWrapper height={height}>
-          {renderChart({ kind, data, xKey, series, activeValue, onSelect })}
-        </ChartWrapper>
+        <div role="img" aria-labelledby={headingId}>
+          <ChartWrapper height={height}>
+            {renderChart({ kind, data, xKey, series, activeValue, onSelect })}
+          </ChartWrapper>
+        </div>
       )}
     </div>
   );

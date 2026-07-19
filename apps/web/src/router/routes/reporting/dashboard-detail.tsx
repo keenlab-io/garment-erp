@@ -8,6 +8,7 @@ import { ChartPanel } from "../../../reporting/components/chart-panel.js";
 import { ActiveFilterChipRail } from "../../../reporting/components/active-filter-chip-rail.js";
 import { useDashboardFilter, useDashboardQuery } from "../../../reporting/queries.js";
 import { dimensionFilterValue, panelChartConfig, panelHeadlineTotal, panelResult } from "../../../reporting/dashboard-panels.js";
+import { useFilterChips } from "../../../reporting/use-filter-chips.js";
 import { reportKeyLabelKey } from "../../../reporting/report-catalog.js";
 import type { ReportingKey } from "../../../i18n/keys.js";
 
@@ -42,16 +43,26 @@ export function ReportDashboardPage() {
   const dashboard = useDashboardQuery(group, filter, { enabled });
   const panels = dashboard.data?.body.panels ?? [];
 
-  const chips = filter.dimension && filter.value ? [{ key: filter.dimension, label: `${filter.dimension}: ${filter.value}` }] : [];
+  const chips = useFilterChips(filter.dimension, filter.value);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <h1 className="font-display text-h1 font-semibold text-text-primary">{title}</h1>
 
-      <ActiveFilterChipRail chips={chips} onClear={clearFilter} />
+      <ActiveFilterChipRail
+        chips={chips}
+        onClear={clearFilter}
+        labels={{ groupLabel: t("filters.groupLabel"), clear: t("filters.clear"), remove: (label) => t("filters.removeFilter", { label }) }}
+      />
 
       {!enabled ? (
-        <KpiStatCard label={title} value="0" format="money" permission="inventory.cost.view" />
+        <KpiStatCard
+          label={title}
+          value="0"
+          format="money"
+          permission="inventory.cost.view"
+          labels={{ restricted: t("kpi.restricted") }}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {dashboard.isLoading ? (
@@ -84,6 +95,7 @@ export function ReportDashboardPage() {
                     value={headline?.value ?? "0"}
                     format="money"
                     permission={costGated ? "inventory.cost.view" : undefined}
+                    labels={{ restricted: t("kpi.restricted") }}
                   />
                   {chart && (
                     <ChartPanel
@@ -93,6 +105,7 @@ export function ReportDashboardPage() {
                       xKey={chart.xKey}
                       series={chart.series}
                       activeValue={filter.value}
+                      emptyLabel={t("chart.empty")}
                       onSelect={
                         dimension
                           ? (value) => setFilter({ dimension, value: dimensionFilterValue(dimension, value) })

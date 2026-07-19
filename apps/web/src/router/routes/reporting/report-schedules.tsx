@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next";
 import { REPORT_KEYS, ExportStatus, ReportExportFormat, type ReportSchedule } from "@erp/contracts";
 import { Badge, Button, ConfirmDialog, useToast } from "@erp/ui";
 import { ScheduleEditor, type ScheduleEditorValue } from "../../../reporting/components/schedule-editor.js";
-import { cadenceFromCron, cronFromCadence, describeCadence, type Cadence } from "../../../reporting/components/cron.js";
+import { cadenceFromCron, cronFromCadence, type Cadence } from "../../../reporting/components/cron.js";
+import { useCadenceLabel, useWeekdayLabel } from "../../../reporting/use-cadence-label.js";
 import { reportKeyLabelKey } from "../../../reporting/report-catalog.js";
 import {
   useCreateReportScheduleMutation,
@@ -37,6 +38,8 @@ function emptyDraft(): ScheduleEditorValue {
 export function ReportSchedulesPage() {
   const { t } = useTranslation(["reporting"]);
   const { toast } = useToast();
+  const cadenceLabel = useCadenceLabel();
+  const weekdayLabel = useWeekdayLabel();
   const schedules = useReportSchedulesQuery();
   const createSchedule = useCreateReportScheduleMutation();
   const updateSchedule = useUpdateReportScheduleMutation();
@@ -120,6 +123,26 @@ export function ReportSchedulesPage() {
           reportOptions={reportOptions}
           onSubmit={() => void handleSubmit()}
           submitting={createSchedule.isPending || updateSchedule.isPending}
+          labels={{
+            nameLabel: t("scheduleEditor.nameLabel"),
+            reportLabel: t("scheduleEditor.reportLabel"),
+            frequencyLabel: t("scheduleEditor.frequencyLabel"),
+            daily: t("scheduleEditor.daily"),
+            weekly: t("scheduleEditor.weekly"),
+            dayOfWeekLabel: t("scheduleEditor.dayOfWeekLabel"),
+            weekdayLabel,
+            timeLabel: t("scheduleEditor.timeLabel"),
+            recipientsLabel: t("scheduleEditor.recipientsLabel"),
+            recipientPlaceholder: t("scheduleEditor.recipientPlaceholder"),
+            addRecipient: t("scheduleEditor.addRecipient"),
+            removeRecipient: (email) => t("scheduleEditor.removeRecipient", { email }),
+            formatLabel: t("scheduleEditor.formatLabel"),
+            activeLabel: t("schedules.active"),
+            describeCadence: cadenceLabel,
+            preview: (text) => t("scheduleEditor.preview", { text }),
+            save: t("scheduleEditor.save"),
+            runNow: t("schedules.runNow"),
+          }}
         />
         {selected && (
           <Button variant="ghost" onClick={resetForm}>
@@ -146,7 +169,7 @@ export function ReportSchedulesPage() {
                 </div>
                 <p className="text-sm text-text-secondary">
                   {t(reportKeyLabelKey(row.report_key))} ·{" "}
-                  {cadenceFromCron(row.cron) ? describeCadence(cadenceFromCron(row.cron)!) : row.cron} · {row.format}
+                  {cadenceFromCron(row.cron) ? cadenceLabel(cadenceFromCron(row.cron)!) : row.cron} · {row.format}
                 </p>
                 <p className="text-caption text-text-muted">{row.recipients.join(", ")}</p>
                 <div className="flex gap-2">

@@ -38,6 +38,8 @@ export interface ScheduleEditorLabels {
   daily: string;
   weekly: string;
   dayOfWeekLabel: string;
+  /** Translates 0 (Sunday) – 6 (Saturday); defaults to `cron.ts`'s English-only `weekdayLabel`. */
+  weekdayLabel: (dayOfWeek: number) => string;
   timeLabel: string;
   recipientsLabel: string;
   recipientPlaceholder: string;
@@ -45,6 +47,9 @@ export interface ScheduleEditorLabels {
   removeRecipient: (email: string) => string;
   formatLabel: string;
   activeLabel: string;
+  /** Friendly cadence description ("Every Monday 08:00"); defaults to `cron.ts`'s
+   * English-only `describeCadence`. */
+  describeCadence: (cadence: Cadence) => string;
   preview: (text: string) => string;
   save: string;
   runNow: string;
@@ -57,6 +62,7 @@ const defaultLabels: ScheduleEditorLabels = {
   daily: "Every day",
   weekly: "Weekly",
   dayOfWeekLabel: "Day of week",
+  weekdayLabel,
   timeLabel: "Time",
   recipientsLabel: "Recipients",
   recipientPlaceholder: "name@example.com",
@@ -64,6 +70,7 @@ const defaultLabels: ScheduleEditorLabels = {
   removeRecipient: (email) => `Remove ${email}`,
   formatLabel: "Format",
   activeLabel: "Active",
+  describeCadence,
   preview: (text) => `Sends ${text}`,
   save: "Save schedule",
   runNow: "Run now",
@@ -180,7 +187,7 @@ export function ScheduleEditor({
             <SelectContent>
               {WEEKDAYS.map((day) => (
                 <SelectItem key={day} value={String(day)}>
-                  {weekdayLabel(day)}
+                  {labels.weekdayLabel(day)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -196,7 +203,7 @@ export function ScheduleEditor({
         />
       </FormField>
 
-      <p className="text-caption text-text-secondary">{labels.preview(describeCadence(value.cadence))}</p>
+      <p className="text-caption text-text-secondary">{labels.preview(labels.describeCadence(value.cadence))}</p>
 
       <FormField label={labels.recipientsLabel}>
         <div className="flex flex-col gap-2">

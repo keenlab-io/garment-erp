@@ -32,9 +32,9 @@
 
 ## 5. i18n, a11y & Storybook
 
-- [ ] 5.1 TH+EN strings for `reporting`; BE/CE dates on periods
-- [ ] 5.2 WCAG AA: deltas not color-only (▲/▼), chart aria/labels, masked KPI lock semantics
-- [ ] 5.3 Stories: KpiStatCard, ChartPanel, ActiveFilterChipRail, AlertsPanel, ScheduleEditor at theme×density×locale
+- [x] 5.1 TH+EN strings for `reporting`; BE/CE dates on periods
+- [x] 5.2 WCAG AA: deltas not color-only (▲/▼), chart aria/labels, masked KPI lock semantics
+- [x] 5.3 Stories: KpiStatCard, ChartPanel, ActiveFilterChipRail, AlertsPanel, ScheduleEditor at theme×density×locale
 
 ## 6. Verification
 
