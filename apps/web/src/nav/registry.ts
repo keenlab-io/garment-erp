@@ -22,6 +22,10 @@ import {
   SlidersHorizontal,
   Barcode,
   FileBarChart2,
+  GanttChartSquare,
+  ScanLine,
+  Layers3,
+  Handshake,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@erp/contracts";
 import type {
@@ -29,6 +33,7 @@ import type {
   HrRouteDescriptor,
   InventoryRouteDescriptor,
   ModuleDescriptor,
+  ProductionRouteDescriptor,
 } from "./types";
 
 /** All catalog permissions in a module's namespace (e.g. every `sales.*`) — any of them grants entry. */
@@ -63,7 +68,8 @@ export const MODULES: ModuleDescriptor[] = [
     titleKey: "nav.production",
     icon: Factory,
     permissions: permissionsFor("production"),
-    kiosk: true,
+    // Only the scan-station sub-route is a kiosk (design MD2) — the timeline command center is a
+    // desktop screen, so the module entry itself doesn't force Touch (M4 §1.1, PRODUCTION_ROUTES).
     section: "primary",
   },
   {
@@ -247,5 +253,54 @@ export const INVENTORY_ROUTES: InventoryRouteDescriptor[] = [
     titleKey: "inventory:nav.reports",
     icon: FileBarChart2,
     permissions: ["inventory.issue.manage", "inventory.cost.view"],
+  },
+];
+
+/**
+ * Production Tracking sub-routes (Timeline/Work orders/Scan station/WIP board/Subcontracts —
+ * M4 §1). Each is gated by the same `production.*` permission(s) its `apps/api` handler(s) assert,
+ * matching `production.controller.ts`: routing/work-order/WIP reads need `production.wo.manage`,
+ * the scan station `production.scan`, subcontracts `production.subcontract.manage`.
+ * `/production/work-orders/{id}` has no fixed nav/palette entry (the id varies) and is registered
+ * directly in the route tree. The scan station is a floor kiosk (design MD2), so its route carries
+ * `kiosk: true` — Touch density auto-applies there, non-overridable (FD11); no other production
+ * route does, since the timeline/work-orders/WIP/subcontract screens are desktop-first.
+ */
+export const PRODUCTION_ROUTES: ProductionRouteDescriptor[] = [
+  {
+    key: "production-timeline",
+    path: "/production/timeline",
+    titleKey: "production:nav.timeline",
+    icon: GanttChartSquare,
+    permissions: ["production.wo.manage"],
+  },
+  {
+    key: "production-work-orders",
+    path: "/production/work-orders",
+    titleKey: "production:nav.workOrders",
+    icon: ClipboardList,
+    permissions: ["production.wo.manage"],
+  },
+  {
+    key: "production-scan",
+    path: "/production/scan",
+    titleKey: "production:nav.scan",
+    icon: ScanLine,
+    permissions: ["production.scan"],
+    kiosk: true,
+  },
+  {
+    key: "production-wip",
+    path: "/production/wip",
+    titleKey: "production:nav.wip",
+    icon: Layers3,
+    permissions: ["production.wo.manage"],
+  },
+  {
+    key: "production-subcontracts",
+    path: "/production/subcontracts",
+    titleKey: "production:nav.subcontracts",
+    icon: Handshake,
+    permissions: ["production.subcontract.manage"],
   },
 ];

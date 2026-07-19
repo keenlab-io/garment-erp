@@ -671,3 +671,16 @@ export const inventoryEn = {
     collapse: "Collapse",
   },
 } as const;
+
+// The `production` namespace (M4 Production Tracking frontend) — nav/palette/route titles for
+// the module's sub-routes (M4 §1); the M4 §4/§5 screens add their own copy.
+export const productionEn = {
+  nav: {
+    timeline: "Timeline",
+    workOrders: "Work orders",
+    workOrderDetail: "Work order",
+    scan: "Scan station",
+    wip: "WIP board",
+    subcontracts: "Subcontracts",
+  },
+} as const;
