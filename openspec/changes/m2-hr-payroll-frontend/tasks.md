@@ -44,7 +44,15 @@
 
 ## 6. Verification
 
-- [ ] 6.1 `pnpm --filter @erp/web build && typecheck && lint` green; Storybook renders
-- [ ] 6.2 Salary fields masked without `hr.salary.view` (layout stable); routes gated by permission
-- [ ] 6.3 Drive: payroll run → missing-data gate → calculate (job) → review (outlier flagged) →
+- [x] 6.1 `pnpm --filter @erp/web build && typecheck && lint` green; Storybook renders
+- [x] 6.2 Salary fields masked without `hr.salary.view` (layout stable); routes gated by permission
+- [x] 6.3 Drive: payroll run → missing-data gate → calculate (job) → review (outlier flagged) →
   approve (guarded) → payslip drawer shows full formula; cash-advance approved one-handed with re-auth
+  — ⚠ found and fixed two defects while driving the flow: (1) `payroll-run-detail.tsx` hardcoded
+  every payslip row's `base` to `"0"`, which made `PayrollWizard`'s outlier heuristic
+  (`net > base × 2`) trivially true for every positive-net payslip; (2) the payslip breakdown
+  drawer only ever showed a single "Net" line because `PayslipSummary` didn't expose the
+  `payslip.breakdown` the backend already computes and persists. Extended the `hr` contract with
+  `PayLine`/`PayslipBreakdown` and a gated `PayslipSummary.breakdown` field (mirroring the
+  `gross`/`net` gating), wired `apps/api`'s `listPayslips` to select and return it, and rebuilt
+  the screen's payslip rows/breakdown lines from the real data.
