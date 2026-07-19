@@ -8,6 +8,7 @@ export const HR_EVENTS = {
   employeeCreated: "hr.employee.created",
   otApproved: "hr.ot_request.approved",
   cashAdvanceApproved: "hr.cash_advance.approved",
+  cashAdvanceRejected: "hr.cash_advance.rejected",
   cashAdvanceDisbursed: "hr.cash_advance.disbursed",
   payrollApproved: "hr.payroll_run.approved",
   payslipGenerated: "hr.payslip.generated",

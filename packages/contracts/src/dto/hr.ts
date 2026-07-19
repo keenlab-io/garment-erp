@@ -213,6 +213,8 @@ export const CashAdvance = z.object({
   approver_id: uuid.nullable(),
   repayment_plan: RepaymentPlan.nullable(),
   outstanding: moneyString,
+  /** `ceiling_pct × current base salary` at read time — "0" if the employee has no salary on file. */
+  ceiling: moneyString,
   version: z.number().int().nonnegative(),
 });
 export type CashAdvance = z.infer<typeof CashAdvance>;
@@ -264,6 +266,44 @@ export const PayrollExportQuery = z.object({
   period: z.string().min(1), // YYYY-MM
 });
 export type PayrollExportQuery = z.infer<typeof PayrollExportQuery>;
+
+/** List query for payroll runs — optional status facet, newest period first. */
+export const PayrollRunsQuery = z.object({
+  "filter[status]": payrollRunStatus.optional(),
+});
+export type PayrollRunsQuery = z.infer<typeof PayrollRunsQuery>;
+
+/** List query for OT requests — the approval queue filters to `filter[status]=SUBMITTED`. */
+export const OtRequestsQuery = z.object({
+  "filter[status]": otRequestStatus.optional(),
+  "filter[employee_id]": uuid.optional(),
+});
+export type OtRequestsQuery = z.infer<typeof OtRequestsQuery>;
+
+/** List query for cash advances — the approval queue filters to `filter[status]=SUBMITTED`. */
+export const CashAdvancesQuery = z.object({
+  "filter[status]": cashAdvanceStatus.optional(),
+  "filter[employee_id]": uuid.optional(),
+});
+export type CashAdvancesQuery = z.infer<typeof CashAdvancesQuery>;
+
+// ── Attendance records ───────────────────────────────────────────────────────
+
+/** One employee's clock-in/out for one day — the monthly grid's underlying row. */
+export const AttendanceRecord = z.object({
+  employee_id: uuid,
+  work_date: z.string(), // ISO date (YYYY-MM-DD)
+  clock_in: z.string().datetime().nullable(),
+  clock_out: z.string().datetime().nullable(),
+});
+export type AttendanceRecord = z.infer<typeof AttendanceRecord>;
+
+/** List query for attendance — `filter[period]` (YYYY-MM) scopes the monthly grid. */
+export const AttendanceQuery = z.object({
+  "filter[period]": z.string().min(1), // YYYY-MM
+  "filter[employee_id]": uuid.optional(),
+});
+export type AttendanceQuery = z.infer<typeof AttendanceQuery>;
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
@@ -328,6 +368,13 @@ export const hrContract = c.router(
       responses: withErrors({ 200: z.object({ employee: Employee }) }),
       summary: "Update an employee (If-Match; 409 on version conflict)",
     },
+    listEmployeeDocuments: {
+      method: "GET",
+      path: "/employees/:id/documents",
+      pathParams: z.object({ id: uuid }),
+      responses: withErrors({ 200: z.object({ documents: z.array(EmployeeDocument) }) }),
+      summary: "List an employee's documents (hr.employee.view)",
+    },
     uploadEmployeeDocument: {
       method: "POST",
       path: "/employees/:id/documents",
@@ -336,6 +383,13 @@ export const hrContract = c.router(
       body: z.object({ file: z.any(), type: employeeDocumentType }),
       responses: withErrors({ 201: z.object({ document: EmployeeDocument }) }),
       summary: "Upload an employee document (stored under a signed-URL file_key)",
+    },
+    getEmployeeDocumentUrl: {
+      method: "GET",
+      path: "/employees/:id/documents/:documentId/url",
+      pathParams: z.object({ id: uuid, documentId: uuid }),
+      responses: withErrors({ 302: z.object({ url: z.string() }) }),
+      summary: "Redirect to a signed, expiring document URL (never rendered inline)",
     },
     addSalaryRecord: {
       method: "POST",
@@ -347,6 +401,13 @@ export const hrContract = c.router(
     },
 
     // Overtime
+    listOtRequests: {
+      method: "GET",
+      path: "/ot-requests",
+      query: OtRequestsQuery,
+      responses: withErrors({ 200: z.object({ ot_requests: z.array(OtRequest) }) }),
+      summary: "List OT requests (optional status/employee filters; hr.ot.approve)",
+    },
     createOtRequest: {
       method: "POST",
       path: "/ot-requests",
@@ -380,6 +441,13 @@ export const hrContract = c.router(
     },
 
     // Cash advances
+    listCashAdvances: {
+      method: "GET",
+      path: "/cash-advances",
+      query: CashAdvancesQuery,
+      responses: withErrors({ 200: z.object({ cash_advances: z.array(CashAdvance) }) }),
+      summary: "List cash advances (optional status/employee filters; hr.employee.manage)",
+    },
     createCashAdvance: {
       method: "POST",
       path: "/cash-advances",
@@ -395,6 +463,14 @@ export const hrContract = c.router(
       responses: withErrors({ 200: z.object({ cash_advance: CashAdvance }) }),
       summary: "Approve a cash advance (Super-Admin only)",
     },
+    rejectCashAdvance: {
+      method: "POST",
+      path: "/cash-advances/:id/reject",
+      pathParams: z.object({ id: uuid }),
+      body: z.object({ reason: z.string().optional() }),
+      responses: withErrors({ 200: z.object({ cash_advance: CashAdvance }) }),
+      summary: "Reject a submitted cash advance (hr.employee.manage)",
+    },
     disburseCashAdvance: {
       method: "POST",
       path: "/cash-advances/:id/disburse",
@@ -405,6 +481,13 @@ export const hrContract = c.router(
     },
 
     // Attendance
+    listAttendance: {
+      method: "GET",
+      path: "/attendance",
+      query: AttendanceQuery,
+      responses: withErrors({ 200: z.object({ attendance: z.array(AttendanceRecord) }) }),
+      summary: "List attendance records for a period (monthly grid; hr.employee.manage)",
+    },
     importAttendance: {
       method: "POST",
       path: "/attendance/import",
@@ -415,6 +498,13 @@ export const hrContract = c.router(
     },
 
     // Payroll
+    listPayrollRuns: {
+      method: "GET",
+      path: "/payroll-runs",
+      query: PayrollRunsQuery,
+      responses: withErrors({ 200: z.object({ payroll_runs: z.array(PayrollRun) }) }),
+      summary: "List payroll runs, newest period first (hr.payroll.approve)",
+    },
     createPayrollRun: {
       method: "POST",
       path: "/payroll-runs",

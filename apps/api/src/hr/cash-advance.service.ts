@@ -1,8 +1,9 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { cashAdvance, type Db } from "@erp/db";
 import type {
   CashAdvance,
+  CashAdvancesQuery,
   CreateCashAdvanceRequest,
   RepaymentPlan,
 } from "@erp/contracts";
@@ -45,6 +46,44 @@ export class CashAdvanceService {
     private readonly config: PayrollConfigService,
     private readonly events: EventBusService,
   ) {}
+
+  /** List cash advances (optional status/employee filters — the mobile approval queue). */
+  async list(query: CashAdvancesQuery): Promise<CashAdvance[]> {
+    const ex = currentExecutor(this.db);
+    const filters = [
+      query["filter[status]"] ? eq(cashAdvance.status, query["filter[status]"]) : undefined,
+      query["filter[employee_id]"]
+        ? eq(cashAdvance.employeeId, query["filter[employee_id]"])
+        : undefined,
+    ].filter(Boolean);
+    const rows = await ex
+      .select()
+      .from(cashAdvance)
+      .where(filters.length > 0 ? and(...filters) : undefined)
+      .orderBy(desc(cashAdvance.id));
+    return Promise.all(
+      rows.map(async (row) => ({
+        id: row.id,
+        employee_id: row.employeeId,
+        amount: m(row.amount),
+        reason: row.reason,
+        status: row.status,
+        approver_id: row.approverId,
+        repayment_plan: (row.repaymentPlan as RepaymentPlan | null) ?? null,
+        outstanding: m(row.outstanding),
+        ceiling: m(await this.ceilingFor(row.employeeId)),
+        version: row.version,
+      })),
+    );
+  }
+
+  /** `ceiling_pct × current base salary` for the ceiling-check badge (MD3) — "0" without salary. */
+  private async ceilingFor(employeeId: string): Promise<string> {
+    const base = await this.comp.currentBaseSalary(employeeId);
+    if (base === null) return "0";
+    const policy = await this.config.advancePolicy();
+    return advanceCeiling(base, policy.ceilingPct);
+  }
 
   /** Submit a request — rejected 422 if it exceeds `ceiling_pct × current base salary`. */
   async create(input: CreateCashAdvanceRequest): Promise<CashAdvance> {
@@ -97,6 +136,28 @@ export class CashAdvanceService {
     this.events.publishAfterCommit(
       makeEvent<CashAdvancePayload>({
         event: HR_EVENTS.cashAdvanceApproved,
+        actorUserId: actor.id,
+        payload: { cash_advance_id: id, employee_id: current.employee_id, amount: current.amount },
+      }),
+    );
+    return this.load(id);
+  }
+
+  /** Reject a submitted advance — captures a reason for the audit trail (no persisted column). */
+  async reject(id: string, actor: AuthUser): Promise<CashAdvance> {
+    const ex = currentExecutor(this.db);
+    const current = await this.load(id);
+    if (current.status !== "SUBMITTED") {
+      throw new StateConflictError(`Cannot reject a ${current.status} cash advance`);
+    }
+    await ex
+      .update(cashAdvance)
+      .set({ status: "REJECTED", approverId: actor.id, version: sql`${cashAdvance.version} + 1` })
+      .where(eq(cashAdvance.id, id));
+
+    this.events.publishAfterCommit(
+      makeEvent<CashAdvancePayload>({
+        event: HR_EVENTS.cashAdvanceRejected,
         actorUserId: actor.id,
         payload: { cash_advance_id: id, employee_id: current.employee_id, amount: current.amount },
       }),
@@ -191,6 +252,7 @@ export class CashAdvanceService {
       approver_id: row.approverId,
       repayment_plan: (row.repaymentPlan as RepaymentPlan | null) ?? null,
       outstanding: m(row.outstanding),
+      ceiling: m(await this.ceilingFor(row.employeeId)),
       version: row.version,
     };
   }

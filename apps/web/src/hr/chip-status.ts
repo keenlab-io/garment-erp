@@ -1,4 +1,4 @@
-import type { CashAdvanceStatus, PayrollRunStatus } from "@erp/contracts";
+import type { CashAdvanceStatus, OtRequestStatus, PayrollRunStatus } from "@erp/contracts";
 import type { ChipStatus } from "@erp/ui";
 
 /**
@@ -29,4 +29,17 @@ const CASH_ADVANCE_STATUS_CHIP: Record<CashAdvanceStatus, ChipStatus> = {
 
 export function cashAdvanceStatusToChip(status: CashAdvanceStatus): ChipStatus {
   return CASH_ADVANCE_STATUS_CHIP[status];
+}
+
+const OT_REQUEST_STATUS_CHIP: Record<OtRequestStatus, ChipStatus> = {
+  DRAFT: "draft",
+  SUBMITTED: "pending",
+  APPROVED: "approved",
+  REJECTED: "void",
+  RECONCILED: "posted",
+  PAID: "paid",
+};
+
+export function otRequestStatusToChip(status: OtRequestStatus): ChipStatus {
+  return OT_REQUEST_STATUS_CHIP[status];
 }

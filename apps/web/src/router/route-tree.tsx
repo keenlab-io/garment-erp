@@ -13,6 +13,14 @@ import { RolesListPage } from "./routes/admin/roles-list";
 import { RoleDetailPage } from "./routes/admin/role-detail";
 import { AuditLogPage } from "./routes/admin/audit-log";
 import { PermissionImportPage } from "./routes/admin/permission-import";
+import { EmployeesListPage } from "./routes/hr/employees-list";
+import { EmployeeDetailPage } from "./routes/hr/employee-detail";
+import { PayrollRunsListPage } from "./routes/hr/payroll-runs-list";
+import { PayrollRunDetailPage } from "./routes/hr/payroll-run-detail";
+import { OtApprovalsPage } from "./routes/hr/ot-approvals";
+import { CashAdvanceApprovalsPage } from "./routes/hr/cash-advance-approvals";
+import { AttendancePage } from "./routes/hr/attendance";
+import { TaxExportsPage } from "./routes/hr/tax-exports";
 
 /** The M1 §4 screens, keyed by `AdminRouteDescriptor.key` — every other admin route (none currently)
  * keeps the shared `ModulePlaceholder` until its screen ships. */
@@ -92,12 +100,22 @@ const adminRoleDetailRoute = createRoute({
 
 // HR & Payroll sub-routes (Employees/OT/Cash advances/Attendance/Payroll/Tax exports) — each gated
 // by its own hr.* permission(s), unlike Admin & Access these aren't Super-Admin-only. Every entry
-// falls back to `ModulePlaceholder` until its M2 §4 screen ships.
+// now renders its M2 §4 screen; a future hr route without one yet would fall back to
+// `ModulePlaceholder`.
+const HR_ROUTE_COMPONENTS: Record<string, () => React.ReactElement> = {
+  "hr-employees": EmployeesListPage,
+  "hr-ot": OtApprovalsPage,
+  "hr-advances": CashAdvanceApprovalsPage,
+  "hr-attendance": AttendancePage,
+  "hr-payroll": PayrollRunsListPage,
+  "hr-tax-exports": TaxExportsPage,
+};
+
 function hrRoute(entry: HrRouteDescriptor) {
   return createRoute({
     getParentRoute: () => rootRoute,
     path: entry.path,
-    component: ModulePlaceholder,
+    component: HR_ROUTE_COMPONENTS[entry.key] ?? ModulePlaceholder,
     staticData: {
       title: entry.titleKey,
       breadcrumb: entry.titleKey,
@@ -114,7 +132,7 @@ function hrRoute(entry: HrRouteDescriptor) {
 const hrEmployeeDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/hr/employees/$id",
-  component: ModulePlaceholder,
+  component: EmployeeDetailPage,
   staticData: {
     title: "hr:nav.employeeDetail",
     breadcrumb: "hr:nav.employeeDetail",
@@ -130,7 +148,7 @@ const hrEmployeeDetailRoute = createRoute({
 const hrPayrollRunDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/hr/payroll/runs/$id",
-  component: ModulePlaceholder,
+  component: PayrollRunDetailPage,
   staticData: {
     title: "hr:nav.payrollRunDetail",
     breadcrumb: "hr:nav.payrollRunDetail",

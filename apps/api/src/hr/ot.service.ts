@@ -1,7 +1,12 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { attendance, otRequest, type Db } from "@erp/db";
-import type { CreateOtRequest, OtRequest, ReconcileOtRequest } from "@erp/contracts";
+import type {
+  CreateOtRequest,
+  OtRequest,
+  OtRequestsQuery,
+  ReconcileOtRequest,
+} from "@erp/contracts";
 import { formatQty, toDecimal } from "@erp/utils";
 import type { AuthUser } from "../auth/auth-user.js";
 import { NotFoundError, StateConflictError } from "../common/errors/app-exception.js";
@@ -26,6 +31,35 @@ export class OtService {
     @Inject(DB) private readonly db: Db,
     private readonly events: EventBusService,
   ) {}
+
+  /** List OT requests (optional status/employee filters — the approval queue). */
+  async list(query: OtRequestsQuery): Promise<OtRequest[]> {
+    const ex = currentExecutor(this.db);
+    const filters = [
+      query["filter[status]"] ? eq(otRequest.status, query["filter[status]"]) : undefined,
+      query["filter[employee_id]"]
+        ? eq(otRequest.employeeId, query["filter[employee_id]"])
+        : undefined,
+    ].filter(Boolean);
+    const rows = await ex
+      .select()
+      .from(otRequest)
+      .where(filters.length > 0 ? and(...filters) : undefined)
+      .orderBy(desc(otRequest.workDate));
+    return rows.map((row) => ({
+      id: row.id,
+      employee_id: row.employeeId,
+      work_date: row.workDate,
+      start_time: row.startTime,
+      end_time: row.endTime,
+      reason: row.reason,
+      rate_type: row.rateType,
+      approved_hours: qN(row.approvedHours),
+      status: row.status,
+      approver_id: row.approverId,
+      version: row.version,
+    }));
+  }
 
   async create(input: CreateOtRequest): Promise<OtRequest> {
     const ex = currentExecutor(this.db);
