@@ -44,7 +44,7 @@
 
 ## 6. Verification
 
-- [ ] 6.1 `pnpm --filter @erp/web build && typecheck && lint` green; Storybook renders
-- [ ] 6.2 Scan route locks to Touch, no nav; timeline updates within seconds of a floor scan (realtime)
-- [ ] 6.3 Drive: scan START on a step (kiosk) → timeline bar advances live on the lead's screen →
+- [x] 6.1 `pnpm --filter @erp/web build && typecheck && lint` green; Storybook renders
+- [x] 6.2 Scan route locks to Touch, no nav; timeline updates within seconds of a floor scan (realtime)
+- [x] 6.3 Drive: scan START on a step (kiosk) → timeline bar advances live on the lead's screen →
   exceed standard → step pulses + appears in the alert rail; go offline → scans queue + sync badge → reconnect syncs

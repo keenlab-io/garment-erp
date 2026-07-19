@@ -111,4 +111,6 @@ export interface ProductionRouteDescriptor {
   permissions: Permission[];
   /** Scan-first floor route (design MD2) → forces Touch density, non-overridable (FD11). */
   kiosk?: boolean;
+  /** Full kiosk lockdown (design MD2 "Kiosk lockdown") → shell chrome (nav/palette) is suppressed. */
+  kioskLockdown?: boolean;
 }

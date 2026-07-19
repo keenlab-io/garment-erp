@@ -263,8 +263,10 @@ export const INVENTORY_ROUTES: InventoryRouteDescriptor[] = [
  * the scan station `production.scan`, subcontracts `production.subcontract.manage`.
  * `/production/work-orders/{id}` has no fixed nav/palette entry (the id varies) and is registered
  * directly in the route tree. The scan station is a floor kiosk (design MD2), so its route carries
- * `kiosk: true` — Touch density auto-applies there, non-overridable (FD11); no other production
- * route does, since the timeline/work-orders/WIP/subcontract screens are desktop-first.
+ * `kiosk: true` — Touch density auto-applies there, non-overridable (FD11) — and `kioskLockdown:
+ * true`, which suppresses the sidebar/top bar/tab bar/drawer/palette entirely (design MD2 "no
+ * nav/menus"; `AppChrome` reads it). No other production route sets either flag, since the
+ * timeline/work-orders/WIP/subcontract screens are desktop-first.
  */
 export const PRODUCTION_ROUTES: ProductionRouteDescriptor[] = [
   {
@@ -288,6 +290,7 @@ export const PRODUCTION_ROUTES: ProductionRouteDescriptor[] = [
     icon: ScanLine,
     permissions: ["production.scan"],
     kiosk: true,
+    kioskLockdown: true,
   },
   {
     key: "production-wip",

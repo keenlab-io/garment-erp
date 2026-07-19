@@ -11,6 +11,8 @@ declare module "@tanstack/react-router" {
     breadcrumb?: ShellKey | IamKey | HrKey | InventoryKey | ProductionKey;
     /** Floor/kiosk route → forces Touch density, non-overridable. */
     kiosk?: boolean;
+    /** Full kiosk lockdown (design MD2) → `AppChrome` renders the outlet with no nav chrome. */
+    kioskLockdown?: boolean;
     /** Permissions (any-of) required to enter the route. */
     permissions?: Permission[];
     /** Back-reference into the nav registry (icon/section live there). */
