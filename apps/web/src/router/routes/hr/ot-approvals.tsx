@@ -10,6 +10,7 @@ import {
   DrawerHeader,
   DrawerTitle,
   InkChip,
+  PermissionButton,
   statusColumn,
   textColumn,
   useToast,
@@ -17,6 +18,7 @@ import {
 import { useDensity } from "../../../density/density-context.js";
 import { useApproveOtRequestMutation, useEmployeesQuery, useOtRequestsQuery } from "../../../hr/queries.js";
 import { otRequestStatusToChip } from "../../../hr/chip-status.js";
+import { CreateOtRequestDrawer } from "./ot-request-create-drawer.js";
 
 interface OtRow {
   id: string;
@@ -41,6 +43,7 @@ export function OtApprovalsPage() {
   const employees = useEmployeesQuery({ limit: 100 });
   const approve = useApproveOtRequestMutation();
   const [detailId, setDetailId] = React.useState<string | null>(null);
+  const [createOpen, setCreateOpen] = React.useState(false);
 
   const employeeNameById = React.useMemo(
     () => new Map((employees.data?.body.data ?? []).map((e) => [e.id, `${e.first_name} ${e.last_name}`])),
@@ -72,7 +75,12 @@ export function OtApprovalsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      <h1 className="font-display text-h1 font-semibold text-text-primary">{t("approvals.otTitle")}</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="font-display text-h1 font-semibold text-text-primary">{t("approvals.otTitle")}</h1>
+        <PermissionButton required="hr.employee.manage" onClick={() => setCreateOpen(true)}>
+          {t("otCreate.newButton")}
+        </PermissionButton>
+      </div>
 
       <DataTable
         data={rows}
@@ -148,6 +156,8 @@ export function OtApprovalsPage() {
           )}
         </DrawerContent>
       </Drawer>
+
+      <CreateOtRequestDrawer open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   );
 }

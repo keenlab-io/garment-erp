@@ -1,10 +1,12 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nextProvider } from "react-i18next";
 import { ToastProvider } from "@erp/ui";
 import i18n from "../../../i18n/i18n";
+import { SessionProvider } from "../../../session/session-context";
+import type { AuthUser } from "../../../session/dev-user";
 import { OtApprovalsPage } from "./ot-approvals";
 
 // `useDensity` reads router matches for kiosk detection; the page only needs the resolved value.
@@ -50,14 +52,24 @@ function stubHappyPath() {
   });
 }
 
+const MANAGER: AuthUser = {
+  id: "u1",
+  name: "Manager",
+  email: "m@example.com",
+  isSuperAdmin: true,
+  permissions: [],
+};
+
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
-        <ToastProvider>
-          <OtApprovalsPage />
-        </ToastProvider>
+        <SessionProvider initialUser={MANAGER}>
+          <ToastProvider>
+            <OtApprovalsPage />
+          </ToastProvider>
+        </SessionProvider>
       </QueryClientProvider>
     </I18nextProvider>,
   );
@@ -95,5 +107,15 @@ describe("OtApprovalsPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("opens the create drawer from the 'New OT request' button", async () => {
+    stubHappyPath();
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "New OT request" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("New OT request")).toBeInTheDocument();
   });
 });
