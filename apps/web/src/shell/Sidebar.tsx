@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useSession } from "../session/session-context";
 import { MODULES } from "../nav/registry";
 import { filterNav } from "../nav/filter";
-import { NavItem } from "./NavItem";
+import { ModuleNav } from "./ModuleNav";
 import { BrandMark } from "./BrandMark";
 
 /**
@@ -28,13 +28,13 @@ export function Sidebar() {
       </div>
       <nav aria-label={t("a11y.primaryNav")} className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
         {primary.map((module) => (
-          <NavItem key={module.key} module={module} />
+          <ModuleNav key={module.key} module={module} />
         ))}
       </nav>
       {admin.length > 0 ? (
         <nav aria-label={t("a11y.adminNav")} className="flex flex-col gap-0.5 border-t border-border p-3">
           {admin.map((module) => (
-            <NavItem key={module.key} module={module} />
+            <ModuleNav key={module.key} module={module} />
           ))}
         </nav>
       ) : null}

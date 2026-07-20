@@ -44,7 +44,12 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <LocaleProvider>
-            <SessionProvider>
+            {/* Boot logged-out: real M1 auth is live, so a fresh load goes straight to /login and
+                the user logs in for a real JWT. Seeding the M0 dev-stub super-admin here would fake
+                a tokenless session that every authenticated API call 401s — bouncing to /login with
+                a misleading "session expired". The dev-stub (createDevUser / VITE_DEV_PERMISSIONS)
+                stays available for nav-filter demos; it's just no longer auto-seeded. */}
+            <SessionProvider initialUser={null}>
               <InnerRouter />
             </SessionProvider>
           </LocaleProvider>

@@ -3,6 +3,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, FormField, Input } from "@erp/ui";
 import { useLoginMutation } from "../../session/use-login.js";
+import { useSession } from "../../session/session-context.js";
 import { BrandMark } from "../../shell/BrandMark";
 
 /** The reason `/login` was reached via a forced sign-out, carried as a search param (M1 §2.2). */
@@ -30,16 +31,23 @@ export function LoginPage() {
   const navigate = useNavigate();
   const { notice } = useSearch({ from: "/login" });
   const login = useLoginMutation();
+  const session = useSession();
 
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
 
+  // Navigate home only once the signed-in session has propagated into the router context. Calling
+  // navigate() synchronously in the mutation's onSuccess races the signIn() state update, so the `/`
+  // guard would still read a null session and redirect straight back here (previously masked by the
+  // M0 dev-stub, which seeded a non-null session at boot). Keying off `session.user` waits until
+  // InnerRouter has re-rendered the router with the authenticated context.
+  React.useEffect(() => {
+    if (session.user) void navigate({ to: "/" });
+  }, [session.user, navigate]);
+
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    login.mutate(
-      { username, password },
-      { onSuccess: () => void navigate({ to: "/" }) },
-    );
+    login.mutate({ username, password });
   }
 
   return (

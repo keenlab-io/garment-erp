@@ -42,6 +42,7 @@ import type {
   HrRouteDescriptor,
   InventoryRouteDescriptor,
   ModuleDescriptor,
+  NavChildDescriptor,
   ProductionRouteDescriptor,
   SalesRouteDescriptor,
   ReportingRouteDescriptor,
@@ -427,3 +428,29 @@ export const REPORTING_ROUTES: ReportingRouteDescriptor[] = [
     permissions: ["report.schedule.manage"],
   },
 ];
+
+/**
+ * Sub-routes shown under each module in the expandable sidebar/drawer sub-nav. Keyed by
+ * `ModuleDescriptor.key`; a module absent here (Dashboard) stays a plain link. Values reuse the same
+ * `*_ROUTES` arrays the command palette and route tree consume — one source of truth, so nav, palette
+ * and routes never drift. Reports leads with its catalog home (`/reports`, the real browse surface)
+ * so expanding the group never hides it. Each child is permission-gated at render via `isModuleVisible`.
+ */
+export const MODULE_CHILDREN: Record<string, NavChildDescriptor[]> = {
+  inventory: INVENTORY_ROUTES,
+  production: PRODUCTION_ROUTES,
+  sales: SALES_ROUTES,
+  hr: HR_ROUTES,
+  admin: ADMIN_ROUTES,
+  reports: [
+    {
+      key: "reports-home",
+      path: "/reports",
+      titleKey: "reporting:home.reportsCatalog",
+      icon: FileBarChart2,
+      permissions: permissionsFor("report"),
+    },
+    ...REPORTING_DASHBOARD_ROUTES,
+    ...REPORTING_ROUTES,
+  ],
+};

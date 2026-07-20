@@ -170,3 +170,32 @@ export interface ReportingRouteDescriptor {
   /** The specific `report.*` permission(s) that grant entry (any-of). */
   permissions: Permission[];
 }
+
+/**
+ * The common shape every module sub-route descriptor above shares, as consumed by the expandable
+ * sidebar/drawer sub-nav (`MODULE_CHILDREN`). A structural supertype: each concrete `*RouteDescriptor`
+ * is assignable to it (their narrow typed `titleKey`s widen to `string`), so one `NavGroup` renders
+ * them all without re-declaring the typed keys. The i18n namespace stays in the key itself (e.g.
+ * `"inventory:nav.items"`), matching how the descriptors already spell their `titleKey`.
+ */
+export interface NavChildDescriptor {
+  /** Stable id (React key). */
+  key: string;
+  /** Route path (the navigation target). */
+  path: string;
+  /** Namespaced i18n key (e.g. `"inventory:nav.items"`) — the union every source descriptor uses. */
+  titleKey:
+    | ShellKey
+    | IamKey
+    | HrKey
+    | InventoryKey
+    | ProductionKey
+    | SalesKey
+    | ReportingKey;
+  /** Nav glyph (lucide component passed to `@erp/ui`'s `Icon`). */
+  icon: LucideIcon;
+  /** Permissions that grant entry (any-of); gated with the same `isModuleVisible` as top-level nav. */
+  permissions: Permission[];
+  /** Scan/kiosk route → forces Touch density (carried through from the source descriptor). */
+  kiosk?: boolean;
+}

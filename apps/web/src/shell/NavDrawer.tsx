@@ -3,7 +3,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerBody, DrawerTitle } from "@e
 import { useSession } from "../session/session-context";
 import { MODULES } from "../nav/registry";
 import { filterNav } from "../nav/filter";
-import { NavItem } from "./NavItem";
+import { ModuleNav } from "./ModuleNav";
 import { BrandMark } from "./BrandMark";
 
 /**
@@ -36,7 +36,7 @@ export function NavDrawer({
         <DrawerBody>
           <nav aria-label={t("a11y.primaryNav")} className="flex flex-col gap-0.5">
             {primary.map((module) => (
-              <NavItem key={module.key} module={module} onNavigate={close} />
+              <ModuleNav key={module.key} module={module} onNavigate={close} />
             ))}
           </nav>
           {admin.length > 0 ? (
@@ -45,7 +45,7 @@ export function NavDrawer({
               className="mt-2 flex flex-col gap-0.5 border-t border-border pt-2"
             >
               {admin.map((module) => (
-                <NavItem key={module.key} module={module} onNavigate={close} />
+                <ModuleNav key={module.key} module={module} onNavigate={close} />
               ))}
             </nav>
           ) : null}
