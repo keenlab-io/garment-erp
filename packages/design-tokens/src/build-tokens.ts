@@ -101,7 +101,11 @@ export function renderTailwindCss(dictionary: Dictionary): string {
     else if (p[0] === "font") add(`--font-${p[1]}`, `font-${p[1]}`);
     else if (p[0] === "text" && p[2] === "size") add(`--text-${p[1]}`, `text-${p[1]}-size`);
     else if (p[0] === "elevation") add(`--shadow-${p[1]}`, `elevation-${p[1]}`);
-    else if (p[0] === "bp") add(`--breakpoint-${p[1]}`, `bp-${p[1]}`);
+    // Breakpoints emit their LITERAL length, not `var(--bp-*)`: Tailwind v4 builds the responsive
+    // `@media (min-width: …)` variants at compile time and a `var()` isn't a usable length there, so
+    // a var reference silently drops every `md:`/`lg:` utility. They're static (not theme/density
+    // dependent), so there's nothing to keep live.
+    else if (p[0] === "bp") lines.push(`  --breakpoint-${p[1]}: ${String(token.value)};`);
     else if (p[0] === "ease") add(`--ease-${p[1]}`, `ease-${p[1]}`);
     // Overrides Tailwind's built-in leading-* scale with the locked Thai-safe values (M0 §7).
     else if (p[0] === "leading") add(`--leading-${p[1]}`, `leading-${p[1]}`);
@@ -128,7 +132,8 @@ export function renderTailwindJs(dictionary: Dictionary): string {
     else if (group === "font" && sub) fontFamily[sub] = `var(--font-${sub})`;
     else if (group === "text" && sub && token.path[2] === "size") fontSize[sub] = `var(--text-${sub}-size)`;
     else if (group === "elevation" && sub) boxShadow[sub] = `var(--elevation-${sub})`;
-    else if (group === "bp" && sub) screens[sub] = `var(--bp-${sub})`;
+    // Literal length, not `var(--bp-*)` — see the breakpoint note in renderTailwindCss.
+    else if (group === "bp" && sub) screens[sub] = String(token.value);
   }
 
   const preset = { theme: { extend: { colors, borderRadius, fontFamily, fontSize, boxShadow, screens } } };

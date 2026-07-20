@@ -7,11 +7,13 @@ import { INK_CHIPS } from "./chips.js";
 
 let css = "";
 let tailwindCss = "";
+let tailwindJs = "";
 
 beforeAll(async () => {
   const out = await renderAll();
   css = out.css;
   tailwindCss = out.tailwindCss;
+  tailwindJs = out.tailwindJs;
 });
 
 /** Extract the body of a single selector block (up to its closing brace). */
@@ -125,6 +127,16 @@ describe("Tailwind v4 preset exposes semantic names only", () => {
 
   it("never leaks a primitive scale name", () => {
     expect(tailwindCss).not.toMatch(/--(ink|cyan|substrate|magenta|rubine|amber|violet|green)-\d/);
+  });
+
+  // Breakpoints are the exception to the var()-reference rule: Tailwind v4 builds the responsive
+  // `@media (min-width: …)` variants at compile time, and a `var()` there is not a usable length,
+  // so every `md:`/`lg:` utility silently vanishes. They must be literal lengths in both artifacts.
+  it("emits breakpoints as literal lengths, never var() references", () => {
+    expect(tailwindCss).toContain("--breakpoint-md: 768px;");
+    expect(tailwindCss).not.toMatch(/--breakpoint-\w+:\s*var\(/);
+    expect(tailwindJs).toContain('"md": "768px"');
+    expect(tailwindJs).not.toMatch(/"screens"[\s\S]*var\(--bp/);
   });
 });
 
