@@ -11,6 +11,7 @@ import {
   Upload,
   IdCard,
   Clock,
+  Network,
   Wallet,
   CalendarCheck,
   Banknote,
@@ -169,6 +170,13 @@ export const HR_ROUTES: HrRouteDescriptor[] = [
     path: "/hr/employees",
     titleKey: "hr:nav.employees",
     icon: IdCard,
+    permissions: ["hr.employee.view", "hr.employee.manage"],
+  },
+  {
+    key: "hr-org",
+    path: "/hr/org",
+    titleKey: "hr:nav.org",
+    icon: Network,
     permissions: ["hr.employee.view", "hr.employee.manage"],
   },
   {
