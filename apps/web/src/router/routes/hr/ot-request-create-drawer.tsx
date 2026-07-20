@@ -53,6 +53,9 @@ export function CreateOtRequestDrawer({
   const [reason, setReason] = React.useState("");
   const [employeeError, setEmployeeError] = React.useState<string | null>(null);
   const [timeError, setTimeError] = React.useState<string | null>(null);
+  // Holds the DRAFT id once created, so a retry after a failed submit resumes at submit
+  // rather than creating a second draft. Cleared on a fresh open and on clean success.
+  const createdIdRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (open) {
@@ -64,6 +67,7 @@ export function CreateOtRequestDrawer({
       setReason("");
       setEmployeeError(null);
       setTimeError(null);
+      createdIdRef.current = null;
     }
   }, [open]);
 
@@ -98,30 +102,33 @@ export function CreateOtRequestDrawer({
     }
     if (invalid) return;
 
-    let created;
-    try {
-      created = await createOt.mutateAsync({
-        body: {
-          employee_id: employeeId,
-          work_date: workDate,
-          start_time: startTime,
-          end_time: endTime,
-          rate_type: rateType,
-          reason: reason.trim() || undefined,
-        },
-      });
-    } catch {
-      toast({ tone: "danger", title: t("otCreate.createError") });
-      return;
+    if (!createdIdRef.current) {
+      try {
+        const created = await createOt.mutateAsync({
+          body: {
+            employee_id: employeeId,
+            work_date: workDate,
+            start_time: startTime,
+            end_time: endTime,
+            rate_type: rateType,
+            reason: reason.trim() || undefined,
+          },
+        });
+        createdIdRef.current = created.body.ot_request.id;
+      } catch {
+        toast({ tone: "danger", title: t("otCreate.createError") });
+        return;
+      }
     }
 
     try {
-      await submitOt.mutateAsync({ params: { id: created.body.ot_request.id }, body: undefined });
+      await submitOt.mutateAsync({ params: { id: createdIdRef.current }, body: undefined });
     } catch {
       toast({ tone: "danger", title: t("otCreate.submitError") });
       return;
     }
 
+    createdIdRef.current = null;
     toast({ tone: "success", title: t("otCreate.submitted") });
     onOpenChange(false);
   }

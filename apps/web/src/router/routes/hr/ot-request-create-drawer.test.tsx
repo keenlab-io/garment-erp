@@ -127,6 +127,47 @@ describe("CreateOtRequestDrawer", () => {
     expect(calls).toEqual(["create"]);
   });
 
+  it("shows a submit error and, on retry, resumes at submit without re-creating the draft", async () => {
+    const calls: string[] = [];
+    let submitShouldFail = true;
+    stubFetch((url, init) => {
+      const method = init?.method ?? "GET";
+      if (url.includes("/employees") && method === "GET") return jsonResponse({ data: [EMPLOYEE], next_cursor: null });
+      if (url.endsWith("/ot-requests") && method === "POST") {
+        calls.push("create");
+        return jsonResponse({ ot_request: DRAFT }, 201);
+      }
+      if (url.includes("/ot-requests/") && url.endsWith("/submit") && method === "POST") {
+        calls.push("submit");
+        if (submitShouldFail) return jsonResponse({ code: "INTERNAL", message: "boom", details: {} }, 500);
+        return jsonResponse({ ot_request: { ...DRAFT, status: "SUBMITTED" } });
+      }
+      return undefined;
+    });
+
+    const user = userEvent.setup();
+    const { onOpenChange } = renderDrawer();
+
+    await pickEmployee(user);
+    await user.type(screen.getByLabelText(/^Work date/), "2026-07-20");
+    await user.type(screen.getByLabelText(/^Start time/), "18:00");
+    await user.type(screen.getByLabelText(/^End time/), "20:00");
+    await user.click(screen.getByRole("button", { name: "Submit for approval" }));
+
+    expect(
+      await screen.findByText("Request created but couldn't be submitted. Please try again."),
+    ).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(calls).toEqual(["create", "submit"]);
+
+    // Retry: submit now succeeds. The draft must NOT be created a second time.
+    submitShouldFail = false;
+    await user.click(screen.getByRole("button", { name: "Submit for approval" }));
+
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    expect(calls).toEqual(["create", "submit", "submit"]);
+  });
+
   it("blocks submit with a validation error when end is not after start", async () => {
     const calls: string[] = [];
     stubFetch((url, init) => {
