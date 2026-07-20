@@ -169,7 +169,12 @@ export function useCreateOtRequestMutation() {
 }
 
 export function useSubmitOtRequestMutation() {
-  return api.hr.submitOtRequest.useMutation();
+  const queryClient = useQueryClient();
+  return api.hr.submitOtRequest.useMutation({
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrKeys.otRequestsAll() });
+    },
+  });
 }
 
 export function useApproveOtRequestMutation() {
