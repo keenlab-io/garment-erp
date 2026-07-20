@@ -11,3 +11,4 @@ export const HR_ADVANCES_PATH: string = "/hr/advances";
 export const HR_ATTENDANCE_PATH: string = "/hr/attendance";
 export const HR_PAYROLL_PATH: string = "/hr/payroll";
 export const HR_TAX_EXPORTS_PATH: string = "/hr/tax-exports";
+export const HR_ORG_PATH: string = "/hr/org";

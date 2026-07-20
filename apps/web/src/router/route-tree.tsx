@@ -36,6 +36,7 @@ import { RoleDetailPage } from "./routes/admin/role-detail";
 import { AuditLogPage } from "./routes/admin/audit-log";
 import { PermissionImportPage } from "./routes/admin/permission-import";
 import { EmployeesListPage } from "./routes/hr/employees-list";
+import { OrgStructurePage } from "./routes/hr/org-structure";
 import { EmployeeDetailPage } from "./routes/hr/employee-detail";
 import { PayrollRunsListPage } from "./routes/hr/payroll-runs-list";
 import { PayrollRunDetailPage } from "./routes/hr/payroll-run-detail";
@@ -157,6 +158,7 @@ const adminRoleDetailRoute = createRoute({
 // `ModulePlaceholder`.
 const HR_ROUTE_COMPONENTS: Record<string, () => React.ReactElement> = {
   "hr-employees": EmployeesListPage,
+  "hr-org": OrgStructurePage,
   "hr-ot": OtApprovalsPage,
   "hr-advances": CashAdvanceApprovalsPage,
   "hr-attendance": AttendancePage,
