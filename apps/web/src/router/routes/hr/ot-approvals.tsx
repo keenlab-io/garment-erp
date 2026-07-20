@@ -102,7 +102,7 @@ export function OtApprovalsPage() {
         ]}
       />
 
-      <Drawer open={detail !== null} onOpenChange={(open) => !open && setDetailId(null)}>
+      <Drawer open={Boolean(detail)} onOpenChange={(open) => !open && setDetailId(null)}>
         <DrawerContent aria-describedby={undefined}>
           <DrawerHeader>
             <DrawerTitle className="text-h3 font-semibold text-text-primary">
