@@ -25,7 +25,10 @@ jobs:
       # Affected-only: build/test only what changed vs main (spec §10.1). The `test`
       # task runs the unit vitest suite; integration specs self-skip here (no
       # DATABASE_URL_TEST) and run in the dedicated `integration` job below.
-      - run: pnpm turbo run lint typecheck test build --filter=...[origin/main]
+      # `@erp/e2e` is excluded: its `test` script is Playwright, which needs the full
+      # running stack (web+api+browsers) — it belongs in a dedicated e2e job, not this
+      # stack-less unit verify job (see e2e/README.md §CI).
+      - run: pnpm turbo run lint typecheck test build --filter=...[origin/main] --filter=!@erp/e2e
 
       # --- Turborepo remote cache (disabled — MR-Q1, local cache only for now) ---
       # To enable later, set repo/org secrets and uncomment:
