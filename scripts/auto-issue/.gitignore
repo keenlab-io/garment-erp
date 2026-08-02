@@ -1,0 +1,2 @@
+# Runtime logs, state, and per-issue git worktrees produced by run.sh
+.runs/
