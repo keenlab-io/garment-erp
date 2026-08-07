@@ -1,0 +1,73 @@
+# Database migration Job — deliberately OUTSIDE the kustomize base so `kubectl apply -k`
+# never touches it. The deploy workflow substitutes the placeholders and applies it on its
+# own, BEFORE any Deployment is updated:
+#
+#   sed -e "s|__IMAGE__|$IMAGE|g" -e "s|__TAG__|$TAG|g" infra/k8s/jobs/migrate-job.yaml \
+#     | kubectl apply -f -
+#   kubectl -n erp wait --for=condition=complete job/erp-migrate-$TAG --timeout=300s
+#
+# Why a Job and not an initContainer: an initContainer runs once per replica and again on
+# every reschedule, so two erp-api pods would race two drizzle migrators against one
+# database. A Job runs exactly once per deploy, and its failure aborts the rollout while the
+# old pods keep serving.
+#
+# __TAG__ is the commit SHA. The name must change per deploy because a Job's pod template is
+# immutable — re-applying a fixed name fails instead of re-running.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: erp-migrate-__TAG__
+  namespace: erp
+  labels:
+    app.kubernetes.io/name: erp-migrate
+    app.kubernetes.io/part-of: erp
+spec:
+  # A failed migration must abort the deploy, not retry into a half-applied schema.
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  # Keep finished Jobs around for two days so `kubectl logs` still works post-incident,
+  # then let the TTL controller collect them.
+  ttlSecondsAfterFinished: 172800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: erp-migrate
+    spec:
+      restartPolicy: Never
+      serviceAccountName: erp-app
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          # The SAME image being deployed — schema and code always ship from one commit.
+          image: __IMAGE__
+          # Plain `node`, no tsx: packages/db compiles migrate.ts to dist, and the image
+          # preserves the workspace layout it needs to find /app/tooling/drizzle.
+          command: ["node", "packages/db/dist/migrate.js"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          # migrate.ts reads DATABASE_URL and nothing else, but envFrom keeps this in step
+          # with the app if that ever changes.
+          envFrom:
+            - secretRef:
+                name: erp-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

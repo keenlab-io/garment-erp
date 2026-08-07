@@ -1,5 +1,9 @@
-# Local development infrastructure only (spec MR-Q3 → "Dev Docker only").
-# Production k8s/IaC lives in a separate repo.
+# Local development infrastructure only — Postgres/Redis/MinIO for `pnpm dev` and the
+# integration/e2e suites. It does NOT build or run the apps themselves.
+#
+# Production infrastructure now lives in THIS repo (MR-Q3 resolved 2026-08-07), not a
+# separate one: `infra/docker/` holds the app images and `infra/k8s/` the Kustomize
+# manifests. See infra/k8s/README.md.
 services:
   postgres:
     image: postgres:16-alpine

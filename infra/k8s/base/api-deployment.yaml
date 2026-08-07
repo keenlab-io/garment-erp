@@ -1,0 +1,90 @@
+# apps/api image running in the "api" role: HTTP + Socket.IO only (no BullMQ processing —
+# that's the erp-worker Deployment, same image, APP_ROLE=worker).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: erp-api
+  namespace: erp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: erp-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: erp-api
+    spec:
+      serviceAccountName: erp-app
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: erp-api
+          image: ghcr.io/OWNER/erp-api:latest
+          ports:
+            - containerPort: 3000
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: APP_ROLE
+              value: "api"
+          envFrom:
+            - configMapRef:
+                name: erp-config
+            - secretRef:
+                name: erp-secrets
+          startupProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 3000
+            periodSeconds: 5
+            failureThreshold: 12
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 3000
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 3000
+            periodSeconds: 15
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              # Sleep before SIGTERM so Endpoints/kube-proxy have time to converge and stop
+              # routing new requests to this pod — in-flight requests get to drain instead of
+              # being cut off mid-response.
+              exec:
+                command: ["sleep", "5"]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: dshm
+              mountPath: /dev/shm
+      volumes:
+        # readOnlyRootFilesystem requires an explicit writable /tmp.
+        - name: tmp
+          emptyDir: {}
+        # The default 64Mi /dev/shm crashes Chromium (used for PDF rendering).
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 256Mi

@@ -1,0 +1,14 @@
+# No tailscale annotations here — the prod overlay patches those in
+# (infra/k8s/overlays/prod/kustomization.yaml), so this base Service stays environment-neutral.
+apiVersion: v1
+kind: Service
+metadata:
+  name: erp-web
+  namespace: erp
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: erp-web
+  ports:
+    - port: 80
+      targetPort: 8080

@@ -2,8 +2,9 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
+  # Called by deploy.yml on pushes to main, so a merge runs this suite exactly once as the
+  # release gate rather than twice (here and there).
+  workflow_call:
 
 jobs:
   verify:
@@ -22,13 +23,22 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Affected-only: build/test only what changed vs main (spec §10.1). The `test`
+      # Affected-only on PRs: build/test only what changed vs main (spec §10.1). The `test`
       # task runs the unit vitest suite; integration specs self-skip here (no
       # DATABASE_URL_TEST) and run in the dedicated `integration` job below.
       # `@erp/e2e` is excluded: its `test` script is Playwright, which needs the full
       # running stack (web+api+browsers) — it belongs in a dedicated e2e job, not this
       # stack-less unit verify job (see e2e/README.md §CI).
-      - run: pnpm turbo run lint typecheck test build --filter=...[origin/main] --filter=!@erp/e2e
+      #
+      # On main the affected filter is useless — `...[origin/main]` diffs main against
+      # itself and selects nothing — so the release gate verifies the whole workspace.
+      - name: Verify
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            pnpm turbo run lint typecheck test build --filter=!@erp/e2e
+          else
+            pnpm turbo run lint typecheck test build --filter=...[origin/main] --filter=!@erp/e2e
+          fi
 
       # --- Turborepo remote cache (disabled — MR-Q1, local cache only for now) ---
       # To enable later, set repo/org secrets and uncomment:
@@ -58,3 +68,13 @@ jobs:
       - run: pnpm --filter "@erp/api..." build
 
       - run: pnpm --filter @erp/api test:integration
+
+  # Renders the Kustomize overlay so a broken manifest fails on the PR rather than at
+  # deploy time, when the tailnet session and half a rollout are already in flight.
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - name: Render prod overlay
+        run: kubectl kustomize infra/k8s/overlays/prod > /dev/null

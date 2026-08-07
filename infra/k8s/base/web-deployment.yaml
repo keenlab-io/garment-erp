@@ -1,0 +1,72 @@
+# apps/web: static SPA served by nginx on :8080, which also reverse-proxies /api and
+# /socket.io to the erp-api Service.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: erp-web
+  namespace: erp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: erp-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: erp-web
+    spec:
+      serviceAccountName: erp-app
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: erp-web
+          image: ghcr.io/OWNER/erp-web:latest
+          ports:
+            - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 15
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              # Sleep before SIGTERM so Endpoints/kube-proxy have time to converge before
+              # nginx stops accepting connections, letting in-flight requests drain.
+              exec:
+                command: ["sleep", "5"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+      volumes:
+        # nginx-unprivileged needs both paths writable under readOnlyRootFilesystem.
+        - name: tmp
+          emptyDir: {}
+        - name: nginx-cache
+          emptyDir: {}

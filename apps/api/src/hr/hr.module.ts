@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { workersEnabled } from "../config/app-role.js";
 import { CryptoService } from "../common/crypto/crypto.service.js";
 import { AttendanceService } from "./attendance.service.js";
 import { CashAdvanceService } from "./cash-advance.service.js";
@@ -35,8 +36,10 @@ import { ProbationService } from "./probation.service.js";
     PayslipService,
     ExportService,
     ProbationService,
-    PayrollWorker,
-    PayslipPdfWorker,
+    // Queue processors run only in the `worker`/`all` roles — see `config/app-role.ts`.
+    // `ProbationService` stays on both sides: it only *upserts* the daily scan's repeatable
+    // job (a Redis write, idempotent by scheduler id); the scan itself runs on the worker.
+    ...(workersEnabled() ? [PayrollWorker, PayslipPdfWorker] : []),
   ],
 })
 export class HrModule {}

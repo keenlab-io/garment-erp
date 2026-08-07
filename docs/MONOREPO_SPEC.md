@@ -45,7 +45,10 @@
 ### Non-Goals
 - ไม่รวม deployment ของ api และ web เข้าด้วยกัน (ยังแยก artifact/container)
 - ไม่ publish package ขึ้น public npm registry (ทุกอย่าง internal/private)
-- ไม่ครอบคลุม infra-as-code / k8s manifests (อยู่ใน repo/spec แยก — ดู Open Questions)
+- ~~ไม่ครอบคลุม infra-as-code / k8s manifests (อยู่ใน repo/spec แยก — ดู Open Questions)~~
+  **แก้ไขแล้ว (MR-Q3, 2026-08-07):** k8s manifests + CI/CD อยู่ใน monorepo นี้ที่ `infra/k8s/`
+  และ `infra/docker/` เพื่อให้ api + web deploy จาก commit SHA เดียวกัน (lockstep) —
+  ดู [`infra/k8s/README.md`](../infra/k8s/README.md)
 
 ---
 
@@ -377,7 +380,13 @@ pnpm db:migrate
 
 - **MR-Q1:** ต้องการ remote cache แบบ self-hosted หรือใช้ Vercel Remote Cache? (กระทบต้นทุน/ความเร็ว CI)
 - **MR-Q2:** จะมี `packages/ui` (shared component library) ตั้งแต่ต้นหรือเริ่มจาก web อย่างเดียวก่อน?
-- **MR-Q3:** Infra/IaC (Docker compose, k8s) อยู่ใน monorepo นี้หรือ repo แยก?
+- ~~**MR-Q3:** Infra/IaC (Docker compose, k8s) อยู่ใน monorepo นี้หรือ repo แยก?~~
+  **ตัดสินใจแล้ว (2026-08-07): อยู่ใน monorepo นี้.** เหตุผลหลักคือ contract lockstep —
+  api และ web ต้อง deploy จาก SHA เดียวกัน (§13) ถ้า manifests อยู่คนละ repo จะไม่มีอะไร
+  รับประกันข้อนี้ได้ในเชิงโครงสร้าง. ที่อยู่: `infra/docker/` (Dockerfiles),
+  `infra/k8s/base` + `overlays/prod` (Kustomize), `infra/k8s/jobs` (migration Job),
+  `.github/workflows/deploy.yml`. Target cluster เป็น private LAN หลัง firewall เข้าถึงผ่าน
+  Tailscale operator + Nginx Proxy Manager ภายนอก — ดู [`infra/k8s/README.md`](../infra/k8s/README.md)
 - **MR-Q4:** มีแผนเปิด `@erp/contracts` ให้ระบบ/ทีมภายนอกใช้ในอนาคตหรือไม่? (ถ้าใช่ → เตรียม changesets)
 
 ---
