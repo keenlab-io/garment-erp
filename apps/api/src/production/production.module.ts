@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { workersEnabled } from "../config/app-role.js";
 import { CompletionService } from "./completion.service.js";
 import { ProductionController } from "./production.controller.js";
 import { ProductionMonitorWorker } from "./production-monitor.worker.js";
@@ -24,7 +25,8 @@ import { WorkOrderService } from "./work-order.service.js";
     SubcontractService,
     CompletionService,
     WipReportService,
-    ProductionMonitorWorker,
+    // Queue processors run only in the `worker`/`all` roles — see `config/app-role.ts`.
+    ...(workersEnabled() ? [ProductionMonitorWorker] : []),
   ],
 })
 export class ProductionModule {}

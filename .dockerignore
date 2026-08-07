@@ -1,0 +1,50 @@
+# Build context is the repo root for both images (infra/docker/*.Dockerfile). Keeping this
+# tight matters more than usual: the `pruner` stage copies the whole context before turbo
+# narrows it down, so anything listed here is never even sent to the daemon.
+
+# Dependencies + build output — every stage installs and builds from the pruned lockfile,
+# so host artifacts would only shadow them (and node_modules holds host-arch native builds
+# of argon2, which must NOT leak into a linux/amd64 image).
+node_modules/
+dist/
+build/
+.next/
+storybook-static/
+*.tsbuildinfo
+
+# Caches
+.turbo/
+coverage/
+.pnpm-store/
+
+# Secrets — apps/api/.env holds real JWT/encryption keys locally.
+.env
+.env.*
+!.env.example
+
+# VCS + tooling
+.git/
+.github/
+.devcontainer/
+.vscode/
+.idea/
+
+# Not needed to build or run either app.
+# NOTE: `e2e/` is deliberately NOT excluded — pnpm-workspace.yaml declares it as a workspace,
+# and removing it from the context risks a workspace-resolution failure in `turbo prune`.
+# Likewise test/story sources stay: each package's own tsconfig already excludes them from
+# its build, and dropping them from the context only risks a confusing tsc failure.
+docs/
+openspec/
+debugging/
+scripts/
+.claude/
+.claude-backup-*/
+.superpowers/
+infra/k8s/
+
+# Logs / OS
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.DS_Store

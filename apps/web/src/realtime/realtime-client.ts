@@ -23,6 +23,13 @@ export class RealtimeClient {
     if (this.socket) return this.socket;
     const socket = io({
       auth: (cb) => cb({ token: getAccessToken() }),
+      // WebSocket only — no HTTP long-polling fallback. Socket.IO's default handshake starts
+      // on polling and upgrades, which requires every request of that handshake to land on the
+      // same api pod. Nothing in the production chain provides sticky sessions (Nginx Proxy
+      // Manager → Tailscale → the erp-web Service across 2 nginx pods → the erp-api ClusterIP),
+      // so polling would fail intermittently once `erp-api` runs more than one replica.
+      // A single long-lived WebSocket connection is pinned to one pod by definition.
+      transports: ["websocket"],
     });
     socket.on("connect", () => {
       for (const room of this.rooms) {

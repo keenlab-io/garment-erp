@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { workersEnabled } from "../config/app-role.js";
 import { BackflushService } from "./backflush.service.js";
 import { BarcodeLabelWorker } from "./barcode-label.worker.js";
 import { BarcodeService } from "./barcode.service.js";
@@ -36,7 +37,8 @@ import { StockCountService } from "./stock-count.service.js";
     StockAdjustmentService,
     ReportService,
     BarcodeService,
-    BarcodeLabelWorker,
+    // Queue processors run only in the `worker`/`all` roles — see `config/app-role.ts`.
+    ...(workersEnabled() ? [BarcodeLabelWorker] : []),
   ],
 })
 export class InventoryModule {}

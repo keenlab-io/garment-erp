@@ -9,6 +9,13 @@ export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
 
+  // Which half of the deployment this process is. One image, two Deployments: `api` serves
+  // HTTP + Socket.IO, `worker` drains the BullMQ queues, `all` (the default) does both — the
+  // single-process behaviour dev and tests have always had. See `config/app-role.ts`; the
+  // helper there reads process.env directly (providers are evaluated before DI exists), so
+  // this entry is what makes a typo fail fast instead of silently degrading to `all`.
+  APP_ROLE: z.enum(["api", "worker", "all"]).default("all"),
+
   // Postgres (postgres.js) — numeric columns return as strings.
   DATABASE_URL: z.string().url(),
   DB_POOL_MAX: z.coerce.number().int().positive().default(10),

@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { workersEnabled } from "../config/app-role.js";
 import { AgingReportService } from "./aging-report.service.js";
 import { CustomerService } from "./customer.service.js";
 import { EtaxService } from "./etax.service.js";
@@ -34,8 +35,8 @@ import { VoidService } from "./void.service.js";
     ExportService,
     EtaxService,
     AgingReportService,
-    SalesJobsWorker,
-    OverdueMonitorWorker,
+    // Queue processors run only in the `worker`/`all` roles — see `config/app-role.ts`.
+    ...(workersEnabled() ? [SalesJobsWorker, OverdueMonitorWorker] : []),
   ],
 })
 export class SalesModule {}

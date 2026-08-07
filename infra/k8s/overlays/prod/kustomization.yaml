@@ -1,0 +1,39 @@
+# This is the only overlay today. A future `staging` overlay would be a copy of this
+# directory with a different namespace, a different tailscale hostname, and different
+# replica counts (via a replicas: patch) — nothing in `base` should need to change for it.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: erp
+
+resources:
+  - ../../base
+
+images:
+  # Placeholders — the deploy workflow overwrites these with real digests via
+  # `kustomize edit set image` at deploy time.
+  - name: ghcr.io/OWNER/erp-api
+    newTag: latest
+  - name: ghcr.io/OWNER/erp-web
+    newTag: latest
+
+# The Tailscale operator creates a proxy that joins the tailnet as
+# `garment-erp.<tailnet>.ts.net`; Nginx Proxy Manager (external, outside this cluster)
+# points its proxy host at `http://garment-erp.<tailnet>.ts.net:80`.
+#
+# VERIFY: the Tailscale operator's annotation surface has evolved across versions
+# (ProxyClass/ProxyGroup, `spec.loadBalancerClass: tailscale`, etc.) — confirm this
+# annotation pair is still correct for the installed operator version before first deploy.
+patches:
+  - target:
+      kind: Service
+      name: erp-web
+    patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: erp-web
+        annotations:
+          tailscale.com/expose: "true"
+          tailscale.com/hostname: "garment-erp"

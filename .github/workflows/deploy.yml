@@ -1,0 +1,226 @@
+name: Deploy
+
+# Push-based delivery into a cluster that has no inbound internet: the runner joins the
+# tailnet as an ephemeral Tailscale node and talks to the kube-apiserver over it. Public
+# traffic goes the other way — Nginx Proxy Manager (external, on the tailnet) → the
+# Tailscale operator proxy for the erp-web Service.
+on:
+  push:
+    branches: [main]
+  # Manual re-deploy of HEAD, and the supported way to re-converge after a failed run.
+  workflow_dispatch:
+
+# Never let two deploys interleave `kustomize edit` + `apply` against the same namespace.
+# cancel-in-progress stays false: aborting mid-rollout is worse than queueing.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  # Cluster nodes are x86_64. Multi-arch would double build time under QEMU for no benefit.
+  # VERIFY once against the cluster (`kubectl get nodes -o wide`) and change this single
+  # value if the nodes turn out to be arm64.
+  PLATFORM: linux/amd64
+  NAMESPACE: erp
+
+jobs:
+  # The full release gate — lint, typecheck, unit tests, build, integration, manifests.
+  verify:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        app: [api, web]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lowercase the owner for GHCR
+        id: repo
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/${{ matrix.app }}.Dockerfile
+          platforms: ${{ env.PLATFORM }}
+          push: true
+          # `sha-<commit>` is the immutable handle the deploy job resolves to a digest.
+          # `latest` is informational only — nothing deploys from it.
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.repo.outputs.owner }}/erp-${{ matrix.app }}:sha-${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.repo.outputs.owner }}/erp-${{ matrix.app }}:latest
+          # GitHub's own cache backend — no extra infrastructure. It evicts at 10GB; if
+          # these builds start thrashing, switch to
+          # type=registry,ref=<image>:buildcache.
+          cache-from: type=gha,scope=erp-${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=erp-${{ matrix.app }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    # Surfaces the deploy in the Environments UI and lets required reviewers be switched on
+    # later without touching this file.
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lowercase the owner for GHCR
+        id: repo
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Resolve the immutable SHA tags to digests and deploy by digest, so the rollout is
+      # unaffected if a tag is ever moved.
+      - name: Resolve image digests
+        id: images
+        run: |
+          set -euo pipefail
+          base="${REGISTRY}/${{ steps.repo.outputs.owner }}"
+          for app in api web; do
+            ref="${base}/erp-${app}:sha-${{ github.sha }}"
+            digest=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')
+            echo "${app}=${base}/erp-${app}@${digest}" >> "$GITHUB_OUTPUT"
+            echo "erp-${app} -> ${digest}"
+          done
+
+      # Ephemeral node: OAuth-created nodes leave the tailnet when the runner exits, which
+      # is what makes hosted runners viable here. `tag:ci` should be ACL-scoped to the
+      # apiserver endpoint only — it needs nothing else on the tailnet.
+      - name: Join the tailnet
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      # Installed explicitly rather than relying on whatever the runner image ships —
+      # `kustomize edit` needs the standalone binary, which kubectl does not provide.
+      - uses: azure/setup-kubectl@v4
+      - name: Install kustomize
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" \
+            | bash -s 5.4.3 /usr/local/bin
+
+      - name: Configure kubectl
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+          kubectl version --output=yaml --request-timeout=30s | head -20
+
+      # Rendered every run, so rotating a GitHub secret takes effect on the next deploy.
+      # Values reach the cluster over kubectl stdin — never through the job log.
+      - name: Render secrets
+        run: |
+          set -euo pipefail
+          kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+
+          # DATABASE_URL/REDIS_URL are composed here so the Postgres password has exactly
+          # one source of truth (PROD_POSTGRES_PASSWORD).
+          kubectl create secret generic erp-secrets \
+            --namespace "$NAMESPACE" \
+            --from-literal=DATABASE_URL="postgres://erp:${{ secrets.PROD_POSTGRES_PASSWORD }}@erp-postgres:5432/erp" \
+            --from-literal=REDIS_URL="redis://erp-redis:6379/0" \
+            --from-literal=POSTGRES_PASSWORD="${{ secrets.PROD_POSTGRES_PASSWORD }}" \
+            --from-literal=JWT_ACCESS_SECRET="${{ secrets.PROD_JWT_ACCESS_SECRET }}" \
+            --from-literal=JWT_REFRESH_SECRET="${{ secrets.PROD_JWT_REFRESH_SECRET }}" \
+            --from-literal=ENCRYPTION_KEY="${{ secrets.PROD_ENCRYPTION_KEY }}" \
+            --from-literal=S3_ACCESS_KEY="${{ secrets.PROD_S3_ACCESS_KEY }}" \
+            --from-literal=S3_SECRET_KEY="${{ secrets.PROD_S3_SECRET_KEY }}" \
+            --from-literal=MINIO_ROOT_USER="${{ secrets.PROD_MINIO_ROOT_USER }}" \
+            --from-literal=MINIO_ROOT_PASSWORD="${{ secrets.PROD_MINIO_ROOT_PASSWORD }}" \
+            --from-literal=SMTP_USER="${{ secrets.PROD_SMTP_USER }}" \
+            --from-literal=SMTP_PASS="${{ secrets.PROD_SMTP_PASS }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl create secret docker-registry ghcr-pull \
+            --namespace "$NAMESPACE" \
+            --docker-server="$REGISTRY" \
+            --docker-username="${{ steps.repo.outputs.owner }}" \
+            --docker-password="${{ secrets.GHCR_PULL_TOKEN }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # Runs BEFORE any Deployment changes. On failure the old pods are still serving and
+      # the job exits non-zero without touching them.
+      - name: Apply database migrations
+        run: |
+          set -euo pipefail
+          job="erp-migrate-${{ github.sha }}"
+          sed -e "s|__IMAGE__|${{ steps.images.outputs.api }}|g" \
+              -e "s|__TAG__|${{ github.sha }}|g" \
+              infra/k8s/jobs/migrate-job.yaml | kubectl apply -f -
+
+          if ! kubectl -n "$NAMESPACE" wait --for=condition=complete "job/$job" --timeout=300s; then
+            echo "::error::migration job did not complete — aborting before rollout"
+            kubectl -n "$NAMESPACE" describe "job/$job" || true
+            kubectl -n "$NAMESPACE" logs "job/$job" --tail=200 || true
+            exit 1
+          fi
+          kubectl -n "$NAMESPACE" logs "job/$job" --tail=50
+
+      - name: Apply manifests
+        run: |
+          set -euo pipefail
+          cd infra/k8s/overlays/prod
+          # The left-hand side is the image name as written in the manifests (the literal
+          # `OWNER` placeholder), NOT the resolved owner — that is the key kustomize
+          # matches on. Runner-local edit only; never committed.
+          kustomize edit set image \
+            "ghcr.io/OWNER/erp-api=${{ steps.images.outputs.api }}" \
+            "ghcr.io/OWNER/erp-web=${{ steps.images.outputs.web }}"
+          kubectl kustomize . | kubectl apply -f -
+
+      # api first: its env schema is zod-validated fail-fast, so a bad config or secret
+      # surfaces here as a CrashLoopBackOff before web is touched.
+      - name: Wait for rollout
+        run: |
+          set -euo pipefail
+          for d in erp-api erp-worker erp-web; do
+            kubectl -n "$NAMESPACE" rollout status "deploy/$d" --timeout=300s
+          done
+
+      # Exercises the real request path (nginx SPA container → erp-api Service) from inside
+      # the cluster, using busybox wget already present in the web image — no extra pull.
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          kubectl -n "$NAMESPACE" exec deploy/erp-web -- \
+            wget -qO- --timeout=10 http://localhost:8080/api/v1/health
+
+      - name: Roll back on failure
+        if: failure()
+        run: |
+          echo "::error::deploy failed — rolling back"
+          for d in erp-api erp-worker erp-web; do
+            kubectl -n "$NAMESPACE" rollout undo "deploy/$d" || true
+          done
+          kubectl -n "$NAMESPACE" get pods -o wide || true
+          kubectl -n "$NAMESPACE" get events --sort-by=.lastTimestamp | tail -40 || true
+          # NOTE: `rollout undo` does NOT revert the migration. That is safe only because
+          # migrations must be backward-compatible (expand -> contract); see
+          # infra/k8s/README.md.
