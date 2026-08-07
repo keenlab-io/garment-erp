@@ -1,0 +1,180 @@
+# Production deployment
+
+Kubernetes manifests and the delivery pipeline for `apps/api` + `apps/web`. This closes
+**MR-Q3** in [`docs/MONOREPO_SPEC.md`](../../docs/MONOREPO_SPEC.md): infra lives in this repo
+so api and web always ship from one commit SHA, which is what keeps the `@erp/contracts`
+lockstep guarantee real rather than aspirational.
+
+## Topology
+
+The cluster sits on a private LAN behind a restricted firewall. Nothing reaches it from the
+internet directly.
+
+```
+browser
+  │  https://<your-domain>
+  ▼
+Nginx Proxy Manager        ← external Tailscale machine, terminates public TLS
+  │  http://garment-erp.<tailnet>.ts.net:80
+  ▼
+Tailscale operator proxy   ← created from annotations on the erp-web Service
+  ▼
+erp-web pods (nginx)       ← serves the SPA, reverse-proxies /api + /socket.io
+  ▼
+erp-api Service :3000 ──▶ erp-api pods        (HTTP + Socket.IO, APP_ROLE=api)
+                          erp-worker pods     (BullMQ only, APP_ROLE=worker, no Service)
+                              │
+              erp-postgres / erp-redis / erp-minio (StatefulSets + PVCs)
+```
+
+**One hostname, one proxy host.** `apps/web` assumes the API is same-origin — `client.ts`
+uses `baseUrl: ""` and `realtime-client.ts` calls bare `io()` — so nginx inside the web pod
+proxies `/api` and `/socket.io` to `erp-api` rather than exposing two tailnet devices. That
+also means no CORS and one TLS cert.
+
+## Layout
+
+| Path | What |
+|---|---|
+| `infra/docker/api.Dockerfile` | api image — also runs the worker role and the migration Job |
+| `infra/docker/web.Dockerfile` + `web-nginx.conf` | SPA build → nginx-unprivileged :8080 |
+| `base/` | Namespace, ServiceAccount, ConfigMap, 3 Deployments, 5 Services, 3 StatefulSets, 2 PDBs |
+| `overlays/prod/` | namespace, image pins, Tailscale annotations |
+| `jobs/migrate-job.yaml` | per-SHA migration Job — **deliberately outside kustomize** |
+| `.github/workflows/deploy.yml` | verify → build → deploy |
+
+## One-time bootstrap
+
+Do these once per cluster, before the first deploy. None of it is automated — all of it is
+either a decision or a credential.
+
+1. **Verify the Tailscale operator surface.** The overlay annotates the `erp-web` Service
+   with `tailscale.com/expose: "true"` + `tailscale.com/hostname: "garment-erp"`. The
+   operator's API has changed across versions (ProxyClass, ProxyGroup,
+   `spec.loadBalancerClass: tailscale`). Confirm this pair against the installed version and
+   fix `overlays/prod/kustomization.yaml` if it has moved on.
+
+2. **Give CI a path to the kube-apiserver.** Either
+   - the operator's **API-server proxy** in auth mode — the kubeconfig is then just
+     `server: https://<operator-host>.ts.net` (ts.net certs are publicly trusted, so no CA
+     blob), with a tailnet ACL grant mapping `tag:ci` to a k8s group, bound by a Role scoped
+     to namespace `erp`; or
+   - a kubeconfig containing the cluster CA and a long-lived ServiceAccount token for an
+     `erp-deployer` SA (k8s ≥1.24 needs an explicit `Secret` of type
+     `service-account-token`).
+
+   Base64 the result into the `KUBE_CONFIG` GitHub secret.
+
+3. **Lock down `tag:ci` in the tailnet ACL** so it can reach the apiserver and nothing else,
+   and allow the Nginx Proxy Manager node to reach the operator proxy on :80.
+
+4. **Populate the GitHub secrets** (below), then run the workflow once via
+   `workflow_dispatch`. The first run creates the namespace, secrets, StatefulSets and PVCs.
+
+5. **Create the MinIO bucket.** `StorageModule` does *not* create it:
+   ```bash
+   kubectl -n erp run mc --rm -it --restart=Never --image=minio/mc -- \
+     sh -c 'mc alias set s3 http://erp-minio:9000 "$USER" "$PASS" && mc mb -p s3/erp'
+   ```
+
+6. **Seed the super-admin** (idempotent, but only ever needed once):
+   ```bash
+   kubectl -n erp exec deploy/erp-api -- node packages/db/dist/seed/seed.js
+   ```
+   Then change the password immediately — the default is `superadmin` / `changeme`.
+   Note: `onConflictDoNothing` means re-seeding an existing database will *not* reset a
+   forgotten password.
+
+7. **Create the Nginx Proxy Manager host** pointing at
+   `http://garment-erp.<tailnet>.ts.net:80`, and **turn on "Websockets Support"** — without
+   it the production realtime timeline silently never connects.
+
+### GitHub secrets
+
+| Secret | Purpose |
+|---|---|
+| `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` | Tailscale OAuth client for the ephemeral CI node |
+| `KUBE_CONFIG` | base64 kubeconfig pointing at the apiserver over the tailnet |
+| `GHCR_PULL_TOKEN` | PAT with `read:packages`, used for the in-cluster pull secret |
+| `PROD_POSTGRES_PASSWORD` | single source for the DB password and `DATABASE_URL` |
+| `PROD_JWT_ACCESS_SECRET`, `PROD_JWT_REFRESH_SECRET` | token signing |
+| `PROD_ENCRYPTION_KEY` | 64 hex chars — PII (national ID) encryption |
+| `PROD_S3_ACCESS_KEY`, `PROD_S3_SECRET_KEY` | app credentials for MinIO |
+| `PROD_MINIO_ROOT_USER`, `PROD_MINIO_ROOT_PASSWORD` | MinIO root |
+| `PROD_SMTP_USER`, `PROD_SMTP_PASS` | optional; mail degrades to in-app alerts without them |
+
+Secrets are re-rendered on every deploy, so rotating one takes effect on the next run.
+Running pods keep the old values until they restart — rotation means *update the secret, then
+re-run the deploy*.
+
+## Deploying
+
+Push to `main`, or run the **Deploy** workflow manually. The pipeline is:
+
+1. `verify` — the full CI suite (on `main` the affected-filter is bypassed; it would diff main
+   against itself and select nothing).
+2. `build` — Buildx → GHCR, tagged `sha-<commit>` and `latest`.
+3. `deploy` — join the tailnet → resolve tags to **digests** → render secrets → run the
+   migration Job and wait → `kubectl apply` → `rollout status` (api, worker, web) → health
+   smoke through the real nginx path.
+
+Deploys are serialized by a `concurrency` group and pinned by digest, so a moved tag cannot
+change what is running.
+
+### Migrations
+
+The Job runs the **same image** being deployed, before any Deployment is touched. If it
+fails, the deploy aborts and the old pods keep serving.
+
+> **Migrations must be backward-compatible (expand → contract).** Between the Job completing
+> and the rollout finishing, old code runs against the new schema. Add columns/tables in one
+> release; drop them in a later one.
+
+`rollout undo` does not revert a migration — the expand→contract rule is what makes rollback
+safe.
+
+### Rollback
+
+The deploy job rolls back automatically on failure. Manually:
+
+```bash
+kubectl -n erp rollout undo deploy/erp-api deploy/erp-worker deploy/erp-web
+```
+
+If the tailnet drops mid-deploy, just re-run the workflow at the same SHA — every step is
+idempotent (secrets re-apply, the migration Job is a no-op once complete, `apply` is
+declarative).
+
+## Operating notes
+
+- **`erp-api` scales; `erp-worker` does not.** Socket.IO broadcasts cross replicas via the
+  Redis adapter, and the web client is pinned to the `websocket` transport because nothing in
+  the chain provides sticky sessions for the polling handshake. `erp-worker` stays at 1
+  replica — BullMQ would distribute jobs correctly at higher counts, but nothing needs it yet.
+- **Shutdown ordering is deliberate.** `WorkerDrainService` closes BullMQ workers in
+  `onModuleDestroy`; the DB pool, Chromium and the Redis pub/sub clients close in
+  `onApplicationShutdown`. Reversing that kills in-flight payroll runs. `erp-worker` gets a
+  120s grace period to match.
+- **Redis runs with `--appendonly yes`** because the BullMQ queues live there. Turning AOF
+  off silently drops queued payroll and report jobs on restart.
+
+## Known gaps
+
+These are stated, not solved:
+
+- **No PVC backups.** Postgres, the Redis AOF and MinIO each sit on a single volume. With
+  local-path storage, losing a node is data loss. A `pg_dump` CronJob to MinIO plus an
+  off-cluster copy is the minimum follow-up.
+- **MinIO is single-node** — no erasure coding, no replication, and it holds every generated
+  document.
+- **`ENCRYPTION_KEY` rotation is unsupported.** Changing it orphans existing encrypted PII;
+  it would need a re-encryption migration.
+- **Nginx Proxy Manager is a manually-configured SPOF** outside CI. Its WebSocket toggle and
+  timeouts are checklist items, not code.
+- **`@erp/e2e` is not in the pipeline.** The gate is lint/typecheck/unit/integration plus a
+  health smoke — not a browser test against production.
+- **Image platform is pinned to `linux/amd64`** (`PLATFORM` in `deploy.yml`). Confirm with
+  `kubectl get nodes -o wide`.
+
+Out of scope for now: staging overlay, NetworkPolicies, HPA, observability, Turbo remote
+cache (MR-Q1 stays open), multi-arch images, sealed-secrets/SOPS.

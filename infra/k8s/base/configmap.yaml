@@ -1,0 +1,17 @@
+# Non-secret env only. Every other env var has a safe default in
+# apps/api/src/config/env.schema.ts — add a key here only when overriding that default.
+# APP_ROLE is NOT here: it selects the api/worker role and is set per-Deployment.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: erp-config
+  namespace: erp
+data:
+  NODE_ENV: "production"
+  S3_ENDPOINT: "http://erp-minio:9000"
+  S3_BUCKET: "erp"
+  S3_FORCE_PATH_STYLE: "true"
+  S3_REGION: "us-east-1"
+  SMTP_HOST: "localhost"
+  SMTP_PORT: "1025"
+  SMTP_FROM: "reports@erp.local"

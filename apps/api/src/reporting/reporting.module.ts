@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { workersEnabled } from "../config/app-role.js";
 import { DashboardService } from "./dashboard.service.js";
 import { DigestService } from "./digest.service.js";
 import { EmailWorker } from "./mail.worker.js";
@@ -27,10 +28,11 @@ import { ReportingController } from "./reporting.controller.js";
     MailService,
     DigestService,
     ReportScheduleService,
-    ReportJobsWorker,
-    EmailWorker,
+    // `MvRefreshSubscriber` stays on both sides — it listens for domain events and *enqueues*
+    // a debounced refresh; only the processing half moves to the worker.
     MvRefreshSubscriber,
-    MvRefreshWorker,
+    // Queue processors run only in the `worker`/`all` roles — see `config/app-role.ts`.
+    ...(workersEnabled() ? [ReportJobsWorker, EmailWorker, MvRefreshWorker] : []),
   ],
 })
 export class ReportingModule {}

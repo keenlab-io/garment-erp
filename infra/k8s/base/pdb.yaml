@@ -1,0 +1,24 @@
+# erp-worker deliberately has NO PodDisruptionBudget: it is single-replica, and a PDB on a
+# single-replica workload would block node drains (voluntary eviction can never satisfy
+# minAvailable: 1 when there's only one pod to begin with).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: erp-api-pdb
+  namespace: erp
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: erp-api
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: erp-web-pdb
+  namespace: erp
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: erp-web

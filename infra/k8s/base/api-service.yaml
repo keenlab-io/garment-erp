@@ -1,0 +1,14 @@
+# Selector deliberately excludes erp-worker pods (different app.kubernetes.io/name label) —
+# the worker role takes no HTTP traffic.
+apiVersion: v1
+kind: Service
+metadata:
+  name: erp-api
+  namespace: erp
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: erp-api
+  ports:
+    - port: 3000
+      targetPort: 3000

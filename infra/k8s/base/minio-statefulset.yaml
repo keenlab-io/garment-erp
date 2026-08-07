@@ -1,0 +1,73 @@
+# The console (:9001) is deliberately not exposed here. Single-node MinIO has no erasure
+# coding — see infra/k8s/README.md.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: erp-minio
+  namespace: erp
+spec:
+  serviceName: erp-minio
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: erp-minio
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: erp-minio
+    spec:
+      containers:
+        - name: minio
+          image: minio/minio
+          args: ["server", "/data"]
+          ports:
+            - containerPort: 9000
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: erp-secrets
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: erp-secrets
+                  key: MINIO_ROOT_PASSWORD
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 50Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: erp-minio
+  namespace: erp
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: erp-minio
+  ports:
+    - port: 9000

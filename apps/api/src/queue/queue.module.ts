@@ -1,7 +1,9 @@
 import { Global, Module } from "@nestjs/common";
+import { DiscoveryModule } from "@nestjs/core";
 import { BullModule } from "@nestjs/bullmq";
 import { ConfigService } from "@nestjs/config";
 import { DEFAULT_JOB_OPTIONS, QUEUE_NAMES } from "./queue.constants.js";
+import { WorkerDrainService } from "./worker-drain.service.js";
 
 /**
  * Global BullMQ queue module. The connection is parsed from `REDIS_URL` into plain
@@ -13,6 +15,8 @@ import { DEFAULT_JOB_OPTIONS, QUEUE_NAMES } from "./queue.constants.js";
 @Global()
 @Module({
   imports: [
+    // `WorkerDrainService` discovers every `WorkerHost` provider at shutdown.
+    DiscoveryModule,
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
@@ -35,6 +39,7 @@ import { DEFAULT_JOB_OPTIONS, QUEUE_NAMES } from "./queue.constants.js";
     }),
     ...QUEUE_NAMES.map((name) => BullModule.registerQueue({ name })),
   ],
+  providers: [WorkerDrainService],
   exports: [BullModule],
 })
 export class QueueModule {}
