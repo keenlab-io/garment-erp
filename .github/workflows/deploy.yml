@@ -148,20 +148,34 @@ jobs:
 
           # DATABASE_URL/REDIS_URL are composed here so the Postgres password has exactly
           # one source of truth (PROD_POSTGRES_PASSWORD).
+          literals=(
+            --from-literal=DATABASE_URL="postgres://erp:${{ secrets.PROD_POSTGRES_PASSWORD }}@erp-postgres:5432/erp"
+            --from-literal=REDIS_URL="redis://erp-redis:6379/0"
+            --from-literal=POSTGRES_PASSWORD="${{ secrets.PROD_POSTGRES_PASSWORD }}"
+            --from-literal=JWT_ACCESS_SECRET="${{ secrets.PROD_JWT_ACCESS_SECRET }}"
+            --from-literal=JWT_REFRESH_SECRET="${{ secrets.PROD_JWT_REFRESH_SECRET }}"
+            --from-literal=ENCRYPTION_KEY="${{ secrets.PROD_ENCRYPTION_KEY }}"
+            --from-literal=S3_ACCESS_KEY="${{ secrets.PROD_S3_ACCESS_KEY }}"
+            --from-literal=S3_SECRET_KEY="${{ secrets.PROD_S3_SECRET_KEY }}"
+            --from-literal=MINIO_ROOT_USER="${{ secrets.PROD_MINIO_ROOT_USER }}"
+            --from-literal=MINIO_ROOT_PASSWORD="${{ secrets.PROD_MINIO_ROOT_PASSWORD }}"
+          )
+
+          # SMTP is optional — mail degrades to in-app alerts without it. Adding these keys
+          # unconditionally set them to "" when the GitHub secret is unset, and the env
+          # schema's `z.string().min(1).optional()` permits the key being ABSENT, not empty:
+          # every api and worker pod died at boot on "SMTP_USER: String must contain at
+          # least 1 character(s)". Only pass them when they actually carry a value.
+          if [ -n "${{ secrets.PROD_SMTP_USER }}" ]; then
+            literals+=(--from-literal=SMTP_USER="${{ secrets.PROD_SMTP_USER }}")
+          fi
+          if [ -n "${{ secrets.PROD_SMTP_PASS }}" ]; then
+            literals+=(--from-literal=SMTP_PASS="${{ secrets.PROD_SMTP_PASS }}")
+          fi
+
           kubectl create secret generic erp-secrets \
             --namespace "$NAMESPACE" \
-            --from-literal=DATABASE_URL="postgres://erp:${{ secrets.PROD_POSTGRES_PASSWORD }}@erp-postgres:5432/erp" \
-            --from-literal=REDIS_URL="redis://erp-redis:6379/0" \
-            --from-literal=POSTGRES_PASSWORD="${{ secrets.PROD_POSTGRES_PASSWORD }}" \
-            --from-literal=JWT_ACCESS_SECRET="${{ secrets.PROD_JWT_ACCESS_SECRET }}" \
-            --from-literal=JWT_REFRESH_SECRET="${{ secrets.PROD_JWT_REFRESH_SECRET }}" \
-            --from-literal=ENCRYPTION_KEY="${{ secrets.PROD_ENCRYPTION_KEY }}" \
-            --from-literal=S3_ACCESS_KEY="${{ secrets.PROD_S3_ACCESS_KEY }}" \
-            --from-literal=S3_SECRET_KEY="${{ secrets.PROD_S3_SECRET_KEY }}" \
-            --from-literal=MINIO_ROOT_USER="${{ secrets.PROD_MINIO_ROOT_USER }}" \
-            --from-literal=MINIO_ROOT_PASSWORD="${{ secrets.PROD_MINIO_ROOT_PASSWORD }}" \
-            --from-literal=SMTP_USER="${{ secrets.PROD_SMTP_USER }}" \
-            --from-literal=SMTP_PASS="${{ secrets.PROD_SMTP_PASS }}" \
+            "${literals[@]}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
           kubectl create secret docker-registry ghcr-pull \
