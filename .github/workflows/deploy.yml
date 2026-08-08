@@ -121,8 +121,15 @@ jobs:
       - name: Install kustomize
         run: |
           set -euo pipefail
+          # The runner image ships its own kustomize, and install_kustomize.sh refuses to
+          # overwrite an existing binary ("/usr/local/bin/kustomize exists. Remove it
+          # first.") — it exits 1 and fails the deploy. Remove it so the pinned version
+          # below is the one that actually runs, rather than whatever the image happens to
+          # carry this week.
+          sudo rm -f /usr/local/bin/kustomize
           curl -fsSL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" \
             | bash -s 5.4.3 /usr/local/bin
+          kustomize version
 
       - name: Configure kubectl
         run: |
