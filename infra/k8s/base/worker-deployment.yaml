@@ -5,6 +5,8 @@ kind: Deployment
 metadata:
   name: erp-worker
   namespace: erp
+  labels:
+    app.kubernetes.io/component: app
 spec:
   replicas: 1
   selector:
