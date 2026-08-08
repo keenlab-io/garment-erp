@@ -58,16 +58,61 @@ either a decision or a credential.
    The tailnet is **`tail0b8c39.ts.net`**, so production resolves to
    **`garment-erp.tail0b8c39.ts.net`**.
 
-2. **Give CI a path to the kube-apiserver.** Either
-   - the operator's **API-server proxy** in auth mode — the kubeconfig is then just
-     `server: https://<operator-host>.ts.net` (ts.net certs are publicly trusted, so no CA
-     blob), with a tailnet ACL grant mapping `tag:ci` to a k8s group, bound by a Role scoped
-     to namespace `erp`; or
-   - a kubeconfig containing the cluster CA and a long-lived ServiceAccount token for an
-     `erp-deployer` SA (k8s ≥1.24 needs an explicit `Secret` of type
-     `service-account-token`).
+2. **Give CI a path to the kube-apiserver.** Use the operator's **API-server proxy**. It is
+   already enabled on this cluster (`APISERVER_PROXY=true`, i.e. auth mode) and verified
+   reachable — `https://tailscale-operator.tail0b8c39.ts.net/version` returns 200 with a
+   publicly trusted cert, so the kubeconfig needs **no CA blob and no token**:
 
-   Base64 the result into the `KUBE_CONFIG` GitHub secret.
+   ```yaml
+   apiVersion: v1
+   kind: Config
+   current-context: erp
+   clusters:
+     - name: erp
+       cluster:
+         server: https://tailscale-operator.tail0b8c39.ts.net
+   contexts:
+     - name: erp
+       context: { cluster: erp, namespace: erp, user: tailscale }
+   users:
+     - name: tailscale
+       user: {}
+   ```
+
+   In auth mode the proxy identifies the caller by tailnet identity and impersonates the
+   groups from the ACL grant, so the credential *is* the `tag:ci` tag on the ephemeral runner
+   node. Add the grant in the tailnet policy file:
+
+   ```json
+   "grants": [{
+     "src": ["tag:ci"],
+     "dst": ["tag:k8s-operator"],
+     "ip":  ["443"],
+     "app": { "tailscale.com/cap/kubernetes": [
+       { "impersonate": { "groups": ["erp-deployers"] } }
+     ]}
+   }]
+   ```
+
+   Then apply the in-cluster half **once, with cluster-admin** — it is outside the kustomize
+   base so the deploy can never widen its own permissions:
+
+   ```bash
+   kubectl apply -f infra/k8s/rbac/ci-deployer.yaml
+   ```
+
+   Note that a Role scoped to namespace `erp` is *not* sufficient on its own: the deploy runs
+   `kubectl create namespace` and the kustomize base contains a `Namespace` object, both
+   cluster-scoped. `ci-deployer.yaml` handles this by pre-creating the namespace and granting
+   only `get`/`patch` on that one name, because `create` on namespaces cannot be restricted
+   by `resourceNames`. It also grants `pods/exec`, without which the deploy passes rollout and
+   then fails on its final smoke-test step.
+
+   Finally, base64 the kubeconfig into the `KUBE_CONFIG` GitHub secret:
+
+   ```bash
+   base64 -w0 ci-kubeconfig.yaml | gh secret set KUBE_CONFIG --env production
+   ```
 
 3. **Lock down `tag:ci` in the tailnet ACL** so it can reach the apiserver and nothing else,
    and allow the Nginx Proxy Manager node to reach the operator proxy on :80.
