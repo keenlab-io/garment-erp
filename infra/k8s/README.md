@@ -48,11 +48,15 @@ also means no CORS and one TLS cert.
 Do these once per cluster, before the first deploy. None of it is automated — all of it is
 either a decision or a credential.
 
-1. **Verify the Tailscale operator surface.** The overlay annotates the `erp-web` Service
-   with `tailscale.com/expose: "true"` + `tailscale.com/hostname: "garment-erp"`. The
-   operator's API has changed across versions (ProxyClass, ProxyGroup,
-   `spec.loadBalancerClass: tailscale`). Confirm this pair against the installed version and
-   fix `overlays/prod/kustomization.yaml` if it has moved on.
+1. ~~**Verify the Tailscale operator surface.**~~ **Done — verified 2026-08-08.** The overlay
+   annotates the `erp-web` Service with `tailscale.com/expose: "true"` +
+   `tailscale.com/hostname: "garment-erp"`. Tested end-to-end against the installed operator
+   (**v1.80.3**) with a throwaway Service: proxy created in ~6s, `TailscaleProxyReady=True`,
+   device registered under the annotated hostname, HTTP 200 on :80 across the tailnet, and a
+   clean teardown on delete. No change needed. Re-check only if the operator is upgraded.
+
+   The tailnet is **`tail0b8c39.ts.net`**, so production resolves to
+   **`garment-erp.tail0b8c39.ts.net`**.
 
 2. **Give CI a path to the kube-apiserver.** Either
    - the operator's **API-server proxy** in auth mode — the kubeconfig is then just
@@ -86,8 +90,11 @@ either a decision or a credential.
    forgotten password.
 
 7. **Create the Nginx Proxy Manager host** pointing at
-   `http://garment-erp.<tailnet>.ts.net:80`, and **turn on "Websockets Support"** — without
+   `http://garment-erp.tail0b8c39.ts.net:80`, and **turn on "Websockets Support"** — without
    it the production realtime timeline silently never connects.
+
+   The operator runs with `PROXY_TAGS=tag:k8s`, so the tailnet ACL grant that lets the NPM
+   node reach the proxy on :80 must target `tag:k8s`.
 
 ### GitHub secrets
 
@@ -162,9 +169,12 @@ declarative).
 
 These are stated, not solved:
 
-- **No PVC backups.** Postgres, the Redis AOF and MinIO each sit on a single volume. With
-  local-path storage, losing a node is data loss. A `pg_dump` CronJob to MinIO plus an
-  off-cluster copy is the minimum follow-up.
+- **No PVC backups.** Postgres, the Redis AOF and MinIO each sit on a single volume. A
+  `pg_dump` CronJob to MinIO plus an off-cluster copy is the minimum follow-up.
+  (Corrected 2026-08-08: this previously claimed "with local-path storage, losing a node is
+  data loss". The target cluster has no local-path StorageClass — the PVCs inherit the
+  default **`rook-ceph-block`**, replicated Ceph RBD with a `host` failure domain, so node
+  loss is *not* data loss. Replication still is not backup, so the gap stands.)
 - **MinIO is single-node** — no erasure coding, no replication, and it holds every generated
   document.
 - **`ENCRYPTION_KEY` rotation is unsupported.** Changing it orphans existing encrypted PII;
@@ -173,8 +183,8 @@ These are stated, not solved:
   timeouts are checklist items, not code.
 - **`@erp/e2e` is not in the pipeline.** The gate is lint/typecheck/unit/integration plus a
   health smoke — not a browser test against production.
-- **Image platform is pinned to `linux/amd64`** (`PLATFORM` in `deploy.yml`). Confirm with
-  `kubectl get nodes -o wide`.
+- **Image platform is pinned to `linux/amd64`** (`PLATFORM` in `deploy.yml`). Confirmed
+  2026-08-08: all 34 nodes report `architecture: amd64`.
 
 Out of scope for now: staging overlay, NetworkPolicies, HPA, observability, Turbo remote
 cache (MR-Q1 stays open), multi-arch images, sealed-secrets/SOPS.

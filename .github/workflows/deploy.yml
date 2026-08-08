@@ -19,8 +19,7 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   # Cluster nodes are x86_64. Multi-arch would double build time under QEMU for no benefit.
-  # VERIFY once against the cluster (`kubectl get nodes -o wide`) and change this single
-  # value if the nodes turn out to be arm64.
+  # VERIFIED 2026-08-08: all 34 nodes report `architecture: amd64`.
   PLATFORM: linux/amd64
   NAMESPACE: erp
 
