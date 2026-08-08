@@ -79,19 +79,30 @@ either a decision or a credential.
        user: {}
    ```
 
-   In auth mode the proxy identifies the caller by tailnet identity and impersonates the
-   groups from the ACL grant, so the credential *is* the `tag:ci` tag on the ephemeral runner
-   node. Add the grant in the tailnet policy file:
+   In auth mode the proxy identifies the caller by tailnet identity: the Kubernetes username
+   is the node's FQDN, and **the node's tags become its Kubernetes groups**. So the credential
+   *is* the `tag:ci` tag on the ephemeral runner node, and a plain network grant is all the
+   tailnet policy file needs — no app capability:
 
    ```json
+   "tagOwners": { "tag:ci": ["autogroup:admin"] },
+
    "grants": [{
      "src": ["tag:ci"],
      "dst": ["tag:k8s-operator"],
-     "ip":  ["443"],
-     "app": { "tailscale.com/cap/kubernetes": [
-       { "impersonate": { "groups": ["erp-deployers"] } }
-     ]}
+     "ip":  ["tcp:443"]
    }]
+   ```
+
+   `ci-deployer.yaml` binds the group `tag:ci` directly, which is why nothing more is needed.
+   If you would rather not bind a tag-shaped group name, add an impersonate capability and the
+   groups it names take precedence over the tag-derived ones — the bindings list `erp-deployers`
+   as a second subject for exactly that case:
+
+   ```json
+   "app": { "tailscale.com/cap/kubernetes": [
+     { "impersonate": { "groups": ["erp-deployers"] } }
+   ]}
    ```
 
    Then apply the in-cluster half **once, with cluster-admin** — it is outside the kustomize
