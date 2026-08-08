@@ -48,22 +48,82 @@ also means no CORS and one TLS cert.
 Do these once per cluster, before the first deploy. None of it is automated — all of it is
 either a decision or a credential.
 
-1. **Verify the Tailscale operator surface.** The overlay annotates the `erp-web` Service
-   with `tailscale.com/expose: "true"` + `tailscale.com/hostname: "garment-erp"`. The
-   operator's API has changed across versions (ProxyClass, ProxyGroup,
-   `spec.loadBalancerClass: tailscale`). Confirm this pair against the installed version and
-   fix `overlays/prod/kustomization.yaml` if it has moved on.
+1. ~~**Verify the Tailscale operator surface.**~~ **Done — verified 2026-08-08.** The overlay
+   annotates the `erp-web` Service with `tailscale.com/expose: "true"` +
+   `tailscale.com/hostname: "garment-erp"`. Tested end-to-end against the installed operator
+   (**v1.80.3**) with a throwaway Service: proxy created in ~6s, `TailscaleProxyReady=True`,
+   device registered under the annotated hostname, HTTP 200 on :80 across the tailnet, and a
+   clean teardown on delete. No change needed. Re-check only if the operator is upgraded.
 
-2. **Give CI a path to the kube-apiserver.** Either
-   - the operator's **API-server proxy** in auth mode — the kubeconfig is then just
-     `server: https://<operator-host>.ts.net` (ts.net certs are publicly trusted, so no CA
-     blob), with a tailnet ACL grant mapping `tag:ci` to a k8s group, bound by a Role scoped
-     to namespace `erp`; or
-   - a kubeconfig containing the cluster CA and a long-lived ServiceAccount token for an
-     `erp-deployer` SA (k8s ≥1.24 needs an explicit `Secret` of type
-     `service-account-token`).
+   The tailnet is **`tail0b8c39.ts.net`**, so production resolves to
+   **`garment-erp.tail0b8c39.ts.net`**.
 
-   Base64 the result into the `KUBE_CONFIG` GitHub secret.
+2. **Give CI a path to the kube-apiserver.** Use the operator's **API-server proxy**. It is
+   already enabled on this cluster (`APISERVER_PROXY=true`, i.e. auth mode) and verified
+   reachable — `https://tailscale-operator.tail0b8c39.ts.net/version` returns 200 with a
+   publicly trusted cert, so the kubeconfig needs **no CA blob and no token**:
+
+   ```yaml
+   apiVersion: v1
+   kind: Config
+   current-context: erp
+   clusters:
+     - name: erp
+       cluster:
+         server: https://tailscale-operator.tail0b8c39.ts.net
+   contexts:
+     - name: erp
+       context: { cluster: erp, namespace: erp, user: tailscale }
+   users:
+     - name: tailscale
+       user: {}
+   ```
+
+   In auth mode the proxy identifies the caller by tailnet identity: the Kubernetes username
+   is the node's FQDN, and **the node's tags become its Kubernetes groups**. So the credential
+   *is* the `tag:ci` tag on the ephemeral runner node, and a plain network grant is all the
+   tailnet policy file needs — no app capability:
+
+   ```json
+   "tagOwners": { "tag:ci": ["autogroup:admin"] },
+
+   "grants": [{
+     "src": ["tag:ci"],
+     "dst": ["tag:k8s-operator"],
+     "ip":  ["tcp:443"]
+   }]
+   ```
+
+   `ci-deployer.yaml` binds the group `tag:ci` directly, which is why nothing more is needed.
+   If you would rather not bind a tag-shaped group name, add an impersonate capability and the
+   groups it names take precedence over the tag-derived ones — the bindings list `erp-deployers`
+   as a second subject for exactly that case:
+
+   ```json
+   "app": { "tailscale.com/cap/kubernetes": [
+     { "impersonate": { "groups": ["erp-deployers"] } }
+   ]}
+   ```
+
+   Then apply the in-cluster half **once, with cluster-admin** — it is outside the kustomize
+   base so the deploy can never widen its own permissions:
+
+   ```bash
+   kubectl apply -f infra/k8s/rbac/ci-deployer.yaml
+   ```
+
+   Note that a Role scoped to namespace `erp` is *not* sufficient on its own: the deploy runs
+   `kubectl create namespace` and the kustomize base contains a `Namespace` object, both
+   cluster-scoped. `ci-deployer.yaml` handles this by pre-creating the namespace and granting
+   only `get`/`patch` on that one name, because `create` on namespaces cannot be restricted
+   by `resourceNames`. It also grants `pods/exec`, without which the deploy passes rollout and
+   then fails on its final smoke-test step.
+
+   Finally, base64 the kubeconfig into the `KUBE_CONFIG` GitHub secret:
+
+   ```bash
+   base64 -w0 ci-kubeconfig.yaml | gh secret set KUBE_CONFIG --env production
+   ```
 
 3. **Lock down `tag:ci` in the tailnet ACL** so it can reach the apiserver and nothing else,
    and allow the Nginx Proxy Manager node to reach the operator proxy on :80.
@@ -86,8 +146,11 @@ either a decision or a credential.
    forgotten password.
 
 7. **Create the Nginx Proxy Manager host** pointing at
-   `http://garment-erp.<tailnet>.ts.net:80`, and **turn on "Websockets Support"** — without
+   `http://garment-erp.tail0b8c39.ts.net:80`, and **turn on "Websockets Support"** — without
    it the production realtime timeline silently never connects.
+
+   The operator runs with `PROXY_TAGS=tag:k8s`, so the tailnet ACL grant that lets the NPM
+   node reach the proxy on :80 must target `tag:k8s`.
 
 ### GitHub secrets
 
@@ -162,9 +225,12 @@ declarative).
 
 These are stated, not solved:
 
-- **No PVC backups.** Postgres, the Redis AOF and MinIO each sit on a single volume. With
-  local-path storage, losing a node is data loss. A `pg_dump` CronJob to MinIO plus an
-  off-cluster copy is the minimum follow-up.
+- **No PVC backups.** Postgres, the Redis AOF and MinIO each sit on a single volume. A
+  `pg_dump` CronJob to MinIO plus an off-cluster copy is the minimum follow-up.
+  (Corrected 2026-08-08: this previously claimed "with local-path storage, losing a node is
+  data loss". The target cluster has no local-path StorageClass — the PVCs inherit the
+  default **`rook-ceph-block`**, replicated Ceph RBD with a `host` failure domain, so node
+  loss is *not* data loss. Replication still is not backup, so the gap stands.)
 - **MinIO is single-node** — no erasure coding, no replication, and it holds every generated
   document.
 - **`ENCRYPTION_KEY` rotation is unsupported.** Changing it orphans existing encrypted PII;
@@ -173,8 +239,8 @@ These are stated, not solved:
   timeouts are checklist items, not code.
 - **`@erp/e2e` is not in the pipeline.** The gate is lint/typecheck/unit/integration plus a
   health smoke — not a browser test against production.
-- **Image platform is pinned to `linux/amd64`** (`PLATFORM` in `deploy.yml`). Confirm with
-  `kubectl get nodes -o wide`.
+- **Image platform is pinned to `linux/amd64`** (`PLATFORM` in `deploy.yml`). Confirmed
+  2026-08-08: all 34 nodes report `architecture: amd64`.
 
 Out of scope for now: staging overlay, NetworkPolicies, HPA, observability, Turbo remote
 cache (MR-Q1 stays open), multi-arch images, sealed-secrets/SOPS.

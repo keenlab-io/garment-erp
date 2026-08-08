@@ -5,6 +5,11 @@ kind: StatefulSet
 metadata:
   name: erp-postgres
   namespace: erp
+  # Marks this as data tier, not app tier. The deploy workflow selects on it to bring the
+  # database up before the migration Job runs — see the "Bootstrap data tier" step. Object
+  # metadata only: adding it to the pod template would change the (immutable) selector.
+  labels:
+    app.kubernetes.io/component: data
 spec:
   serviceName: erp-postgres
   replicas: 1
@@ -65,6 +70,8 @@ kind: Service
 metadata:
   name: erp-postgres
   namespace: erp
+  labels:
+    app.kubernetes.io/component: data
 spec:
   type: ClusterIP
   selector:

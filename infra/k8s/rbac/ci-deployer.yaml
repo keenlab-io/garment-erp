@@ -1,0 +1,106 @@
+# CI deploy identity — apply ONCE, by hand, with cluster-admin. Deliberately outside the
+# kustomize base: the deploy must never be able to widen its own permissions.
+#
+#   kubectl apply -f infra/k8s/rbac/ci-deployer.yaml
+#
+# There is no ServiceAccount and no token here. The Tailscale operator runs its API-server
+# proxy in auth mode (`APISERVER_PROXY=true`), so a caller arriving over the tailnet is
+# authenticated by its tailnet identity: the username is the node's FQDN and **the node's
+# tags become its Kubernetes groups**. See infra/k8s/README.md "One-time bootstrap".
+#
+# Both bindings therefore list two subjects:
+#   - `tag:ci`        — the tag-derived group, which needs no app capability in the ACL.
+#                       This is the path that works with a plain network grant.
+#   - `erp-deployers` — only used if the ACL adds a `tailscale.com/cap/kubernetes`
+#                       impersonate capability, which overrides the tag-derived groups.
+# Listing both means the deploy authorizes correctly under either ACL shape, and neither
+# subject grants anything the other does not.
+---
+# Pre-created here so the CI identity never needs cluster-wide `create` on namespaces —
+# `create` cannot be restricted by resourceName, so granting it would let CI make arbitrary
+# namespaces. With the namespace already present, get+patch on this one name is enough for
+# both `kubectl create namespace --dry-run=client | kubectl apply -f -` and the Namespace
+# object inside the kustomize base.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: erp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: erp-deployer-namespace
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    resourceNames: ["erp"]
+    verbs: ["get", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: erp-deployer-namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: erp-deployer-namespace
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: "tag:ci"
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: erp-deployers
+---
+# Everything else the deploy touches, scoped to namespace erp only.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: erp-deployer
+  namespace: erp
+rules:
+  # `kubectl apply` is get + patch on an existing object, create on a new one.
+  - apiGroups: [""]
+    resources: ["secrets", "serviceaccounts", "configmaps", "services"]
+    verbs: ["get", "list", "create", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get", "list", "watch", "create", "patch", "update"]
+  # `kubectl rollout undo` reads the ReplicaSet history to find the revision to roll back to.
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "create", "patch", "update"]
+  # The per-SHA migration Job, plus `wait --for=condition=complete` (get/watch).
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "patch", "update", "delete"]
+  # Reading migration and failure output: `logs job/...`, `get pods -o wide`, `describe`.
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "events"]
+    verbs: ["get", "list", "watch"]
+  # The smoke test shells into the web pod:
+  #   kubectl exec deploy/erp-web -- wget -qO- http://localhost:8080/api/v1/health
+  # Without this the deploy passes rollout and then fails on its last step.
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: erp-deployer
+  namespace: erp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: erp-deployer
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: "tag:ci"
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: erp-deployers

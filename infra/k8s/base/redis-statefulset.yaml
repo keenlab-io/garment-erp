@@ -3,6 +3,8 @@ kind: StatefulSet
 metadata:
   name: erp-redis
   namespace: erp
+  labels:
+    app.kubernetes.io/component: data
 spec:
   serviceName: erp-redis
   replicas: 1
@@ -53,6 +55,8 @@ kind: Service
 metadata:
   name: erp-redis
   namespace: erp
+  labels:
+    app.kubernetes.io/component: data
 spec:
   type: ClusterIP
   selector:

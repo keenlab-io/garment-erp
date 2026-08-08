@@ -19,12 +19,18 @@ images:
     newTag: latest
 
 # The Tailscale operator creates a proxy that joins the tailnet as
-# `garment-erp.<tailnet>.ts.net`; Nginx Proxy Manager (external, outside this cluster)
-# points its proxy host at `http://garment-erp.<tailnet>.ts.net:80`.
+# `garment-erp.tail0b8c39.ts.net`; Nginx Proxy Manager (external, outside this cluster)
+# points its proxy host at `http://garment-erp.tail0b8c39.ts.net:80`.
 #
-# VERIFY: the Tailscale operator's annotation surface has evolved across versions
-# (ProxyClass/ProxyGroup, `spec.loadBalancerClass: tailscale`, etc.) — confirm this
-# annotation pair is still correct for the installed operator version before first deploy.
+# VERIFIED 2026-08-08 against operator v1.80.3 on the RDC cluster: applying this exact
+# annotation pair to a throwaway ClusterIP Service created the proxy in ~6s, set the
+# Service condition `TailscaleProxyReady=True`, registered the device under the *annotated*
+# hostname (not the default `<ns>-<svc>` naming), and served HTTP 200 on :80 over the
+# tailnet. Deleting the Service removed both the proxy and the tailnet device.
+#
+# Note: every other tailnet-exposed Service in this cluster uses the alternative
+# `type: LoadBalancer` + `spec.loadBalancerClass: tailscale` form. Both work; this one is
+# kept because it leaves the Service ClusterIP (no MetalLB address consumed).
 patches:
   - target:
       kind: Service
