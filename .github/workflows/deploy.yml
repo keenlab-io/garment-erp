@@ -164,6 +164,25 @@ jobs:
             --docker-password="${{ secrets.GHCR_PULL_TOKEN }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      # Breaks a first-deploy deadlock: the migration Job below connects to `erp-postgres`,
+      # but the data tier is only created by "Apply manifests" further down — so against an
+      # empty namespace the migration failed on a database that did not exist yet, and the
+      # job aborted before ever creating it.
+      #
+      # Selecting on `app.kubernetes.io/component=data` applies only the Postgres/Redis/MinIO
+      # StatefulSets and their Services, leaving every Deployment untouched. That is what
+      # keeps the invariant below intact: no app pod is rolled until migrations have passed.
+      # On every deploy after the first this is a no-op re-apply of unchanged objects.
+      - name: Bootstrap data tier
+        run: |
+          set -euo pipefail
+          cd infra/k8s/overlays/prod
+          kubectl kustomize . \
+            | kubectl apply -f - --selector 'app.kubernetes.io/component=data'
+          # StatefulSet rollout status blocks until the pod is Ready, which for Postgres
+          # means `pg_isready` passes — so the migration below has a live server to talk to.
+          kubectl -n "$NAMESPACE" rollout status sts/erp-postgres --timeout=300s
+
       # Runs BEFORE any Deployment changes. On failure the old pods are still serving and
       # the job exits non-zero without touching them.
       - name: Apply database migrations
