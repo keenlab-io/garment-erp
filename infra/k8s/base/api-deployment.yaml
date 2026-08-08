@@ -5,6 +5,11 @@ kind: Deployment
 metadata:
   name: erp-api
   namespace: erp
+  # App tier. The deploy's bootstrap step applies everything that is NOT labelled `app`, so
+  # this label is what keeps Deployments out of it — no app pod is rolled until migrations
+  # have passed. Object metadata only: a pod-template label would change the immutable selector.
+  labels:
+    app.kubernetes.io/component: app
 spec:
   replicas: 2
   selector:

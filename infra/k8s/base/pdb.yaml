@@ -6,6 +6,8 @@ kind: PodDisruptionBudget
 metadata:
   name: erp-api-pdb
   namespace: erp
+  labels:
+    app.kubernetes.io/component: app
 spec:
   minAvailable: 1
   selector:
@@ -17,6 +19,8 @@ kind: PodDisruptionBudget
 metadata:
   name: erp-web-pdb
   namespace: erp
+  labels:
+    app.kubernetes.io/component: app
 spec:
   minAvailable: 1
   selector:
