@@ -76,8 +76,21 @@ either a decision or a credential.
        context: { cluster: erp, namespace: erp, user: tailscale }
    users:
      - name: tailscale
-       user: {}
+       user:
+         token: unused   # placeholder — see below, do NOT leave this empty
    ```
+
+   **The placeholder token is required.** The proxy ignores it entirely — auth is the tailnet
+   identity — but if `user:` is left empty (`{}`), kubectl decides no credentials are
+   configured and falls back to prompting for basic auth. In CI there is no TTY, so the step
+   dies with:
+
+   ```
+   Please enter Username: error: EOF
+   ```
+
+   which looks like an auth rejection but is not one. A genuine authorization failure comes
+   back as a clean `403 Forbidden` naming the impersonated user.
 
    In auth mode the proxy identifies the caller by tailnet identity: the Kubernetes username
    is the node's FQDN, and **the node's tags become its Kubernetes groups**. So the credential
