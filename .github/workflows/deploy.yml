@@ -148,20 +148,34 @@ jobs:
 
           # DATABASE_URL/REDIS_URL are composed here so the Postgres password has exactly
           # one source of truth (PROD_POSTGRES_PASSWORD).
+          literals=(
+            --from-literal=DATABASE_URL="postgres://erp:${{ secrets.PROD_POSTGRES_PASSWORD }}@erp-postgres:5432/erp"
+            --from-literal=REDIS_URL="redis://erp-redis:6379/0"
+            --from-literal=POSTGRES_PASSWORD="${{ secrets.PROD_POSTGRES_PASSWORD }}"
+            --from-literal=JWT_ACCESS_SECRET="${{ secrets.PROD_JWT_ACCESS_SECRET }}"
+            --from-literal=JWT_REFRESH_SECRET="${{ secrets.PROD_JWT_REFRESH_SECRET }}"
+            --from-literal=ENCRYPTION_KEY="${{ secrets.PROD_ENCRYPTION_KEY }}"
+            --from-literal=S3_ACCESS_KEY="${{ secrets.PROD_S3_ACCESS_KEY }}"
+            --from-literal=S3_SECRET_KEY="${{ secrets.PROD_S3_SECRET_KEY }}"
+            --from-literal=MINIO_ROOT_USER="${{ secrets.PROD_MINIO_ROOT_USER }}"
+            --from-literal=MINIO_ROOT_PASSWORD="${{ secrets.PROD_MINIO_ROOT_PASSWORD }}"
+          )
+
+          # SMTP is optional — mail degrades to in-app alerts without it. Adding these keys
+          # unconditionally set them to "" when the GitHub secret is unset, and the env
+          # schema's `z.string().min(1).optional()` permits the key being ABSENT, not empty:
+          # every api and worker pod died at boot on "SMTP_USER: String must contain at
+          # least 1 character(s)". Only pass them when they actually carry a value.
+          if [ -n "${{ secrets.PROD_SMTP_USER }}" ]; then
+            literals+=(--from-literal=SMTP_USER="${{ secrets.PROD_SMTP_USER }}")
+          fi
+          if [ -n "${{ secrets.PROD_SMTP_PASS }}" ]; then
+            literals+=(--from-literal=SMTP_PASS="${{ secrets.PROD_SMTP_PASS }}")
+          fi
+
           kubectl create secret generic erp-secrets \
             --namespace "$NAMESPACE" \
-            --from-literal=DATABASE_URL="postgres://erp:${{ secrets.PROD_POSTGRES_PASSWORD }}@erp-postgres:5432/erp" \
-            --from-literal=REDIS_URL="redis://erp-redis:6379/0" \
-            --from-literal=POSTGRES_PASSWORD="${{ secrets.PROD_POSTGRES_PASSWORD }}" \
-            --from-literal=JWT_ACCESS_SECRET="${{ secrets.PROD_JWT_ACCESS_SECRET }}" \
-            --from-literal=JWT_REFRESH_SECRET="${{ secrets.PROD_JWT_REFRESH_SECRET }}" \
-            --from-literal=ENCRYPTION_KEY="${{ secrets.PROD_ENCRYPTION_KEY }}" \
-            --from-literal=S3_ACCESS_KEY="${{ secrets.PROD_S3_ACCESS_KEY }}" \
-            --from-literal=S3_SECRET_KEY="${{ secrets.PROD_S3_SECRET_KEY }}" \
-            --from-literal=MINIO_ROOT_USER="${{ secrets.PROD_MINIO_ROOT_USER }}" \
-            --from-literal=MINIO_ROOT_PASSWORD="${{ secrets.PROD_MINIO_ROOT_PASSWORD }}" \
-            --from-literal=SMTP_USER="${{ secrets.PROD_SMTP_USER }}" \
-            --from-literal=SMTP_PASS="${{ secrets.PROD_SMTP_PASS }}" \
+            "${literals[@]}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
           kubectl create secret docker-registry ghcr-pull \
@@ -171,21 +185,26 @@ jobs:
             --docker-password="${{ secrets.GHCR_PULL_TOKEN }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      # Breaks a first-deploy deadlock: the migration Job below connects to `erp-postgres`,
-      # but the data tier is only created by "Apply manifests" further down — so against an
-      # empty namespace the migration failed on a database that did not exist yet, and the
-      # job aborted before ever creating it.
+      # Breaks a first-deploy deadlock: the migration Job below needs things that only
+      # "Apply manifests" creates, further down. Against an empty namespace it failed twice
+      # over — first on a database that did not exist, then on `serviceaccount "erp-app" not
+      # found` (the Job runs as that SA, and the SA carries the ghcr-pull secret its image
+      # needs). The Job cannot even create a pod, so it hangs until the wait below times out.
       #
-      # Selecting on `app.kubernetes.io/component=data` applies only the Postgres/Redis/MinIO
-      # StatefulSets and their Services, leaving every Deployment untouched. That is what
-      # keeps the invariant below intact: no app pod is rolled until migrations have passed.
+      # The invariant worth protecting is narrow: no *app pod* may roll before migrations
+      # pass. Everything else — namespace, ServiceAccount, ConfigMap, Services, the data
+      # tier — is inert infrastructure that is safe, and necessary, to create first. So this
+      # applies everything NOT labelled `app.kubernetes.io/component: app`, which is exactly
+      # the three Deployments and their PDBs. Note `!=` also matches objects that lack the
+      # label entirely, which is what pulls in the ServiceAccount and ConfigMap.
+      #
       # On every deploy after the first this is a no-op re-apply of unchanged objects.
-      - name: Bootstrap data tier
+      - name: Bootstrap prerequisites
         run: |
           set -euo pipefail
           cd infra/k8s/overlays/prod
           kubectl kustomize . \
-            | kubectl apply -f - --selector 'app.kubernetes.io/component=data'
+            | kubectl apply -f - --selector 'app.kubernetes.io/component!=app'
           # StatefulSet rollout status blocks until the pod is Ready, which for Postgres
           # means `pg_isready` passes — so the migration below has a live server to talk to.
           kubectl -n "$NAMESPACE" rollout status sts/erp-postgres --timeout=300s
@@ -234,8 +253,13 @@ jobs:
       - name: Smoke test
         run: |
           set -euo pipefail
+          # 127.0.0.1, not `localhost`: busybox resolves `localhost` to ::1 first and
+          # nginx-unprivileged listens on IPv4 only, so the hostname form fails with
+          # "can't connect to remote host: Connection refused" even when the whole stack is
+          # healthy. Verified in-cluster — 127.0.0.1:8080/api/v1/health returns
+          # {"status":"ok"} at the same moment localhost:8080 is refused.
           kubectl -n "$NAMESPACE" exec deploy/erp-web -- \
-            wget -qO- --timeout=10 http://localhost:8080/api/v1/health
+            wget -qO- --timeout=10 http://127.0.0.1:8080/api/v1/health
 
       - name: Roll back on failure
         if: failure()
