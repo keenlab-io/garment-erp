@@ -253,8 +253,13 @@ jobs:
       - name: Smoke test
         run: |
           set -euo pipefail
+          # 127.0.0.1, not `localhost`: busybox resolves `localhost` to ::1 first and
+          # nginx-unprivileged listens on IPv4 only, so the hostname form fails with
+          # "can't connect to remote host: Connection refused" even when the whole stack is
+          # healthy. Verified in-cluster — 127.0.0.1:8080/api/v1/health returns
+          # {"status":"ok"} at the same moment localhost:8080 is refused.
           kubectl -n "$NAMESPACE" exec deploy/erp-web -- \
-            wget -qO- --timeout=10 http://localhost:8080/api/v1/health
+            wget -qO- --timeout=10 http://127.0.0.1:8080/api/v1/health
 
       - name: Roll back on failure
         if: failure()
