@@ -144,11 +144,32 @@ either a decision or a credential.
 4. **Populate the GitHub secrets** (below), then run the workflow once via
    `workflow_dispatch`. The first run creates the namespace, secrets, StatefulSets and PVCs.
 
-5. **Create the MinIO bucket.** `StorageModule` does *not* create it:
+5. **Create the MinIO bucket.** `StorageModule` does *not* create it — every document and
+   PDF write fails until it exists. Credentials come from `erp-secrets` via `envFrom`, so
+   they are never typed on a command line or echoed into a shell history:
+
    ```bash
-   kubectl -n erp run mc --rm -it --restart=Never --image=minio/mc -- \
-     sh -c 'mc alias set s3 http://erp-minio:9000 "$USER" "$PASS" && mc mb -p s3/erp'
+   kubectl -n erp run mc-bucket --rm -i --restart=Never --image=minio/mc --overrides='
+   {"spec":{"restartPolicy":"Never","containers":[{"name":"mc-bucket","image":"minio/mc",
+   "envFrom":[{"secretRef":{"name":"erp-secrets"}}],
+   "command":["sh","-c","mc alias set s3 http://erp-minio:9000 \"$MINIO_ROOT_USER\" \"$MINIO_ROOT_PASSWORD\" && mc mb -p s3/erp && mc ls s3"]}]}}'
    ```
+
+   Then verify the **app's** credentials work, not just root — `S3_ACCESS_KEY`/`S3_SECRET_KEY`
+   must equal `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD`, because nothing provisions a separate
+   MinIO user. If they diverge, the deploy still goes green and every document write fails at
+   runtime instead:
+
+   ```bash
+   kubectl -n erp run mc-verify --rm -i --restart=Never --image=minio/mc --overrides='
+   {"spec":{"restartPolicy":"Never","containers":[{"name":"mc-verify","image":"minio/mc",
+   "envFrom":[{"secretRef":{"name":"erp-secrets"}}],
+   "command":["sh","-c","mc alias set app http://erp-minio:9000 \"$S3_ACCESS_KEY\" \"$S3_SECRET_KEY\" && echo probe | mc pipe app/erp/_probe.txt && mc rm app/erp/_probe.txt && echo APP_CREDS_OK"]}]}}'
+   ```
+
+   > The command previously documented here used `"$USER"`/`"$PASS"`, which are undefined
+   > inside that pod — it expanded to empty credentials and the alias always failed. It also
+   > passed `-it`, which needs a TTY the pod does not have.
 
 6. **Seed the super-admin** (idempotent, but only ever needed once):
    ```bash
