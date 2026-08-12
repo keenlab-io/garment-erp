@@ -73,6 +73,12 @@ rules:
   - apiGroups: ["policy"]
     resources: ["poddisruptionbudgets"]
     verbs: ["get", "list", "create", "patch", "update"]
+  # The kustomize base now ships NetworkPolicies. Without this the deploy fails at "Apply
+  # manifests" with a Forbidden error, so this file must be re-applied with cluster-admin
+  # BEFORE the first deploy that carries them.
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "create", "patch", "update"]
   # The per-SHA migration Job, plus `wait --for=condition=complete` (get/watch).
   - apiGroups: ["batch"]
     resources: ["jobs"]

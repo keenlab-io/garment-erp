@@ -1,0 +1,122 @@
+# Ingress isolation for the erp namespace.
+#
+# Without these, any pod anywhere in the cluster can open a TCP connection straight to
+# erp-postgres:5432, erp-redis:6379 or erp-minio:9000 — the DATABASE_URL password is the only
+# thing in the way. That is the gap these close. Encryption does not help here; only access
+# control does.
+#
+# Ingress only, deliberately. Restricting egress would add real risk (a missed dependency
+# fails silently at runtime, not at deploy time) for little gain against the stated threat,
+# and it matches the house pattern in the chatbot-prod namespace.
+#
+# Selection is by `app.kubernetes.io/name`, which is already on every pod. The house style
+# elsewhere selects on `app.kubernetes.io/component`, but that label lives on our object
+# metadata rather than the pod templates — adding it to a pod template would change the
+# template hash and force a rolling restart of Postgres for a purely cosmetic gain.
+#
+# NOTE: kubelet health probes are NOT explicitly allowed. There are zero ipBlock rules
+# anywhere in this cluster and chatbot-prod runs default-deny-ingress with working probes,
+# so Calico here permits host-to-pod probe traffic. If probes ever start failing after a CNI
+# change, that is the first thing to revisit.
+---
+# Baseline: nothing may reach any pod in this namespace unless a policy below allows it.
+# NetworkPolicies are additive, so each rule that follows re-opens exactly one path.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: erp
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+# The only way in from outside the namespace. The Tailscale operator runs one proxy pod per
+# exposed Service, labelled with the Service it fronts, so this admits that proxy and nothing
+# else in the tailscale namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-web-from-tailscale-proxy
+  namespace: erp
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: erp-web
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: tailscale
+          podSelector:
+            matchLabels:
+              tailscale.com/parent-resource: erp-web
+              tailscale.com/parent-resource-ns: erp
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+# nginx in the web pod reverse-proxies /api and /socket.io to the erp-api Service. Nothing
+# else should reach the API directly — external traffic arrives through erp-web.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-from-web
+  namespace: erp
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: erp-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: erp-web
+      ports:
+        - protocol: TCP
+          port: 3000
+---
+# Postgres, Redis and MinIO accept connections only from the app tier in this namespace.
+#
+# `erp-migrate` is included because the migration Job runs before any app pod and must reach
+# Postgres. `erp-admin` is a deliberate escape hatch for one-off tooling — run ad-hoc pods
+# (the `mc` bucket bootstrap, a psql shell) with `app.kubernetes.io/name=erp-admin` and they
+# will be admitted; otherwise they are denied like anything else.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-datastores-from-app-tier
+  namespace: erp
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - erp-postgres
+          - erp-redis
+          - erp-minio
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - erp-api
+                  - erp-worker
+                  - erp-migrate
+                  - erp-admin
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 9000
