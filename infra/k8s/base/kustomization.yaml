@@ -22,3 +22,4 @@ resources:
   - redis-statefulset.yaml
   - minio-statefulset.yaml
   - pdb.yaml
+  - networkpolicy.yaml
