@@ -14,49 +14,30 @@
 # metadata rather than the pod templates — adding it to a pod template would change the
 # template hash and force a rolling restart of Postgres for a purely cosmetic gain.
 #
-# NOTE: kubelet health probes are NOT explicitly allowed. There are zero ipBlock rules
-# anywhere in this cluster and chatbot-prod runs default-deny-ingress with working probes,
-# so Calico here permits host-to-pod probe traffic. If probes ever start failing after a CNI
-# change, that is the first thing to revisit.
----
-# Baseline: nothing may reach any pod in this namespace unless a policy below allows it.
-# NetworkPolicies are additive, so each rule that follows re-opens exactly one path.
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: default-deny-ingress
-  namespace: erp
-spec:
-  podSelector: {}
-  policyTypes:
-    - Ingress
----
-# The only way in from outside the namespace. The Tailscale operator runs one proxy pod per
-# exposed Service, labelled with the Service it fronts, so this admits that proxy and nothing
-# else in the tailscale namespace.
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-web-from-tailscale-proxy
-  namespace: erp
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: erp-web
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: tailscale
-          podSelector:
-            matchLabels:
-              tailscale.com/parent-resource: erp-web
-              tailscale.com/parent-resource-ns: erp
-      ports:
-        - protocol: TCP
-          port: 8080
+# ---------------------------------------------------------------------------------------
+# WHAT IS DELIBERATELY MISSING, AND WHY
+#
+# There is no `default-deny-ingress` and no policy admitting the Tailscale proxy to erp-web.
+# Both existed briefly and took the site down: with default-deny in force, traffic from the
+# operator's proxy pod to erp-web was dropped, so garment-erp.keenlab.io returned 502 and the
+# tailnet address timed out. The proxy pod's own labels did not match the `podSelector` that
+# was meant to admit it, which suggests the traffic does not arrive with that pod as its
+# source — most likely the original tailnet client IP (100.64.0.0/10) is preserved, and a
+# podSelector can never match a source that is not a pod.
+#
+# That is a hypothesis, not a finding. Before re-adding a default-deny, capture the actual
+# source address of proxy traffic arriving at an erp-web pod and write the rule against it —
+# an `ipBlock` for the tailnet CGNAT range if the hypothesis holds.
+#
+# Whatever the rule, test the real browser path (https://garment-erp.keenlab.io) before
+# trusting it. The deploy's smoke test runs `wget` INSIDE the web pod against 127.0.0.1, so
+# it exercises web -> api and proves nothing about proxy -> web. A green deploy is not
+# evidence that ingress works.
+#
+# The two policies below are known-good: they were live throughout a fully working site and
+# carry the protection that actually mattered (nothing outside this namespace can reach the
+# datastores).
+# ---------------------------------------------------------------------------------------
 ---
 # nginx in the web pod reverse-proxies /api and /socket.io to the erp-api Service. Nothing
 # else should reach the API directly — external traffic arrives through erp-web.
