@@ -314,12 +314,17 @@ PR-only trigger would then rarely fire), and `workflow_dispatch`. The job:
 - `docker compose -f infra/docker-compose.yml up -d --wait`, then `pnpm db:migrate && pnpm db:seed`
   — the seed creates the §4 personas and the sales/inventory master data, so persona-gated specs
   need no bootstrap step;
-- `playwright install --with-deps chromium`, start `pnpm dev` in the background (web must be
-  reached through Vite — the `/api` proxy is configured under `server` only, so `vite preview`
-  would serve the bundle with no API), poll `:3000`/`:5173` until healthy;
+- `playwright install --with-deps chromium`, then start the two servers **separately** in the
+  background — **not** via `pnpm dev`. turbo buffers task output in non-TTY mode and persistent
+  tasks never flush, so a `pnpm dev` log captures nothing past the banner (this made the
+  workflow's first failure undiagnosable), and it starts a `dev` task in all 9 packages, which
+  compete for the runner's 2 cores. The api runs **built** (`node dist/main.js` via its `start`
+  script — the entrypoint `infra/docker/api.Dockerfile` also uses), the web app stays **Vite
+  dev** because its `/api` proxy is configured under `server` only;
+- poll `:3000`/`:5173` until healthy, dumping both logs inline on timeout;
 - `pnpm --filter @erp/e2e test`; upload `e2e/playwright-report/` always, and `e2e/test-results/`
-  (traces + screenshots) plus the dev log on failure — the log is what turns "a request 500'd"
-  into a stack trace.
+  (traces + screenshots) plus `api.log`/`web.log` on failure — those logs are what turn "a
+  request 500'd" into a stack trace.
 
 Gate policy: the job reports true pass/fail (no `continue-on-error` — a hidden failure is worse
 than a red check) but is **not yet a required check**. Promote it in branch protection once it has
