@@ -122,7 +122,7 @@ export function GoodsReceiptsListPage() {
                   label: t("receipts.confirmAction"),
                   onClick: () =>
                     confirmReceipt.mutate(
-                      { params: { id: row.id }, body: undefined },
+                      { params: { id: row.id } },
                       { onSuccess: () => toast({ tone: "success", title: t("receipts.receiptConfirmed") }) },
                     ),
                 },
@@ -135,7 +135,7 @@ export function GoodsReceiptsListPage() {
                   label: t("receipts.postAction"),
                   onClick: () =>
                     postReceipt.mutate(
-                      { params: { id: row.id }, body: undefined },
+                      { params: { id: row.id } },
                       { onSuccess: () => toast({ tone: "success", title: t("receipts.receiptPosted") }) },
                     ),
                 },

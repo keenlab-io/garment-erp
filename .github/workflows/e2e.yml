@@ -1,0 +1,128 @@
+name: E2E
+
+# Browser-level UI tests (docs/testing/UI_TEST_PLAN.md §8). Deliberately its OWN workflow
+# rather than a job inside ci.yml: `deploy.yml` calls ci.yml as the production release gate,
+# so anything added there gates deploys. This suite is young, drives a real browser against a
+# real stack, and will find its flakiness the expensive way — keep it off the deploy path
+# until it has proven stable.
+#
+# GATE POLICY: this reports true pass/fail (no `continue-on-error` — a hidden failure is worse
+# than a red check), but it is NOT yet a required check. Promote it in branch protection once
+# it has been green across a few dozen PRs, then consider folding it into ci.yml.
+#
+# Runs on PRs *and* on pushes to main. The push trigger matters because merges here often go
+# straight to main with no PR — a pull_request-only workflow would then almost never fire. It
+# still does not gate the deploy: this is a separate workflow, so `deploy.yml` proceeds
+# independently and a red E2E is a signal to act on, not a blocked rollout.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One e2e run per branch: they all bind the same host ports (5432/6379/9000/3000/5173) and a
+# second concurrent run on the same runner would collide.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # The api fail-fasts on a bad env at boot (config/env.schema.ts), so every required var is
+    # set here. Hosts are `localhost` because infra/docker-compose.yml publishes the ports —
+    # that file is the outside-the-container topology (the devcontainer reaches the same
+    # services by service name instead).
+    env:
+      DATABASE_URL: postgres://erp:erp@localhost:5432/erp
+      REDIS_URL: redis://localhost:6379
+      S3_ENDPOINT: http://localhost:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadmin
+      S3_BUCKET: erp-dev
+      S3_FORCE_PATH_STYLE: "true"
+      JWT_ACCESS_SECRET: ci-access-secret-not-a-real-key
+      JWT_REFRESH_SECRET: ci-refresh-secret-not-a-real-key
+      # 32-byte AES-256-GCM key (64 hex chars) — CI-only throwaway, never a deployed value.
+      ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `dev` does NOT declare `dependsOn: ["^build"]` (turbo.json), so the workspace packages
+      # must be built first or the apps resolve a stale/absent dist: a stale @erp/ui leaves the
+      # web app a blank page, a stale @erp/db/@erp/contracts stops the api booting at all.
+      - name: Build workspace packages
+        run: pnpm build
+
+      - name: Start infra (Postgres, Redis, MinIO)
+        run: docker compose -f infra/docker-compose.yml up -d --wait
+
+      # Schema + the super-admin, the UI_TEST_PLAN §4 personas, and the sales/inventory master
+      # data the golden paths select. No Admin-UI bootstrap step is needed — the seed creates
+      # every persona login the specs use.
+      - name: Migrate and seed
+        run: pnpm db:migrate && pnpm db:seed
+
+      - name: Install Playwright browser
+        run: pnpm --filter @erp/e2e exec playwright install --with-deps chromium
+
+      # Backgrounded: `pnpm dev` is persistent (api :3000 + web :5173 with /api proxied). The
+      # web app must be reached through Vite because the proxy is configured under `server`
+      # only — `vite preview` would serve the bundle with no /api route.
+      - name: Start the app
+        run: |
+          nohup pnpm dev > /tmp/dev.log 2>&1 &
+          echo "started pnpm dev (pid $!)"
+
+      - name: Wait for api and web
+        run: |
+          for i in $(seq 1 60); do
+            api=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/v1/health || true)
+            web=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5173/ || true)
+            if [ "$api" = "200" ] && [ "$web" = "200" ]; then
+              echo "stack ready after ~$((i * 5))s"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::stack did not come up (api=$api web=$web) — see the dev-log artifact"
+          exit 1
+
+      # playwright.config.ts already adapts to CI (forbidOnly, retries, 2 workers). The
+      # `storybook` project matches no specs yet; when the doc-99 cases land in
+      # tests/storybook/, this job also needs `pnpm --filter @erp/ui storybook` running on :6006.
+      - name: Run the suite
+        run: pnpm --filter @erp/e2e test
+
+      # The HTML report is the run artifact; traces/screenshots land in test-results/ on
+      # failure, and the dev log is what turns "a request 500'd" into a stack trace.
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 14
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure-artifacts
+          path: |
+            e2e/test-results/
+            /tmp/dev.log
+          retention-days: 14

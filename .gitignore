@@ -28,3 +28,10 @@ pnpm-debug.log*
 
 # os
 .DS_Store
+
+# claude code local state / plugin cache (large, machine-local)
+.claude/
+.claude-backup-*/
+
+# scratch debugging artifacts (screenshots, traces)
+debugging/

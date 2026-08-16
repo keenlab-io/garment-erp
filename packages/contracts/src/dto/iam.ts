@@ -241,7 +241,7 @@ export const iamContract = c.router(
     logout: {
       method: "POST",
       path: "/auth/logout",
-      body: z.void(),
+      body: c.noBody(),
       responses: withErrors({ 204: z.void() }),
       summary: "Revoke the current session",
     },
@@ -351,7 +351,7 @@ export const iamContract = c.router(
       method: "POST",
       path: "/users/:id/force-logout",
       pathParams: z.object({ id: uuid }),
-      body: z.void(),
+      body: c.noBody(),
       responses: withErrors({ 204: z.void() }),
       summary: "Revoke all sessions and bump permissions_version (iam.user.force_logout)",
     },

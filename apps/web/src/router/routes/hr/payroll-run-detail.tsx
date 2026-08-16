@@ -183,7 +183,7 @@ export function PayrollRunDetailPage() {
         onCalculate={async () => {
           setCalculating(true);
           try {
-            await calculate.mutateAsync({ params: { id }, body: undefined });
+            await calculate.mutateAsync({ params: { id } });
           } finally {
             setCalculating(false);
           }
@@ -192,7 +192,7 @@ export function PayrollRunDetailPage() {
         payslips={payslipRows}
         onOpenBreakdown={setBreakdownPayslipId}
         onApprove={async (_result: ConfirmResult) => {
-          await approve.mutateAsync({ params: { id }, body: undefined });
+          await approve.mutateAsync({ params: { id } });
           toast({ tone: "success", title: t("payroll.runApproved") });
         }}
         approving={approve.isPending}

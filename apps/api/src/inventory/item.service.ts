@@ -182,6 +182,13 @@ export class ItemService {
    * Convert `qty` (in `fromUomId`) to the item's base UOM. A base-UOM line converts 1:1;
    * otherwise the `(item, from, base)` `uom_conversion` factor is applied. A missing
    * factor is a 422 — posting a line in an unconvertible unit is a business-rule error.
+   *
+   * A blank `fromUomId` means "no UOM on the line, so it is already in base units" — sales
+   * document lines carry no UOM field at all, and `InvoiceService.issue` emits them with
+   * `uom_id: ""` (the same convention as its `warehouse_id: ""`, which
+   * `SalesStockSubscriber` defaults). Without this guard the empty string reaches the
+   * `uom_conversion` lookup as a uuid and Postgres rejects it, turning every issue-with-item
+   * into a 500.
    */
   async toBase(itemId: string, fromUomId: string, qty: string): Promise<string> {
     const ex = currentExecutor(this.db);
@@ -191,7 +198,7 @@ export class ItemService {
       .where(eq(item.id, itemId))
       .limit(1);
     if (!row) throw new NotFoundError("Item not found");
-    if (row.baseUomId === fromUomId) return formatQty(qty);
+    if (!fromUomId || row.baseUomId === fromUomId) return formatQty(qty);
 
     const [conv] = await ex
       .select({ factor: uomConversion.factor })

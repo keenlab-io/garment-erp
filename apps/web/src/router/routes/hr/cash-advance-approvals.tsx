@@ -36,7 +36,7 @@ export function CashAdvanceApprovalsPage() {
   async function handleApprove(id: string) {
     setApprovingId(id);
     try {
-      await approve.mutateAsync({ params: { id }, body: undefined });
+      await approve.mutateAsync({ params: { id } });
       toast({ tone: "success", title: t("approvals.advanceApproved") });
     } finally {
       setApprovingId(null);

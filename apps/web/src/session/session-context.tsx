@@ -60,7 +60,7 @@ export function SessionProvider({
         // Fire the revoke while the token is still attached; clearing first would strip the
         // Authorization header before the request goes out.
         if (getAccessToken()) {
-          void api.iam.logout.mutation({ body: undefined }).catch(() => {});
+          void api.iam.logout.mutation({}).catch(() => {});
         }
         clearTokens();
         setUser(null);

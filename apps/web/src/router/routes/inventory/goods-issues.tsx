@@ -100,7 +100,7 @@ export function GoodsIssuesPage() {
           lines: scans.map((s) => ({ item_id: s.itemId, uom_id: s.uomId, qty: s.qty })),
         },
       });
-      await postIssue.mutateAsync({ params: { id: created.body.issue.id }, body: undefined });
+      await postIssue.mutateAsync({ params: { id: created.body.issue.id } });
       toast({ tone: "success", title: t("issues.issuePosted") });
       setScans([]);
     } catch (error) {

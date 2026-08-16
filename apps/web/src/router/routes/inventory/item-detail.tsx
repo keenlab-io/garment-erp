@@ -289,7 +289,7 @@ function BomTab({ itemId, itemName, isFinished }: { itemId: string; itemName: st
         lines: validLines.map((l) => ({ item_id: l.itemId, uom_id: l.uomId, qty: l.qty, scrap_pct: l.scrapPct || "0" })),
       },
     });
-    const result = await rollupBom.mutateAsync({ params: { id: created.body.bom.id }, body: undefined });
+    const result = await rollupBom.mutateAsync({ params: { id: created.body.bom.id } });
     setRollup(result.body);
     toast({ tone: "success", title: t("itemDetail.bomCreated") });
   }

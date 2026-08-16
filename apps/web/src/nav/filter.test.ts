@@ -10,9 +10,10 @@ import {
   REPORTING_DASHBOARD_ROUTES,
   REPORTING_ROUTES,
 } from "./registry";
-import { filterNav, isModuleVisible, type NavGate } from "./filter";
+import { filterNav, firstVisibleChildPath, isModuleVisible, type NavGate } from "./filter";
 
 const keys = (gate: NavGate) => filterNav(MODULES, gate).map((m) => m.key);
+const SUPER_ADMIN: NavGate = { isSuperAdmin: true, has: () => false };
 
 /** A gate granting exactly the given permissions, never a super admin. */
 function gateWith(...granted: Permission[]): NavGate {
@@ -43,6 +44,33 @@ describe("filterNav", () => {
   it("shows every module, including Admin, to a super admin", () => {
     const superAdmin: NavGate = { isSuperAdmin: true, has: () => false };
     expect(keys(superAdmin)).toEqual(MODULES.map((m) => m.key));
+  });
+});
+
+// `firstVisibleChildPath` drives the module-root redirect (router/route-tree.tsx): a module without
+// a dedicated landing page sends the user to its first permitted sub-route instead of the
+// "coming soon" placeholder.
+describe("firstVisibleChildPath", () => {
+  it("returns each module's first sub-route for a super admin", () => {
+    expect(firstVisibleChildPath("inventory", SUPER_ADMIN)).toBe("/inventory/items");
+    expect(firstVisibleChildPath("production", SUPER_ADMIN)).toBe("/production/timeline");
+    expect(firstVisibleChildPath("sales", SUPER_ADMIN)).toBe("/sales/documents");
+    expect(firstVisibleChildPath("hr", SUPER_ADMIN)).toBe("/hr/employees");
+    expect(firstVisibleChildPath("admin", SUPER_ADMIN)).toBe("/admin/users");
+  });
+
+  it("skips sub-routes the user can't see and returns the first they can", () => {
+    // Holds only the payments permission — the documents and customers sub-routes are gated away.
+    const gate = gateWith("sales.payment.record");
+    expect(firstVisibleChildPath("sales", gate)).toBe("/sales/payments");
+  });
+
+  it("returns undefined when the module has no visible children", () => {
+    expect(firstVisibleChildPath("inventory", gateWith())).toBeUndefined();
+  });
+
+  it("returns undefined for a module with no registered children (e.g. dashboard)", () => {
+    expect(firstVisibleChildPath("dashboard", SUPER_ADMIN)).toBeUndefined();
   });
 });
 
