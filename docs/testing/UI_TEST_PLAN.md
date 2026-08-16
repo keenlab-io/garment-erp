@@ -298,25 +298,37 @@ Reporting:
   one-line note), produced per the runbook. File defects referencing the TC id so the case doubles
   as the regression check.
 
-## 8. CI hook (described, not yet implemented)
+## 8. CI hook
 
-Add an `e2e` job to `.github/workflows/ci.yml` alongside the existing `verify` (lint/typecheck/
-test/build, affected-only) and `integration` (Testcontainers) jobs:
+Implemented as **`.github/workflows/e2e.yml`** — its own workflow, not a job in `ci.yml`. That
+separation is deliberate: `deploy.yml` *calls* `ci.yml` as the production release gate, so a job
+added there would gate every rollout on a young browser suite.
 
-- `runs-on: ubuntu-latest`; checkout, pnpm + Node 22 setup, `pnpm install --frozen-lockfile` (same
-  preamble as `verify`).
-- Start infra: `docker compose -f infra/docker-compose.yml up -d --wait` (Docker is available on the
-  runner), then `pnpm db:migrate && pnpm db:seed` — the seed creates the §4 personas and the
-  sales/inventory master data, so persona-gated specs need no extra bootstrap step.
-- Build and start the app: `pnpm build`, then run api + web (built preview or `pnpm dev`) in the
-  background; wait for `:5173`/`:3000` health.
-- `npx playwright install --with-deps chromium`, then run the `e2e` suite (smoke + reference specs
-  first; grow as catalog cases are codified).
-- Upload `e2e/playwright-report/` and any `debugging/` failure screenshots via
-  `actions/upload-artifact`.
-- Gate policy: start **non-blocking** (or `main`-only / nightly) until the suite proves stable, then
-  promote to a required check. Keep it out of the affected-only turbo graph — the job invokes
-  Playwright directly.
+Triggers on `pull_request`, on `push` to `main` (merges here often skip the PR, and a
+PR-only trigger would then rarely fire), and `workflow_dispatch`. The job:
+
+- checkout, pnpm + Node 22 setup, `pnpm install --frozen-lockfile` (same preamble as `verify`);
+- `pnpm build` — `dev` does **not** declare `dependsOn: ["^build"]`, so without this the apps
+  resolve a stale/absent `dist` (a stale `@erp/ui` renders a blank page, a stale `@erp/db` or
+  `@erp/contracts` stops the api booting);
+- `docker compose -f infra/docker-compose.yml up -d --wait`, then `pnpm db:migrate && pnpm db:seed`
+  — the seed creates the §4 personas and the sales/inventory master data, so persona-gated specs
+  need no bootstrap step;
+- `playwright install --with-deps chromium`, start `pnpm dev` in the background (web must be
+  reached through Vite — the `/api` proxy is configured under `server` only, so `vite preview`
+  would serve the bundle with no API), poll `:3000`/`:5173` until healthy;
+- `pnpm --filter @erp/e2e test`; upload `e2e/playwright-report/` always, and `e2e/test-results/`
+  (traces + screenshots) plus the dev log on failure — the log is what turns "a request 500'd"
+  into a stack trace.
+
+Gate policy: the job reports true pass/fail (no `continue-on-error` — a hidden failure is worse
+than a red check) but is **not yet a required check**. Promote it in branch protection once it has
+been green across a few dozen runs. It stays out of the affected-only turbo graph — `ci.yml`
+excludes `@erp/e2e` by name and this workflow invokes Playwright directly.
+
+**When the doc-99 component cases land** in `e2e/tests/storybook/`, this job also needs
+`pnpm --filter @erp/ui storybook` running on `:6006`; today that Playwright project matches no
+specs, so the suite passes without it.
 
 ## 9. Maintenance rules
 

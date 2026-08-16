@@ -76,6 +76,11 @@ rather than binding to brittle CSS.
 
 ## CI
 
-Not yet wired. Add an `e2e` job beside `verify`/`integration` in `.github/workflows/ci.yml` that
-starts the compose stack, seeds, runs `pnpm dev` in the background, then `pnpm --filter @erp/e2e test`.
-Keep it a separate (non-affected) job — it needs the full stack, unlike the unit `verify` job.
+Wired as **`.github/workflows/e2e.yml`** — its own workflow (PRs, pushes to `main`, and manual
+dispatch), *not* a job in `ci.yml`: `deploy.yml` calls `ci.yml` as the release gate, so a job there
+would gate every production rollout on this suite. It starts the compose stack, migrates + seeds,
+backgrounds `pnpm dev`, waits for `:3000`/`:5173`, then runs `pnpm --filter @erp/e2e test`.
+
+It reports true pass/fail but is **not a required check** yet — promote it in branch protection
+once it's proven stable. On failure it uploads the HTML report, `test-results/` traces, and the
+dev-server log. See UI_TEST_PLAN.md §8.
