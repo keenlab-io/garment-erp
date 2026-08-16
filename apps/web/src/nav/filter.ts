@@ -1,5 +1,6 @@
 import type { Permission } from "@erp/contracts";
 import type { ModuleDescriptor } from "./types";
+import { MODULE_CHILDREN } from "./registry";
 
 /** The permission surface nav filtering needs — satisfied by the session context. */
 export interface NavGate {
@@ -27,4 +28,15 @@ export function isModuleVisible(module: GatedEntry, gate: NavGate): boolean {
  */
 export function filterNav(modules: ModuleDescriptor[], gate: NavGate): ModuleDescriptor[] {
   return modules.filter((module) => isModuleVisible(module, gate));
+}
+
+/**
+ * The path of a module's first sub-route the user may see, or `undefined` when the module has no
+ * registered children (Dashboard) or none the user can open. Modules without a dedicated landing
+ * page redirect their root here (router/route-tree.tsx) so selecting a section — from the sidebar,
+ * mobile tab bar, or command palette — opens a real screen instead of the "coming soon" placeholder.
+ */
+export function firstVisibleChildPath(moduleKey: string, gate: NavGate): string | undefined {
+  const children = MODULE_CHILDREN[moduleKey];
+  return children?.find((child) => isModuleVisible(child, gate))?.path;
 }

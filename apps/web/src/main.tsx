@@ -9,6 +9,7 @@ import i18next from "./i18n/i18n";
 import { ThemeProvider } from "./theme/theme-context";
 import { LocaleProvider } from "./i18n/locale-context";
 import { SessionProvider, useSession } from "./session/session-context";
+import { restoreSession } from "./session/restore-session";
 import { onUnauthorized } from "./api/auth-events";
 import { router } from "./router/router";
 
@@ -35,26 +36,36 @@ function InnerRouter() {
   return <RouterProvider router={router} context={{ session }} />;
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    {/* Explicit context, not just react-i18next's global-instance fallback — so @erp/ui's own
-        `useTranslation()` calls (DataTable, ConfirmDialog, Dialog, Toast) deterministically consume
-        this app's instance rather than relying on module-singleton registration order (M0 §7.1). */}
-    <I18nextProvider i18n={i18next}>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <LocaleProvider>
-            {/* Boot logged-out: real M1 auth is live, so a fresh load goes straight to /login and
-                the user logs in for a real JWT. Seeding the M0 dev-stub super-admin here would fake
-                a tokenless session that every authenticated API call 401s — bouncing to /login with
-                a misleading "session expired". The dev-stub (createDevUser / VITE_DEV_PERMISSIONS)
-                stays available for nav-filter demos; it's just no longer auto-seeded. */}
-            <SessionProvider initialUser={null}>
-              <InnerRouter />
-            </SessionProvider>
-          </LocaleProvider>
-        </ThemeProvider>
-      </QueryClientProvider>
-    </I18nextProvider>
-  </React.StrictMode>,
-);
+// Silently re-establish the session from the persisted refresh token before the first render, so a
+// page reload restores an authenticated user instead of flashing `/login`. A logged-out or expired
+// session resolves to `null` and boots straight to the login screen. Route guards read the session
+// synchronously via router context, so this must settle before the router mounts (hence bootstrap
+// awaits it — an async IIFE rather than top-level await, which the build target doesn't support).
+async function bootstrap() {
+  const restoredUser = await restoreSession();
+
+  ReactDOM.createRoot(document.getElementById("root")!).render(
+    <React.StrictMode>
+      {/* Explicit context, not just react-i18next's global-instance fallback — so @erp/ui's own
+          `useTranslation()` calls (DataTable, ConfirmDialog, Dialog, Toast) deterministically consume
+          this app's instance rather than relying on module-singleton registration order (M0 §7.1). */}
+      <I18nextProvider i18n={i18next}>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <LocaleProvider>
+              {/* Seed with the restored user (or `null` when there's no valid session). Real M1 auth
+                  is live, so with no persisted refresh token a fresh load goes to /login; with one, the
+                  silent refresh above re-seeds a real JWT-backed session. The dev-stub (createDevUser /
+                  VITE_DEV_PERMISSIONS) stays available for nav-filter demos; it's just not auto-seeded. */}
+              <SessionProvider initialUser={restoredUser}>
+                <InnerRouter />
+              </SessionProvider>
+            </LocaleProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </I18nextProvider>
+    </React.StrictMode>,
+  );
+}
+
+void bootstrap();

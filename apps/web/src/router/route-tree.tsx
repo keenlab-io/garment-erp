@@ -1,5 +1,5 @@
 import type * as React from "react";
-import { createRoute } from "@tanstack/react-router";
+import { createRoute, redirect } from "@tanstack/react-router";
 import {
   MODULES,
   ADMIN_ROUTES,
@@ -21,6 +21,7 @@ import type {
 } from "../nav/types";
 import { rootRoute } from "./root.route";
 import { requireModuleAccess, requireReportAccess, requireRouteAccess } from "./guards";
+import { firstVisibleChildPath } from "../nav/filter";
 import { validateDashboardSearch, validateReportSearch } from "../reporting/search";
 import { DashboardPage } from "./routes/dashboard";
 import { ModulePlaceholder } from "./routes/placeholder";
@@ -88,6 +89,10 @@ const MODULE_ROUTE_COMPONENTS: Record<string, () => React.ReactElement> = {
 // user lands somewhere, M0 design) — cost/profit masking happens at the panel level, not the
 // route level.
 function moduleRoute(module: ModuleDescriptor) {
+  // Modules with a dedicated landing page (Dashboard `/`, Reports `/reports`) render it; the rest
+  // are carried entirely by their sub-screens, so their root redirects to the first accessible one
+  // (see `beforeLoad`) rather than showing a placeholder.
+  const hasLandingPage = module.key in MODULE_ROUTE_COMPONENTS;
   return createRoute({
     getParentRoute: () => rootRoute,
     path: module.path,
@@ -99,7 +104,21 @@ function moduleRoute(module: ModuleDescriptor) {
       navKey: module.key,
     },
     validateSearch: module.key === "dashboard" ? validateDashboardSearch : undefined,
-    beforeLoad: ({ context }) => requireModuleAccess(context.session, module),
+    beforeLoad: ({ context }) => {
+      requireModuleAccess(context.session, module);
+      // A landing-less module (Inventory/Production/Sales/HR/Admin) sends the user straight to its
+      // first permitted sub-route — selecting the section from the sidebar, tab bar, or command
+      // palette opens a real screen instead of the "coming soon" placeholder. Access is already
+      // verified above, so there is a visible child; the `?? placeholder` fallthrough stays only
+      // for the impossible no-visible-child case.
+      if (!hasLandingPage) {
+        const target = firstVisibleChildPath(module.key, {
+          has: context.session.hasPermission,
+          isSuperAdmin: context.session.isSuperAdmin,
+        });
+        if (target) throw redirect({ to: target });
+      }
+    },
   });
 }
 

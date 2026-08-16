@@ -1,19 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { LoginRequest, MeResponse } from "@erp/contracts";
+import type { LoginRequest } from "@erp/contracts";
 import { api } from "../api/client.js";
 import { setTokens, clearTokens } from "../api/token-store.js";
 import { useSession } from "./session-context.js";
-import type { AuthUser } from "./dev-user.js";
-
-function authUserFromMe(me: MeResponse): AuthUser {
-  return {
-    id: me.user.id,
-    name: me.user.username,
-    email: me.user.email,
-    isSuperAdmin: me.user.is_super_admin,
-    permissions: me.permissions,
-  };
-}
+import { authUserFromMe } from "./auth-user-from-me.js";
 
 /**
  * Real login against the `iam` auth endpoint (MD1): exchanges credentials for a token pair, stores
