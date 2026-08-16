@@ -166,7 +166,7 @@ describe("hr queries", () => {
     function Harness() {
       const disburse = useDisburseCashAdvanceMutation();
       return (
-        <button onClick={() => disburse.mutate({ params: { id: "ca1" }, body: undefined })}>
+        <button onClick={() => disburse.mutate({ params: { id: "ca1" } })}>
           Disburse
         </button>
       );

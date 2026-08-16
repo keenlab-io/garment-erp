@@ -4,10 +4,15 @@
  * IMPORTANT (see docs/testing/UI_TEST_PLAN.md "Personas"): in the RUNNING app,
  * `VITE_DEV_PERMISSIONS`/`createDevUser` is NOT a login bypass — `apps/web/src/main.tsx` always
  * seeds the session from the real refresh flow. So every browser persona below is a REAL logged-in
- * user. The DB seed creates ONLY the super-admin (`superadmin` / `changeme`). To exercise a limited
- * persona you must first create a matching user + role via the Admin UI (/admin/users, /admin/roles)
- * or extend the seed. `createPersonaViaApi()` sketches the API path but is intentionally not wired to
- * live endpoints yet — treat limited-persona setup as an explicit test-data prerequisite (KNOWN GAP).
+ * user.
+ *
+ * `pnpm db:seed` creates all of them: a role holding exactly the permissions listed here, a user
+ * whose **username is the persona `key` verbatim**, and the binding between the two. Password is
+ * `SEED_PERSONA_PASSWORD` (default `changeme`) — see `PERSONA_PASSWORD` below. No Admin-UI
+ * bootstrap step is required any more.
+ *
+ * This list and `SEED_PERSONAS` in `packages/db/src/seed/seed.ts` must stay 1:1 — the seed is what
+ * makes these logins real, so a persona here that the seed doesn't create cannot log in.
  */
 
 export interface Persona {
@@ -27,28 +32,63 @@ export const SUPER_ADMIN: Persona = {
   isSuperAdmin: true,
 };
 
-/** One representative limited persona per module (extend as coverage grows). */
+/** The UI_TEST_PLAN §4 persona table, seeded by `pnpm db:seed`. Keep in sync with the seed. */
 export const PERSONAS: Record<string, Persona> = {
   superadmin: SUPER_ADMIN,
   salesClerk: {
     key: "salesClerk",
     label: "Sales Clerk",
-    permissions: ["sales.quotation.manage", "sales.invoice.create", "sales.customer.manage"],
+    permissions: [
+      "sales.quotation.manage",
+      "sales.invoice.create",
+      "sales.customer.manage",
+      "sales.payment.record",
+    ],
+  },
+  salesSupervisor: {
+    key: "salesSupervisor",
+    label: "Sales Supervisor",
+    permissions: [
+      "sales.quotation.manage",
+      "sales.invoice.create",
+      "sales.invoice.approve",
+      "sales.document.void",
+      "sales.etax.submit",
+      "sales.payment.record",
+      "report.sales.view",
+    ],
   },
   payrollApprover: {
     key: "payrollApprover",
     label: "Payroll Approver",
-    permissions: ["hr.payroll.approve", "hr.employee.view", "hr.salary.view"],
+    permissions: ["hr.payroll.approve", "hr.ot.approve", "hr.salary.view", "hr.payslip.view"],
+  },
+  hrOfficer: {
+    key: "hrOfficer",
+    label: "HR Officer",
+    // No hr.salary.view — this persona is how the masked-salary assertions are exercised.
+    permissions: ["hr.employee.view", "hr.employee.manage"],
   },
   inventoryOperator: {
     key: "inventoryOperator",
     label: "Inventory Operator",
-    permissions: ["inventory.product.create", "inventory.issue.manage", "inventory.receipt.manage"],
+    // No inventory.cost.view — this persona is how the masked-cost assertions are exercised.
+    permissions: ["inventory.product.create", "inventory.receipt.manage", "inventory.issue.manage"],
+  },
+  inventoryApprover: {
+    key: "inventoryApprover",
+    label: "Inventory Approver",
+    permissions: ["inventory.issue.manage", "inventory.adjustment.approve", "inventory.cost.view"],
   },
   productionScanner: {
     key: "productionScanner",
     label: "Production Scanner",
     permissions: ["production.scan"],
+  },
+  productionPlanner: {
+    key: "productionPlanner",
+    label: "Production Planner",
+    permissions: ["production.wo.manage", "production.subcontract.manage"],
   },
   reportsViewer: {
     key: "reportsViewer",
@@ -61,6 +101,26 @@ export const PERSONAS: Record<string, Persona> = {
     permissions: [],
   },
 };
+
+/** Seeded persona password (override via SEED_PERSONA_PASSWORD, same var the seed reads). */
+export const PERSONA_PASSWORD = process.env.SEED_PERSONA_PASSWORD ?? "changeme";
+
+/** Credentials for any seeded persona — username IS the persona key. */
+export function personaCredentials(persona: Persona): { username: string; password: string } {
+  return persona.isSuperAdmin
+    ? SUPERADMIN_CREDENTIALS
+    : { username: persona.key, password: PERSONA_PASSWORD };
+}
+
+/**
+ * Saved storage-state file for a persona, written by `tests/auth.setup.ts`. Use it to run a spec
+ * as someone other than the super-admin the `app` project defaults to:
+ *
+ *   test.use({ storageState: personaStatePath(PERSONAS.hrOfficer) });
+ */
+export function personaStatePath(persona: Persona): string {
+  return `.auth/${persona.key}.json`;
+}
 
 /** Seeded super-admin credentials (override password via SEED_SUPERADMIN_PASSWORD). */
 export const SUPERADMIN_CREDENTIALS = {

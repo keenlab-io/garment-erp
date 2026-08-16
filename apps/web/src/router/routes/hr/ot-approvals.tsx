@@ -68,7 +68,7 @@ export function OtApprovalsPage() {
 
   function handleApprove(id: string) {
     approve.mutate(
-      { params: { id }, body: undefined },
+      { params: { id } },
       { onSuccess: () => toast({ tone: "success", title: t("approvals.otApproved") }) },
     );
   }

@@ -72,14 +72,14 @@ export function StockCountsPage() {
 
   async function handleReconcile() {
     if (!count) return;
-    const result = await reconcile.mutateAsync({ params: { id: count.id }, body: undefined });
+    const result = await reconcile.mutateAsync({ params: { id: count.id } });
     setAdjustment(result.body.adjustment);
     setReconcileOpen(false);
   }
 
   async function handleApprove() {
     if (!adjustment) return;
-    const result = await approveAdjustment.mutateAsync({ params: { id: adjustment.id }, body: undefined });
+    const result = await approveAdjustment.mutateAsync({ params: { id: adjustment.id } });
     setAdjustment(result.body.adjustment);
     setApproveOpen(false);
     toast({ tone: "success", title: t("counts.approved") });
@@ -87,7 +87,7 @@ export function StockCountsPage() {
 
   async function handlePost() {
     if (!adjustment) return;
-    const result = await postAdjustment.mutateAsync({ params: { id: adjustment.id }, body: undefined });
+    const result = await postAdjustment.mutateAsync({ params: { id: adjustment.id } });
     setAdjustment(result.body.adjustment);
     toast({ tone: "success", title: t("counts.posted") });
   }

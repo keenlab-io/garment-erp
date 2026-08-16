@@ -1,18 +1,33 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 /**
  * Reference module spec — Sales documents. This is the copy-me pattern for the other module
  * golden paths (see docs/testing/test-cases/03-sales.md for the full catalog). Runs authenticated
  * as super-admin (storageState from the `setup` project), English + light theme.
  *
- * SEED DATA NOTE: the DB seed (packages/db/src/seed) creates only the super-admin plus base
- * UOMs/warehouse/payroll config — it has NO customers or items, and the sales worklist reads from a
- * per-session client store (apps/web/src/sales/document-store.ts), so it starts empty. The fully
- * deterministic portion (reach worklist → open editor → structural + disabled-state assertions) is
- * implemented below. The data-dependent lifecycle (pick customer → add line → create → send →
- * approve → convert → issue → pay) is expressed as skip-guarded steps with exact selectors so it
- * activates the moment a customer+item are seeded or created first. Do not silently drop it.
+ * SEED DATA: `pnpm db:seed` creates the customer (`Acme Garments Co., Ltd.`) and items
+ * (`SEED-FAB-001`, `SEED-FG-001`) this spec selects. If TC-SALES-04 fails at the customer or item
+ * picker, the seed has not been run — that is the fix, not a looser selector.
+ *
+ * NO RELOADS mid-lifecycle: a created document lives in a per-session client store
+ * (apps/web/src/sales/document-store.ts), not a server list — the contract has no
+ * get-document-by-id endpoint. `page.reload()` between transitions would drop the record and the
+ * screen would render as an empty "new document". Navigate by clicking, never by re-goto.
  */
+
+/** The lifecycle chip sits next to the h1 (doc no) in the editor header — see document-editor.tsx. */
+function statusChip(page: Page) {
+  return page.getByRole("heading", { level: 1 }).locator("xpath=following-sibling::span").first();
+}
+
+/**
+ * Assert the editor's lifecycle chip reads `label`. Anchored at the END of the text because
+ * `InkChip` prefixes a status glyph swatch (`◇Draft`, `▣Issued`) — the glyph is `aria-hidden` but
+ * still part of the node's text content.
+ */
+async function expectStatus(page: Page, label: string) {
+  await expect(statusChip(page)).toHaveText(new RegExp(`${label}$`));
+}
 
 test.describe("sales — documents worklist & editor (reference)", () => {
   test("TC-SALES-01/02 worklist renders and opens the document editor", async ({ page }) => {
@@ -34,31 +49,75 @@ test.describe("sales — documents worklist & editor (reference)", () => {
     await expect(page.getByRole("button", { name: "Create quotation" })).toBeDisabled();
   });
 
-  test("TC-SALES-04 quotation → invoice lifecycle (needs seeded customer + item)", async ({ page }) => {
-    // Activates once master data exists. Detection: open the editor and check the customer
-    // autocomplete has selectable options. Until then, skip with a clear reason (documented gap).
+  test("TC-SALES-04 quotation → invoice lifecycle", async ({ page }) => {
     await page.goto("/sales/documents/new/edit");
     await expect(page.getByRole("heading", { level: 1, name: "New document" })).toBeVisible();
 
-    // Probe: is there at least one customer to choose? (CustomerAutocomplete over /customers.)
-    const customerField = page.getByLabel(/customer/i).first();
-    const hasCustomerData = await customerField.isVisible().catch(() => false);
-    test.skip(
-      !hasCustomerData,
-      "No seeded customer/item master data — create a customer (/sales/customers) + item " +
-        "(/inventory/items) first, or extend the DB seed. See docs/testing/test-cases/03-sales.md " +
-        "TC-SALES-04 for the full step list. KNOWN test-data gap.",
-    );
+    // --- 1. Compose the quotation (customer + one item line) -------------------------------
+    await page.getByRole("combobox", { name: "Customer" }).click();
+    await page.getByRole("option", { name: /Acme Garments/ }).click();
 
-    // --- Full lifecycle (selectors verified against document-editor.tsx) ---
-    // 1. Select customer via CustomerAutocomplete, 2. add a line (DocumentLineEditor: description,
-    //    qty, unit price), 3. click "Create quotation" → lands on /sales/documents/$id/edit as DRAFT.
-    // 4. "Send" (sales.quotation.manage) → SENT, 5. "Approve" → APPROVED,
-    // 6. "Convert to invoice" (sales.invoice.create) → invoice DRAFT,
-    // 7. "Issue" → issued invoice shows the PromptPay QR block,
-    // 8. record a payment via /sales/payments. Void is not wired in this editor — cover it where the
-    //    contract's invoices/:id/void action surfaces (flag if no UI affordance exists yet).
-    // Implement inline here when master data is available; keep each transition an assertion on the
-    // DocLifecycleChip status text.
+    // Picking the customer fills their tax id/address read-only underneath (error prevention,
+    // design MD3) — proving the autocomplete did more than set a hidden id. Scoped to the <dd> of
+    // that panel: the same tax id also renders in the combobox trigger and the paper preview.
+    await expect(page.getByRole("definition").filter({ hasText: "0105556000000" })).toBeVisible();
+
+    await page.getByRole("combobox", { name: "Item" }).click();
+    await page.getByRole("option", { name: /SEED-FG-001/ }).click();
+    await page.getByLabel("Description").fill("Polo Shirt — Navy");
+    await page.getByLabel("Qty").fill("10");
+    await page.getByLabel("Unit price").fill("250");
+
+    // The create action un-disables only once customer + a valid line both exist.
+    const createBtn = page.getByRole("button", { name: "Create quotation" });
+    await expect(createBtn).toBeEnabled();
+    await createBtn.click();
+
+    // --- 2. DRAFT: created, numbered, and on its own route ----------------------------------
+    await expect(page).toHaveURL(/\/sales\/documents\/[0-9a-f-]{36}\/edit/);
+    await expectStatus(page, "Draft");
+    // The doc no comes from SequenceService (QV<year>0001 etc.) — assert the shape, not a value
+    // that changes every run.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^QV|^QNV/);
+
+    // --- 3. DRAFT → SENT → APPROVED --------------------------------------------------------
+    await page.getByRole("button", { name: "Send" }).click();
+    await expectStatus(page, "Sent");
+
+    await page.getByRole("button", { name: "Approve" }).click();
+    await expectStatus(page, "Approved");
+
+    // --- 4. APPROVED → converted to a DRAFT invoice (new id, new route) ---------------------
+    await page.getByRole("button", { name: "Convert to invoice" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^INV/);
+    await expectStatus(page, "Draft");
+
+    // --- 5. Issue the invoice → PromptPay QR appears ----------------------------------------
+    await page.getByRole("button", { name: "Issue" }).click();
+    await expectStatus(page, "Issued");
+    await expect(page.getByText("PromptPay", { exact: true })).toBeVisible();
+
+    // --- 6. Record full payment → PAID ------------------------------------------------------
+    // Click through rather than goto: the payments screen reads the same session store.
+    await page.getByRole("link", { name: "Go to payments" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Payments" })).toBeVisible();
+
+    // Select the invoice we just issued from the session list.
+    await page.getByRole("button", { name: /^INV/ }).click();
+
+    // Pay exactly the outstanding balance. Read it off the screen rather than recomputing VAT
+    // here — the app's own total is what the payment must clear.
+    const outstandingText = await page
+      .getByText("Outstanding", { exact: true })
+      .locator("xpath=following-sibling::dd")
+      .innerText();
+    const outstanding = outstandingText.replace(/[^0-9.]/g, "");
+    expect(Number(outstanding)).toBeGreaterThan(0);
+
+    await page.getByLabel("Amount").fill(outstanding);
+    await page.getByRole("button", { name: "Record payment" }).click();
+
+    // Fully paid → the chip flips to Paid and a receipt is issued.
+    await expect(page.getByText(/Paid$/).first()).toBeVisible();
   });
 });

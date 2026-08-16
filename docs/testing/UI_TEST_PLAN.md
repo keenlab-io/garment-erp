@@ -28,7 +28,8 @@ cd e2e && npx playwright test          # see e2e/README.md
 ```
 
 Login: `superadmin` / `changeme` (or `SEED_SUPERADMIN_PASSWORD`). Limited personas are **real
-logged-in users** you create first via the Admin UI — see [Personas](#4-personas).
+logged-in users**, also created by step 2 — username = the persona key, password
+`SEED_PERSONA_PASSWORD` (default `changeme`). See [Personas](#4-personas).
 
 ---
 
@@ -97,30 +98,28 @@ every persona is a **real logged-in user** via `/login`. There is no runtime per
 **Vitest unit tests** (via `createDevUser` / `renderInShell` in `apps/web/src/test/`). Do not plan
 browser cases around it.
 
-**Known gap (test-data setup):** the DB seed creates **only** the super-admin
-(`superadmin`/`changeme`). Before any limited-persona case can run, its user must exist. Two
-options, both to be treated as an explicit precondition:
+**Instantiated by the seed.** `pnpm db:seed` creates every persona below: a role holding exactly
+its permission CSV, a user, and the binding between them. **Username is the persona key in the
+`Login as` column**; the password is `SEED_PERSONA_PASSWORD` (default `changeme`). No Admin-UI
+bootstrap step is needed — re-running the seed reconciles each role's grants back to the CSV here,
+so editing a row in this table and re-seeding is enough to change a persona.
 
-1. **Bootstrap via Admin UI** (works today): as super-admin, create a role with exactly the
-   persona's permission CSV (`/admin/roles`) and a user assigned to it (`/admin/users`) — this is
-   also the TC-ADMIN-02 golden path, so run it first and reuse its output. Convention: username =
-   persona slug (e.g. `sales-clerk`), one shared test password recorded in the run notes.
-2. **Extend the seed** to create the persona users/roles below (preferred long-term for CI
-   determinism — flagged as a follow-up; not yet implemented).
+Two lists must stay 1:1 with this table: `SEED_PERSONAS` in `packages/db/src/seed/seed.ts` (which
+makes the logins real) and `PERSONAS` in `e2e/fixtures/personas.ts` (which specs select by key).
 
-| Persona | Permission CSV (role definition) | Instantiate via | Purpose |
+| Persona | Permission CSV (role definition) | Login as | Purpose |
 |---|---|---|---|
-| **Super Admin** | — (super-admin flag bypasses all gates) | Real login `superadmin`/`changeme` (seeded) | Golden paths; Admin module (super-admin-only); persona bootstrap |
-| **Sales Clerk** | `sales.quotation.manage,sales.invoice.create,sales.customer.manage,sales.payment.record` | Real login as purpose-created user `sales-clerk` | Sales day-to-day; must NOT see approve/void/e-tax actions, aging, or other modules |
-| **Sales Supervisor** | `sales.quotation.manage,sales.invoice.create,sales.invoice.approve,sales.document.void,sales.etax.submit,sales.payment.record,report.sales.view` | Real login as purpose-created user `sales-supervisor` | High-risk sales deep cases: approve, void (+ reason), e-tax submit, aging dashboard |
-| **Payroll Approver** | `hr.payroll.approve,hr.ot.approve,hr.salary.view,hr.payslip.view` | Real login as purpose-created user `payroll-approver` | Payroll run calculate→approve, OT approve, tax exports; sees salaries unmasked |
-| **HR Officer** | `hr.employee.view,hr.employee.manage` | Real login as purpose-created user `hr-officer` | Employees/org/advances/attendance; salary fields **masked** (no `hr.salary.view`); no payroll/OT nav |
-| **Inventory Operator** | `inventory.product.create,inventory.receipt.manage,inventory.issue.manage` | Real login as purpose-created user `inventory-operator` | Items/receipts/issues/counts/barcodes; cost columns **masked** (no `inventory.cost.view`); cannot approve adjustments |
-| **Inventory Approver** | `inventory.issue.manage,inventory.adjustment.approve,inventory.cost.view` | Real login as purpose-created user `inventory-approver` | Adjustment-approve deep case; cost visible |
-| **Production Scanner** | `production.scan` | Real login as purpose-created user `production-scanner` | Kiosk scan station only — nav shows Production with only Scan; kiosk lockdown case |
-| **Production Planner** | `production.wo.manage,production.subcontract.manage` | Real login as purpose-created user `production-planner` | Timeline/work-orders/WIP/subcontracts; no scan station |
-| **Reports Viewer** | `report.sales.view,report.inventory.view` | Real login as purpose-created user `reports-viewer` | Reports home + those two dashboards only; cost/profit/tax dashboards absent; report-viewer dynamic gate |
-| **None** | *(role with zero permissions)* | Real login as purpose-created user `no-perms` | Sees only Dashboard (`/`, ungated); every gated module absent from nav/palette; direct URLs redirect |
+| **Super Admin** | — (super-admin flag bypasses all gates) | `superadmin` / `changeme` | Golden paths; Admin module (super-admin-only) |
+| **Sales Clerk** | `sales.quotation.manage,sales.invoice.create,sales.customer.manage,sales.payment.record` | `salesClerk` | Sales day-to-day; must NOT see approve/void/e-tax actions, aging, or other modules |
+| **Sales Supervisor** | `sales.quotation.manage,sales.invoice.create,sales.invoice.approve,sales.document.void,sales.etax.submit,sales.payment.record,report.sales.view` | `salesSupervisor` | High-risk sales deep cases: approve, void (+ reason), e-tax submit, aging dashboard |
+| **Payroll Approver** | `hr.payroll.approve,hr.ot.approve,hr.salary.view,hr.payslip.view` | `payrollApprover` | Payroll run calculate→approve, OT approve, tax exports; sees salaries unmasked |
+| **HR Officer** | `hr.employee.view,hr.employee.manage` | `hrOfficer` | Employees/org/advances/attendance; salary fields **masked** (no `hr.salary.view`); no payroll/OT nav |
+| **Inventory Operator** | `inventory.product.create,inventory.receipt.manage,inventory.issue.manage` | `inventoryOperator` | Items/receipts/issues/counts/barcodes; cost columns **masked** (no `inventory.cost.view`); cannot approve adjustments |
+| **Inventory Approver** | `inventory.issue.manage,inventory.adjustment.approve,inventory.cost.view` | `inventoryApprover` | Adjustment-approve deep case; cost visible |
+| **Production Scanner** | `production.scan` | `productionScanner` | Kiosk scan station only — nav shows Production with only Scan; kiosk lockdown case |
+| **Production Planner** | `production.wo.manage,production.subcontract.manage` | `productionPlanner` | Timeline/work-orders/WIP/subcontracts; no scan station |
+| **Reports Viewer** | `report.sales.view,report.inventory.view` | `reportsViewer` | Reports home + those two dashboards only; cost/profit/tax dashboards absent; report-viewer dynamic gate |
+| **None** | *(bound to no role at all)* | `none` | Sees only Dashboard (`/`, ungated); every gated module absent from nav/palette; direct URLs redirect |
 
 For Vitest **unit** isolation only, `VITE_DEV_PERMISSIONS` (unset/`*` = super-admin, `none` = no
 permissions, CSV = exactly those) shapes the in-memory dev user consumed by `renderInShell` — it is
@@ -307,9 +306,8 @@ test/build, affected-only) and `integration` (Testcontainers) jobs:
 - `runs-on: ubuntu-latest`; checkout, pnpm + Node 22 setup, `pnpm install --frozen-lockfile` (same
   preamble as `verify`).
 - Start infra: `docker compose -f infra/docker-compose.yml up -d --wait` (Docker is available on the
-  runner), then `pnpm db:migrate && pnpm db:seed`. Note the persona gap (§4): until the seed creates
-  the limited-persona users, the job (or a Playwright global-setup) must bootstrap them as
-  super-admin via the Admin UI/API before persona-gated specs run.
+  runner), then `pnpm db:migrate && pnpm db:seed` — the seed creates the §4 personas and the
+  sales/inventory master data, so persona-gated specs need no extra bootstrap step.
 - Build and start the app: `pnpm build`, then run api + web (built preview or `pnpm dev`) in the
   background; wait for `:5173`/`:3000` health.
 - `npx playwright install --with-deps chromium`, then run the `e2e` suite (smoke + reference specs

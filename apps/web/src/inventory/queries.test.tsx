@@ -129,7 +129,7 @@ describe("inventory queries", () => {
       const post = usePostGoodsIssueMutation();
       return (
         <div>
-          <button onClick={() => post.mutate({ params: { id: "gi1" }, body: undefined })}>Post</button>
+          <button onClick={() => post.mutate({ params: { id: "gi1" } })}>Post</button>
           {post.isError ? <div>failed</div> : null}
         </div>
       );

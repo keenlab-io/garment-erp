@@ -122,7 +122,7 @@ export function CreateOtRequestDrawer({
     }
 
     try {
-      await submitOt.mutateAsync({ params: { id: createdIdRef.current }, body: undefined });
+      await submitOt.mutateAsync({ params: { id: createdIdRef.current } });
     } catch {
       toast({ tone: "danger", title: t("otCreate.submitError") });
       return;

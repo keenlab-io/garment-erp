@@ -40,7 +40,7 @@ export function SubcontractsPage() {
   const rows = subcontracts.data?.body.data ?? [];
 
   async function handleReceive(id: string) {
-    await receive.mutateAsync({ params: { id }, body: undefined });
+    await receive.mutateAsync({ params: { id } });
     toast({ tone: "success", title: t("subcontracts.received") });
   }
 

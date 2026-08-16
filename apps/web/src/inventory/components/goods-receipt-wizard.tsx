@@ -106,7 +106,7 @@ export function GoodsReceiptWizard({ open, onOpenChange, onCreated }: GoodsRecei
         alloc_method: allocMethod,
       },
     });
-    await confirmReceipt.mutateAsync({ params: { id: created.body.receipt.id }, body: undefined });
+    await confirmReceipt.mutateAsync({ params: { id: created.body.receipt.id } });
     onCreated(created.body.receipt.code);
     onOpenChange(false);
   }

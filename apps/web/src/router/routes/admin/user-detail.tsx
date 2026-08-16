@@ -73,7 +73,7 @@ export function UserDetailPage() {
 
   function handleForceLogout() {
     forceLogout.mutate(
-      { params: { id }, body: undefined },
+      { params: { id } },
       {
         onSuccess: () => {
           toast({ tone: "success", title: t("userDetail.forceLogout") });

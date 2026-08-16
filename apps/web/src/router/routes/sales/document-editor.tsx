@@ -145,21 +145,21 @@ function DocumentEditorScreen({ id }: { id: string }) {
 
   async function handleSend() {
     if (record?.kind !== "quotation") return;
-    const result = await sendQuotation.mutateAsync({ params: { id: record.quotation.id }, body: undefined });
+    const result = await sendQuotation.mutateAsync({ params: { id: record.quotation.id } });
     upsertQuotation(result.body.quotation);
     toast({ tone: "success", title: t("documentEditor.sent") });
   }
 
   async function handleApprove() {
     if (record?.kind !== "quotation") return;
-    const result = await approveQuotation.mutateAsync({ params: { id: record.quotation.id }, body: undefined });
+    const result = await approveQuotation.mutateAsync({ params: { id: record.quotation.id } });
     upsertQuotation(result.body.quotation);
     toast({ tone: "success", title: t("documentEditor.approved") });
   }
 
   async function handleReject() {
     if (record?.kind !== "quotation") return;
-    const result = await rejectQuotation.mutateAsync({ params: { id: record.quotation.id }, body: undefined });
+    const result = await rejectQuotation.mutateAsync({ params: { id: record.quotation.id } });
     upsertQuotation(result.body.quotation);
     toast({ tone: "success", title: t("documentEditor.rejected") });
   }
@@ -168,7 +168,7 @@ function DocumentEditorScreen({ id }: { id: string }) {
     if (record?.kind !== "quotation") return;
     const source = getDocument(record.quotation.id);
     const sourceCustomer = source?.customer ?? null;
-    const result = await convertQuotation.mutateAsync({ params: { id: record.quotation.id }, body: undefined });
+    const result = await convertQuotation.mutateAsync({ params: { id: record.quotation.id } });
     upsertInvoice(result.body.invoice, undefined, sourceCustomer);
     toast({ tone: "success", title: t("documentEditor.converted") });
     void navigate({ to: "/sales/documents/$id/edit", params: { id: result.body.invoice.id }, replace: true });
@@ -176,7 +176,7 @@ function DocumentEditorScreen({ id }: { id: string }) {
 
   async function handleIssue() {
     if (record?.kind !== "invoice") return;
-    const result = await issueInvoice.mutateAsync({ params: { id: record.invoice.id }, body: undefined });
+    const result = await issueInvoice.mutateAsync({ params: { id: record.invoice.id } });
     upsertInvoice(result.body.invoice);
     toast({ tone: "success", title: t("documentEditor.issued") });
   }

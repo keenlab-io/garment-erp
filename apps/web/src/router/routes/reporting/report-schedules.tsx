@@ -97,7 +97,7 @@ export function ReportSchedulesPage() {
   async function handleDelete() {
     if (!deleteTarget) return;
     try {
-      await deleteSchedule.mutateAsync({ params: { id: deleteTarget.id }, body: undefined });
+      await deleteSchedule.mutateAsync({ params: { id: deleteTarget.id } });
       toast({ title: t("schedules.deleted"), tone: "success" });
       if (selected?.id === deleteTarget.id) resetForm();
     } catch {
@@ -212,7 +212,7 @@ function RunNowButton({ scheduleId, scheduleName }: { scheduleId: string; schedu
     const handle = jobToast({ title: t("schedules.runPending", { name: scheduleName }) });
     handleRef.current = handle;
     try {
-      const result = await runNow.mutateAsync({ params: { id: scheduleId }, body: undefined });
+      const result = await runNow.mutateAsync({ params: { id: scheduleId } });
       if (result.status === 202) {
         setPollingJobId(result.body.job_id);
       } else {

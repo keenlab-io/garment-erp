@@ -288,7 +288,7 @@ export const productionContract = c.router(
       method: "POST",
       path: "/subcontracts/:id/receive",
       pathParams: z.object({ id: uuid }),
-      body: z.void(),
+      body: c.noBody(),
       responses: withErrors({ 200: z.object({ subcontract: Subcontract }) }),
       summary: "Receive a subcontracted step back onto the line",
     },

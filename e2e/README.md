@@ -38,21 +38,34 @@ Override targets with `E2E_BASE_URL` (app, default `http://localhost:5173`) and
 | Path | What |
 |---|---|
 | `playwright.config.ts` | projects: `setup` → `app` (:5173, authed) and `storybook` (:6006) |
-| `tests/auth.setup.ts` | logs in once as super-admin, saves `.auth/superadmin.json` |
+| `tests/auth.setup.ts` | logs in as super-admin **and every seeded persona**, saving `.auth/<key>.json` each |
 | `tests/smoke.spec.ts` | every leaf route in the nav registry renders (super-admin) |
 | `tests/sales.spec.ts` | **reference** module golden path — copy this shape per module |
+| `tests/permissions.spec.ts` | **reference** permission gating (TC-XC) — copy this shape per persona |
 | `tests/storybook/` | component/primitive cases against Storybook (doc 99) — add here |
 | `fixtures/auth.ts` | `login()` (locale-independent selectors) + English/light state |
-| `fixtures/personas.ts` | named permission personas → `@erp/contracts` catalog |
+| `fixtures/personas.ts` | named permission personas → `@erp/contracts` catalog, `personaCredentials()`/`personaStatePath()` |
 | `fixtures/routes.ts` | leaf route list mirrored from `apps/web/src/nav/registry.ts` |
 
 ## Personas — important
 
 In the **running app** `VITE_DEV_PERMISSIONS` is **not** a login bypass (it only shapes the Vitest
-unit stub). Every persona here is a **real logged-in user**, and the seed creates only the
-super-admin. Limited-persona cases require first creating a user + role via the Admin UI
-(`/admin/users`, `/admin/roles`) or extending the seed — a known test-data prerequisite. See the
-plan's Personas section.
+unit stub). Every persona here is a **real logged-in user** — and `pnpm db:seed` creates all of
+them: role, user, and binding. Username is the persona `key` verbatim (e.g. `salesSupervisor`),
+password `SEED_PERSONA_PASSWORD` (default `changeme`); use `personaCredentials(persona)` rather
+than hardcoding. `PERSONAS` here and `SEED_PERSONAS` in `packages/db/src/seed/seed.ts` must stay
+1:1 — a persona the seed doesn't create cannot log in. See the plan's Personas section.
+
+`tests/auth.setup.ts` logs each persona in once and saves its storage state, so a spec just opts in:
+
+```ts
+import { PERSONAS, personaStatePath } from "../fixtures/personas.js";
+
+test.describe("Reports Viewer", () => {
+  test.use({ storageState: personaStatePath(PERSONAS.reportsViewer!) });
+  // …tests here run as that persona, overriding the app project's super-admin default
+});
+```
 
 ## Adding a module spec
 

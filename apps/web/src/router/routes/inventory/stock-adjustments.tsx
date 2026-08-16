@@ -71,7 +71,7 @@ export function StockAdjustmentsPage() {
 
   async function handleApprove() {
     if (!adjustment) return;
-    const result = await approveAdjustment.mutateAsync({ params: { id: adjustment.id }, body: undefined });
+    const result = await approveAdjustment.mutateAsync({ params: { id: adjustment.id } });
     setAdjustment(result.body.adjustment);
     setApproveOpen(false);
     toast({ tone: "success", title: t("adjustments.approved") });
@@ -79,7 +79,7 @@ export function StockAdjustmentsPage() {
 
   async function handlePost() {
     if (!adjustment) return;
-    const result = await postAdjustment.mutateAsync({ params: { id: adjustment.id }, body: undefined });
+    const result = await postAdjustment.mutateAsync({ params: { id: adjustment.id } });
     setAdjustment(result.body.adjustment);
     toast({ tone: "success", title: t("adjustments.posted") });
   }

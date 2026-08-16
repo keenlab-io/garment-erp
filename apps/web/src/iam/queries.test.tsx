@@ -175,7 +175,7 @@ describe("iam queries", () => {
     function Harness() {
       const forceLogout = useForceLogoutMutation();
       return (
-        <button onClick={() => forceLogout.mutate({ params: { id: "u1" }, body: undefined })}>
+        <button onClick={() => forceLogout.mutate({ params: { id: "u1" } })}>
           Revoke
         </button>
       );
