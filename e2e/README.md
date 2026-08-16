@@ -79,8 +79,10 @@ rather than binding to brittle CSS.
 Wired as **`.github/workflows/e2e.yml`** — its own workflow (PRs, pushes to `main`, and manual
 dispatch), *not* a job in `ci.yml`: `deploy.yml` calls `ci.yml` as the release gate, so a job there
 would gate every production rollout on this suite. It starts the compose stack, migrates + seeds,
-backgrounds `pnpm dev`, waits for `:3000`/`:5173`, then runs `pnpm --filter @erp/e2e test`.
+backgrounds the **built api** (`node dist/main.js`) and the **Vite dev** web server separately —
+not `pnpm dev`, whose turbo output buffering hides boot failures — waits for `:3000`/`:5173`, then
+runs `pnpm --filter @erp/e2e test`.
 
 It reports true pass/fail but is **not a required check** yet — promote it in branch protection
-once it's proven stable. On failure it uploads the HTML report, `test-results/` traces, and the
-dev-server log. See UI_TEST_PLAN.md §8.
+once it's proven stable. On failure it tails `api.log`/`web.log` inline in the job output and
+uploads the HTML report plus `test-results/` traces. See UI_TEST_PLAN.md §8.

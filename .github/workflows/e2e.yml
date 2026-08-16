@@ -79,13 +79,28 @@ jobs:
       - name: Install Playwright browser
         run: pnpm --filter @erp/e2e exec playwright install --with-deps chromium
 
-      # Backgrounded: `pnpm dev` is persistent (api :3000 + web :5173 with /api proxied). The
-      # web app must be reached through Vite because the proxy is configured under `server`
-      # only — `vite preview` would serve the bundle with no /api route.
-      - name: Start the app
+      # Start the two servers SEPARATELY rather than via `pnpm dev`. Two reasons, both learned
+      # the hard way on this workflow's first run (api never came up, and the log was empty):
+      #
+      #  1. turbo BUFFERS task output in non-TTY mode and persistent tasks never finish, so a
+      #     `pnpm dev` log captures nothing past the banner — the failure was undiagnosable.
+      #  2. `pnpm dev` starts a `dev` task in every package (9 of them, incl. tsc/ui watchers)
+      #     which all compete for the runner's 2 cores.
+      #
+      # The api runs BUILT (`node dist/main.js`, via its `start` script — the same entrypoint
+      # infra/docker/api.Dockerfile uses) instead of `nest start --watch`: no watch-mode
+      # type-check of the whole project at boot, and it matches what actually ships.
+      # The web app must stay Vite DEV — its `/api` proxy is configured under `server` only,
+      # so `vite preview` would serve the bundle with no API behind it.
+      - name: Start the api (built)
         run: |
-          nohup pnpm dev > /tmp/dev.log 2>&1 &
-          echo "started pnpm dev (pid $!)"
+          nohup pnpm --filter @erp/api start > /tmp/api.log 2>&1 &
+          echo "api pid $!"
+
+      - name: Start the web dev server
+        run: |
+          nohup pnpm --filter @erp/web dev > /tmp/web.log 2>&1 &
+          echo "web pid $!"
 
       - name: Wait for api and web
         run: |
@@ -96,9 +111,16 @@ jobs:
               echo "stack ready after ~$((i * 5))s"
               exit 0
             fi
+            if [ $((i % 6)) -eq 0 ]; then
+              echo "waiting… api=$api web=$web ($((i * 5))s elapsed)"
+            fi
             sleep 5
           done
-          echo "::error::stack did not come up (api=$api web=$web) — see the dev-log artifact"
+          # Dump the logs INLINE, not just as an artifact: the first failure of this workflow
+          # cost a download round-trip to learn nothing, because the log was empty.
+          echo "::error::stack did not come up (api=$api web=$web)"
+          echo "----- api.log (tail) -----"; tail -n 120 /tmp/api.log || true
+          echo "----- web.log (tail) -----"; tail -n 60 /tmp/web.log || true
           exit 1
 
       # playwright.config.ts already adapts to CI (forbidOnly, retries, 2 workers). The
@@ -124,5 +146,6 @@ jobs:
           name: e2e-failure-artifacts
           path: |
             e2e/test-results/
-            /tmp/dev.log
+            /tmp/api.log
+            /tmp/web.log
           retention-days: 14
