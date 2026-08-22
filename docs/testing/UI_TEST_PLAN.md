@@ -11,8 +11,10 @@ tooling, the coverage matrix, and reporting.
 # 1. Infra (Postgres :5432, Redis :6379, MinIO :9000)
 docker compose -f infra/docker-compose.yml up -d
 
-# 2. Migrate + seed (creates the superadmin login)
-pnpm db:migrate && pnpm db:seed
+# 2. Migrate + seed. SEED_TEST_DATA=1 adds the §4 personas + sample master data;
+#    without it the seed only bootstraps a super-admin (that default keeps the
+#    production bootstrap in infra/k8s/README.md from creating `changeme` accounts).
+pnpm db:migrate && SEED_TEST_DATA=1 pnpm db:seed
 
 # 3. App (web :5173 → api :3000 proxied, realtime via /socket.io)
 pnpm dev
@@ -73,13 +75,17 @@ documented in its `.test.tsx`.
 ## 3. Environment bring-up
 
 1. `docker compose -f infra/docker-compose.yml up -d` — Postgres `:5432`, Redis `:6379`, MinIO `:9000`.
-2. `pnpm db:migrate && pnpm db:seed` — schema + seed data, including the super-admin user
-   (`superadmin` / `changeme`, overridable via `SEED_SUPERADMIN_PASSWORD`).
+2. `pnpm db:migrate && SEED_TEST_DATA=1 pnpm db:seed` — schema + seed data, including the
+   super-admin user (`superadmin` / `changeme`, overridable via `SEED_SUPERADMIN_PASSWORD`).
+   **`SEED_TEST_DATA=1` is required** for the §4 personas and the sales/inventory master data;
+   it is off by default so the production bootstrap documented in `infra/k8s/README.md` step 6,
+   which runs the same seed file, never creates ten `changeme` accounts. Omit it and every
+   persona login fails with "Invalid credentials".
 3. `pnpm dev` — api on `:3000`, web on `:5173` with `/api` proxied to the api; realtime traffic
    flows over `/socket.io` (production timeline / work-order live updates depend on it).
 4. For TC-CMP cases: `pnpm --filter @erp/ui storybook` on `:6006`.
 
-Reset between destructive runs: re-seed (`pnpm db:seed`) or recreate the compose volumes. Cases that
+Reset between destructive runs: re-seed (`SEED_TEST_DATA=1 pnpm db:seed`) or recreate the compose volumes. Cases that
 mutate seeded data state that in **Preconditions**.
 
 Session mechanics relevant to tests: the access token is in-memory; the refresh token persists in
@@ -98,7 +104,7 @@ every persona is a **real logged-in user** via `/login`. There is no runtime per
 **Vitest unit tests** (via `createDevUser` / `renderInShell` in `apps/web/src/test/`). Do not plan
 browser cases around it.
 
-**Instantiated by the seed.** `pnpm db:seed` creates every persona below: a role holding exactly
+**Instantiated by the seed.** `SEED_TEST_DATA=1 pnpm db:seed` creates every persona below: a role holding exactly
 its permission CSV, a user, and the binding between them. **Username is the persona key in the
 `Login as` column**; the password is `SEED_PERSONA_PASSWORD` (default `changeme`). No Admin-UI
 bootstrap step is needed — re-running the seed reconciles each role's grants back to the CSV here,
@@ -311,7 +317,7 @@ PR-only trigger would then rarely fire), and `workflow_dispatch`. The job:
 - `pnpm build` — `dev` does **not** declare `dependsOn: ["^build"]`, so without this the apps
   resolve a stale/absent `dist` (a stale `@erp/ui` renders a blank page, a stale `@erp/db` or
   `@erp/contracts` stops the api booting);
-- `docker compose -f infra/docker-compose.yml up -d --wait`, then `pnpm db:migrate && pnpm db:seed`
+- `docker compose -f infra/docker-compose.yml up -d --wait`, then `pnpm db:migrate && pnpm db:seed` with `SEED_TEST_DATA=1`
   — the seed creates the §4 personas and the sales/inventory master data, so persona-gated specs
   need no bootstrap step;
 - `playwright install --with-deps chromium`, then start the two servers **separately** in the

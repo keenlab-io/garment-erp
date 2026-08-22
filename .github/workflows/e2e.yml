@@ -74,6 +74,13 @@ jobs:
       # data the golden paths select. No Admin-UI bootstrap step is needed — the seed creates
       # every persona login the specs use.
       - name: Migrate and seed
+        # SEED_TEST_DATA is what creates the §4 personas and the sales/inventory master data.
+        # It is OFF by default so the production bootstrap documented in infra/k8s/README.md
+        # step 6 stays bootstrap-only (it runs this same seed file, and must never create ten
+        # accounts sharing the password `changeme`). Without the flag every persona login and
+        # every golden-path spec here would fail.
+        env:
+          SEED_TEST_DATA: "1"
         run: pnpm db:migrate && pnpm db:seed
 
       - name: Install Playwright browser

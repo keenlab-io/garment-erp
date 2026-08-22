@@ -5,7 +5,7 @@ import { test, expect, type Page } from "@playwright/test";
  * golden paths (see docs/testing/test-cases/03-sales.md for the full catalog). Runs authenticated
  * as super-admin (storageState from the `setup` project), English + light theme.
  *
- * SEED DATA: `pnpm db:seed` creates the customer (`Acme Garments Co., Ltd.`) and items
+ * SEED DATA: `SEED_TEST_DATA=1 pnpm db:seed` creates the customer (`Acme Garments Co., Ltd.`) and items
  * (`SEED-FAB-001`, `SEED-FG-001`) this spec selects. If TC-SALES-04 fails at the customer or item
  * picker, the seed has not been run — that is the fix, not a looser selector.
  *

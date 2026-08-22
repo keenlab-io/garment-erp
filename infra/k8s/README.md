@@ -176,6 +176,13 @@ either a decision or a credential.
    kubectl -n erp exec deploy/erp-api -- node packages/db/dist/seed/seed.js
    ```
    Then change the password immediately — the default is `superadmin` / `changeme`.
+
+   > **Never set `SEED_TEST_DATA` here.** That flag makes this same file additionally create
+   > the ten UI-test personas (all sharing the password `changeme`), a sample customer, and
+   > `SEED-*` items — fine in dev and CI, a set of weak credentials in production. It is off
+   > unless explicitly enabled, so the command above stays bootstrap-only; keep it that way.
+   > Deploys never seed at all — `deploy.yml` runs only the migrate Job.
+
    Note: `onConflictDoNothing` means re-seeding an existing database will *not* reset a
    forgotten password.
 

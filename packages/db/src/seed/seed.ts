@@ -92,6 +92,10 @@ const DEFAULT_ADVANCE_POLICY = {
   maxInstallments: 3,
 };
 
+// Opt-in switch for everything below that exists only for the browser test suite.
+// Unset/false ⇒ this file seeds exactly what a real deployment needs, nothing more.
+const SEED_TEST_DATA = /^(1|true|yes)$/i.test(process.env.SEED_TEST_DATA ?? "");
+
 // UI-test personas (docs/testing/UI_TEST_PLAN.md §4). The running app has **no** permission
 // override — `VITE_DEV_PERMISSIONS` only shapes the Vitest stub — so every browser persona
 // must be a real role + a real logged-in user. This list mirrors `e2e/fixtures/personas.ts`
@@ -216,6 +220,28 @@ const SEED_ITEMS = [
     standardCost: "250.0000",
     minStock: "20.000000",
   },
+  // The two purchased items UAT journey J3 (procure-to-stock) receives, counts and adjusts.
+  // Seeded rather than created through the UI because the item-create form asks for the base
+  // UOM's raw uuid ("The contract has no UOM catalog endpoint yet" — items-list.tsx), which no
+  // test (and no human) can know up front. See e2e/tests/inventory.spec.ts.
+  {
+    id: "99999999-9999-4999-8999-000000000003",
+    code: "SEED-FAB-KG-001",
+    name: "Fabric Roll — White",
+    itemType: "RAW",
+    uomCode: "KG",
+    standardCost: "100.0000",
+    minStock: "5.000000",
+  },
+  {
+    id: "99999999-9999-4999-8999-000000000004",
+    code: "SEED-THR-001",
+    name: "Polyester Thread",
+    itemType: "RAW",
+    uomCode: "PCS",
+    standardCost: "100.0000",
+    minStock: "5.000000",
+  },
 ];
 
 // One scannable variant of the finished good, so the barcode/label screens and the kiosk
@@ -227,6 +253,141 @@ const SEED_SKU = {
   variant: { color: "Navy", size: "M" },
   barcode: "8850000000017",
 };
+
+/**
+ * TEST DATA — personas and sample master data. **Opt-in only** (`SEED_TEST_DATA=1`).
+ *
+ * This is deliberately separated from the bootstrap seed above. `infra/k8s/README.md` step 6
+ * documents running this very file against PRODUCTION to create the super-admin, and that step
+ * must never conjure ten accounts sharing the password `changeme`, a fake customer, or SEED-*
+ * items. Everything a real deployment needs is seeded unconditionally; everything only the
+ * browser suite needs lives in here, behind the flag.
+ *
+ * Set the flag in dev and in `.github/workflows/e2e.yml`; never in a deployed environment.
+ */
+async function seedTestData(db: ReturnType<typeof createDb>["db"]) {
+  // --- UI-test personas: role → grants → user → binding.
+  //
+  // Identity here is the NATURAL key — `role.name` and `user.username` are unique — not a
+  // hardcoded uuid. A role created earlier (by an Admin-UI bootstrap, or by an older revision
+  // of this list) already owns its name under a database-generated id, and a fixed-id insert
+  // would then lose the primary-key race, silently no-op, and leave the grants pointing at a
+  // row that does not exist. So: insert-if-absent, then read the real ids back by name and
+  // hang the grants and bindings off those.
+  const personaPasswordHash = await argon2.hash(
+    process.env.SEED_PERSONA_PASSWORD ?? "changeme",
+    { type: argon2.argon2id },
+  );
+  const rolePersonas = SEED_PERSONAS.filter((p) => p.roleName !== null);
+
+  await db
+    .insert(role)
+    .values(
+      rolePersonas.map((p) => ({
+        name: p.roleName!,
+        description: "UI-test persona (seeded) — see docs/testing/UI_TEST_PLAN.md",
+        isSystem: false,
+      })),
+    )
+    .onConflictDoNothing();
+
+  const roleRows = await db
+    .select({ id: role.id, name: role.name })
+    .from(role)
+    .where(inArray(role.name, rolePersonas.map((p) => p.roleName!)));
+  const roleIdByName = new Map(roleRows.map((r) => [r.name, r.id]));
+
+  // Resolve permission ids by code — the catalog rows were inserted above, and their ids
+  // are database-generated, so the grants can only be built after that insert.
+  const grantedCodes = [...new Set(rolePersonas.flatMap((p) => p.permissions))];
+  const permissionRows = await db
+    .select({ id: permission.id, code: permission.code })
+    .from(permission)
+    .where(inArray(permission.code, grantedCodes));
+  const permissionIdByCode = new Map(permissionRows.map((r) => [r.code, r.id]));
+
+  const grants = rolePersonas.flatMap((p) => {
+    const roleId = roleIdByName.get(p.roleName!);
+    if (!roleId) throw new Error(`Persona role "${p.roleName}" was not created`);
+    return p.permissions.map((code) => {
+      const permissionId = permissionIdByCode.get(code);
+      // A typo'd code would otherwise seed a silently under-powered persona, which reads in
+      // the UI as a permission bug rather than as bad test data. Fail loudly.
+      if (!permissionId) {
+        throw new Error(`Persona "${p.key}" references unknown permission code "${code}"`);
+      }
+      return { roleId, permissionId };
+    });
+  });
+
+  // Grants are declared EXACTLY, not additively: clear this seed's roles first so editing a
+  // persona's permission list actually removes what it dropped. A stale extra grant would
+  // quietly defeat the masked-cost / masked-salary assertions those personas exist to prove.
+  await db.delete(rolePermission).where(inArray(rolePermission.roleId, [...roleIdByName.values()]));
+  await db.insert(rolePermission).values(grants).onConflictDoNothing();
+
+  await db
+    .insert(user)
+    .values(
+      SEED_PERSONAS.map((p) => ({
+        username: p.key,
+        email: `${p.key.toLowerCase()}@erp.local`,
+        passwordHash: personaPasswordHash,
+        status: "ACTIVE" as const,
+        isSuperAdmin: false,
+        permissionsVersion: 1,
+      })),
+    )
+    .onConflictDoNothing();
+
+  const personaUserRows = await db
+    .select({ id: user.id, username: user.username })
+    .from(user)
+    .where(inArray(user.username, SEED_PERSONAS.map((p) => p.key)));
+  const userIdByUsername = new Map(personaUserRows.map((r) => [r.username, r.id]));
+
+  // Bindings are exact for the same reason — and it is what gives the `none` persona its
+  // defining property (a valid login bound to zero roles).
+  await db.delete(userRole).where(inArray(userRole.userId, [...userIdByUsername.values()]));
+  await db
+    .insert(userRole)
+    .values(
+      rolePersonas.map((p) => ({
+        userId: userIdByUsername.get(p.key)!,
+        roleId: roleIdByName.get(p.roleName!)!,
+      })),
+    )
+    .onConflictDoNothing();
+
+  // --- Golden-path master data: one customer, two items, one scannable sku.
+  await db.insert(customer).values(SEED_CUSTOMER).onConflictDoNothing();
+
+  // Base uom ids are database-generated, so map the seed items' `uomCode` after the
+  // BASE_UOMS insert above. A missing uom means the base set changed — fail loudly.
+  const uomRows = await db.select({ id: uom.id, code: uom.code }).from(uom);
+  const uomIdByCode = new Map(uomRows.map((r) => [r.code, r.id]));
+
+  await db
+    .insert(item)
+    .values(
+      SEED_ITEMS.map((i) => {
+        const baseUomId = uomIdByCode.get(i.uomCode);
+        if (!baseUomId) throw new Error(`Seed item "${i.code}" needs uom "${i.uomCode}"`);
+        return {
+          id: i.id,
+          code: i.code,
+          name: i.name,
+          itemType: i.itemType as ItemType,
+          baseUomId,
+          standardCost: i.standardCost,
+          minStock: i.minStock,
+        };
+      }),
+    )
+    .onConflictDoNothing();
+
+  await db.insert(sku).values(SEED_SKU).onConflictDoNothing();
+}
 
 async function main() {
   const url = process.env.DATABASE_URL;
@@ -273,131 +434,18 @@ async function main() {
     await db.insert(otRate).values(DEFAULT_OT_RATES).onConflictDoNothing();
     await db.insert(advancePolicy).values(DEFAULT_ADVANCE_POLICY).onConflictDoNothing();
 
-    // --- UI-test personas: role → grants → user → binding.
-    //
-    // Identity here is the NATURAL key — `role.name` and `user.username` are unique — not a
-    // hardcoded uuid. A role created earlier (by an Admin-UI bootstrap, or by an older revision
-    // of this list) already owns its name under a database-generated id, and a fixed-id insert
-    // would then lose the primary-key race, silently no-op, and leave the grants pointing at a
-    // row that does not exist. So: insert-if-absent, then read the real ids back by name and
-    // hang the grants and bindings off those.
-    const personaPasswordHash = await argon2.hash(
-      process.env.SEED_PERSONA_PASSWORD ?? "changeme",
-      { type: argon2.argon2id },
-    );
-    const rolePersonas = SEED_PERSONAS.filter((p) => p.roleName !== null);
-
-    await db
-      .insert(role)
-      .values(
-        rolePersonas.map((p) => ({
-          name: p.roleName!,
-          description: "UI-test persona (seeded) — see docs/testing/UI_TEST_PLAN.md",
-          isSystem: false,
-        })),
-      )
-      .onConflictDoNothing();
-
-    const roleRows = await db
-      .select({ id: role.id, name: role.name })
-      .from(role)
-      .where(inArray(role.name, rolePersonas.map((p) => p.roleName!)));
-    const roleIdByName = new Map(roleRows.map((r) => [r.name, r.id]));
-
-    // Resolve permission ids by code — the catalog rows were inserted above, and their ids
-    // are database-generated, so the grants can only be built after that insert.
-    const grantedCodes = [...new Set(rolePersonas.flatMap((p) => p.permissions))];
-    const permissionRows = await db
-      .select({ id: permission.id, code: permission.code })
-      .from(permission)
-      .where(inArray(permission.code, grantedCodes));
-    const permissionIdByCode = new Map(permissionRows.map((r) => [r.code, r.id]));
-
-    const grants = rolePersonas.flatMap((p) => {
-      const roleId = roleIdByName.get(p.roleName!);
-      if (!roleId) throw new Error(`Persona role "${p.roleName}" was not created`);
-      return p.permissions.map((code) => {
-        const permissionId = permissionIdByCode.get(code);
-        // A typo'd code would otherwise seed a silently under-powered persona, which reads in
-        // the UI as a permission bug rather than as bad test data. Fail loudly.
-        if (!permissionId) {
-          throw new Error(`Persona "${p.key}" references unknown permission code "${code}"`);
-        }
-        return { roleId, permissionId };
-      });
-    });
-
-    // Grants are declared EXACTLY, not additively: clear this seed's roles first so editing a
-    // persona's permission list actually removes what it dropped. A stale extra grant would
-    // quietly defeat the masked-cost / masked-salary assertions those personas exist to prove.
-    await db.delete(rolePermission).where(inArray(rolePermission.roleId, [...roleIdByName.values()]));
-    await db.insert(rolePermission).values(grants).onConflictDoNothing();
-
-    await db
-      .insert(user)
-      .values(
-        SEED_PERSONAS.map((p) => ({
-          username: p.key,
-          email: `${p.key.toLowerCase()}@erp.local`,
-          passwordHash: personaPasswordHash,
-          status: "ACTIVE" as const,
-          isSuperAdmin: false,
-          permissionsVersion: 1,
-        })),
-      )
-      .onConflictDoNothing();
-
-    const personaUserRows = await db
-      .select({ id: user.id, username: user.username })
-      .from(user)
-      .where(inArray(user.username, SEED_PERSONAS.map((p) => p.key)));
-    const userIdByUsername = new Map(personaUserRows.map((r) => [r.username, r.id]));
-
-    // Bindings are exact for the same reason — and it is what gives the `none` persona its
-    // defining property (a valid login bound to zero roles).
-    await db.delete(userRole).where(inArray(userRole.userId, [...userIdByUsername.values()]));
-    await db
-      .insert(userRole)
-      .values(
-        rolePersonas.map((p) => ({
-          userId: userIdByUsername.get(p.key)!,
-          roleId: roleIdByName.get(p.roleName!)!,
-        })),
-      )
-      .onConflictDoNothing();
-
-    // --- Golden-path master data: one customer, two items, one scannable sku.
-    await db.insert(customer).values(SEED_CUSTOMER).onConflictDoNothing();
-
-    // Base uom ids are database-generated, so map the seed items' `uomCode` after the
-    // BASE_UOMS insert above. A missing uom means the base set changed — fail loudly.
-    const uomRows = await db.select({ id: uom.id, code: uom.code }).from(uom);
-    const uomIdByCode = new Map(uomRows.map((r) => [r.code, r.id]));
-
-    await db
-      .insert(item)
-      .values(
-        SEED_ITEMS.map((i) => {
-          const baseUomId = uomIdByCode.get(i.uomCode);
-          if (!baseUomId) throw new Error(`Seed item "${i.code}" needs uom "${i.uomCode}"`);
-          return {
-            id: i.id,
-            code: i.code,
-            name: i.name,
-            itemType: i.itemType as ItemType,
-            baseUomId,
-            standardCost: i.standardCost,
-            minStock: i.minStock,
-          };
-        }),
-      )
-      .onConflictDoNothing();
-
-    await db.insert(sku).values(SEED_SKU).onConflictDoNothing();
+    // Personas + sample master data are opt-in — see seedTestData's header. Off by default so
+    // the documented production bootstrap (infra/k8s/README.md step 6) stays bootstrap-only.
+    if (SEED_TEST_DATA) {
+      await seedTestData(db);
+    }
 
     console.log(
       "Seed complete: super-admin + base sequences + permission catalog + base uom + warehouse + " +
-        `HR config + ${SEED_PERSONAS.length} UI-test personas + sales/inventory master data`,
+        "HR config" +
+        (SEED_TEST_DATA
+          ? ` + ${SEED_PERSONAS.length} UI-test personas + sales/inventory master data`
+          : " (test data skipped — set SEED_TEST_DATA=1 to include personas + sample master data)"),
     );
   } finally {
     await queryClient.end();

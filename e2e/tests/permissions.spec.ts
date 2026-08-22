@@ -5,7 +5,7 @@ import { PERSONAS, personaStatePath } from "../fixtures/personas.js";
  * Reference permission-gating spec — the copy-me pattern for the TC-XC cases in
  * docs/testing/test-cases/00-cross-cutting.md.
  *
- * Each persona is a REAL logged-in user created by `pnpm db:seed`; `tests/auth.setup.ts` saves one
+ * Each persona is a REAL logged-in user created by `SEED_TEST_DATA=1 pnpm db:seed`; `tests/auth.setup.ts` saves one
  * storage state per persona and a describe block opts in with
  * `test.use({ storageState: personaStatePath(...) })`, overriding the `app` project's super-admin
  * default. To add a persona's cases, copy a block and swap the persona.
