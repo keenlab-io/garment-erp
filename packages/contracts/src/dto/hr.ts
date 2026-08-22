@@ -518,7 +518,7 @@ export const hrContract = c.router(
       contentType: "multipart/form-data",
       body: z.object({ file: z.any() }),
       responses: withErrors({ 200: AttendanceImportResult }),
-      summary: "Import attendance rows from an Excel/CSV file",
+      summary: "Import attendance rows from an .xlsx or .csv file (columns: emp_code, work_date, clock_in, clock_out)",
     },
 
     // Payroll

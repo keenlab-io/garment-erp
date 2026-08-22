@@ -73,6 +73,8 @@ export function AttendancePage() {
           <input
             ref={inputRef}
             type="file"
+            // Both formats are genuinely supported by the importer (attendance.service.ts
+            // sniffs the "PK" zip magic to tell an .xlsx from delimited text).
             accept=".xlsx,.csv"
             className="sr-only"
             aria-label={t("attendance.import")}
