@@ -334,9 +334,12 @@ export class HrController {
 
   @TsRestHandler(contract.hr.calculatePayrollRun)
   calculatePayrollRun(@CurrentUser() user: AuthUser) {
-    return tsRestHandler(contract.hr.calculatePayrollRun, async ({ params }) => {
+    return tsRestHandler(contract.hr.calculatePayrollRun, async ({ params, body }) => {
       assertPermissions(user, "hr.payroll.approve");
-      return { status: 202, body: await this.payroll.calculate(params.id, user) };
+      return {
+        status: 202,
+        body: await this.payroll.calculate(params.id, user, body?.excluded_employee_ids ?? []),
+      };
     });
   }
 

@@ -32,7 +32,9 @@ export class PayrollWorker extends BaseWorker<unknown, { ok: true } | null> {
     switch (job.name) {
       case PAYROLL_CALCULATE_JOB: {
         const data = job.data as PayrollCalculateJob;
-        await this.uow.withTransaction(() => this.payroll.computeRun(data.run_id));
+        await this.uow.withTransaction(() =>
+          this.payroll.computeRun(data.run_id, data.excluded_employee_ids ?? []),
+        );
         return { ok: true };
       }
       case PAYROLL_EXPORT_JOB: {

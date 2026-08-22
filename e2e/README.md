@@ -44,7 +44,9 @@ Override targets with `E2E_BASE_URL` (app, default `http://localhost:5173`) and
 | `tests/permissions.spec.ts` | **reference** permission gating (TC-XC) — copy this shape per persona |
 | `tests/inventory.spec.ts` | UAT journey **J3** procure-to-stock — receipt + landed cost, count, guarded adjustment |
 | `tests/hr.spec.ts` | UAT journey **J2** hire-to-payslip — onboarding, OT, attendance reconcile, payroll approve |
-| `tests/storybook/` | component/primitive cases against Storybook (doc 99) — add here |
+| `tests/storybook/data-table.spec.ts` | TC-CMP-01..08 — sort, cursor pagination, bulk select, presets, keyboard nav, density, empty/error |
+| `tests/storybook/primitives.spec.ts` | TC-CMP-09/10, 22–26 — InkChip, FormField ARIA, Money/Qty cells, PermissionButton, MaskedValue |
+| `tests/storybook/dialogs-and-inputs.spec.ts` | TC-CMP-11..21 — confirm/guarded dialogs, combobox, select, wizard, scan, toast |
 | `fixtures/auth.ts` | `login()` (locale-independent selectors) + English/light state |
 | `fixtures/personas.ts` | named permission personas → `@erp/contracts` catalog, `personaCredentials()`/`personaStatePath()` |
 | `fixtures/routes.ts` | leaf route list mirrored from `apps/web/src/nav/registry.ts` |
@@ -85,6 +87,8 @@ would gate every production rollout on this suite. It starts the compose stack, 
 backgrounds the **built api** (`node dist/main.js`) and the **Vite dev** web server separately —
 not `pnpm dev`, whose turbo output buffering hides boot failures — waits for `:3000`/`:5173`, then
 runs `pnpm --filter @erp/e2e test`.
+
+Storybook is started there too, on :6006, for the `storybook` project's component cases.
 
 It reports true pass/fail but is **not a required check** yet — promote it in branch protection
 once it's proven stable. On failure it tails `api.log`/`web.log` inline in the job output and

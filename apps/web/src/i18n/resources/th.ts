@@ -328,6 +328,7 @@ export const hrTh: HrResources = {
     breakdownAdvance: "หักเงินเบิกล่วงหน้า",
     breakdownNet: "สุทธิ",
     runApproved: "อนุมัติรอบเงินเดือนแล้ว",
+    approveFailed: "อนุมัติรอบเงินเดือนไม่สำเร็จ — อาจอนุมัติไปแล้ว",
     scopeColumn: "พนักงาน",
     flagsColumn: "ข้อควรระวัง",
     excludeColumn: "ยกเว้น",

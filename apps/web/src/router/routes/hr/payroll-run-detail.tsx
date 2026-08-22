@@ -72,11 +72,9 @@ export function PayrollRunDetailPage() {
   const approve = useApprovePayrollRunMutation();
 
   // Only APPROVED requests are unreconciled; RECONCILED ones are settled and must not block.
-  // The status is filtered HERE rather than relied on from the query: `filter[status]` never
-  // reaches the server (Express/qs parses the bracketed key into a nested object while the
-  // contract expects the literal string), so the response carries every status. Without this
-  // filter any employee who has ever had an OT request was flagged forever and could never be
-  // included in a payroll run.
+  // Filtered here as well as in the query: relying on `filter[status]` alone is what let a
+  // settled request block payroll forever, back when Express's "extended" parser swallowed the
+  // bracketed key (fixed in main.ts). Cheap, and the flag is too costly to get wrong.
   const unreconciledEmployeeIds = React.useMemo(
     () =>
       new Set(
@@ -200,7 +198,13 @@ export function PayrollRunDetailPage() {
         onCalculate={async () => {
           setCalculating(true);
           try {
-            await calculate.mutateAsync({ params: { id } });
+            // Send the deselected employees: the server's scope is otherwise every
+            // ACTIVE/PROBATION employee, so without this the checkboxes were display-only and
+            // the run paid people the operator had explicitly excluded.
+            await calculate.mutateAsync({
+              params: { id },
+              body: { excluded_employee_ids: excludedIds },
+            });
             // Deliberately NOT cleared here. The POST only ENQUEUES the job (PayrollWorker
             // writes the payslips afterwards), so clearing on response switched off
             // `poll: calculating` before anything existed to fetch — the payslips never
@@ -214,8 +218,15 @@ export function PayrollRunDetailPage() {
         payslips={payslipRows}
         onOpenBreakdown={setBreakdownPayslipId}
         onApprove={async (_result: ConfirmResult) => {
-          await approve.mutateAsync({ params: { id } });
-          toast({ tone: "success", title: t("payroll.runApproved") });
+          // Approving a run that is no longer CALCULATED is a 409. Without this catch the
+          // rejection was swallowed by the dialog's `await` and the user saw nothing at all —
+          // the run silently stayed as it was.
+          try {
+            await approve.mutateAsync({ params: { id } });
+            toast({ tone: "success", title: t("payroll.runApproved") });
+          } catch {
+            toast({ tone: "danger", title: t("payroll.approveFailed") });
+          }
         }}
         approving={approve.isPending}
         labels={{

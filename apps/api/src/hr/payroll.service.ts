@@ -44,6 +44,8 @@ export const PAYROLL_CALCULATE_JOB = "payroll.calculate";
 export interface PayrollCalculateJob {
   run_id: string;
   actor_user_id: string;
+  /** Employees deselected in the wizard's Inputs step; omitted means "the whole scope". */
+  excluded_employee_ids?: string[];
 }
 
 /** Tag the raw `payslip.breakdown` jsonb's decimal strings with the wire `Money` brand. */
@@ -111,7 +113,11 @@ export class PayrollService {
   }
 
   /** Enqueue calculation — allowed only while DRAFT/CALCULATED (APPROVED runs are frozen). */
-  async calculate(id: string, actor: AuthUser): Promise<{ job_id: string }> {
+  async calculate(
+    id: string,
+    actor: AuthUser,
+    excludedEmployeeIds: string[] = [],
+  ): Promise<{ job_id: string }> {
     const run = await this.load(id);
     if (run.status !== "DRAFT" && run.status !== "CALCULATED") {
       throw new StateConflictError(`Cannot recalculate a ${run.status} run`);
@@ -119,6 +125,7 @@ export class PayrollService {
     const job = await this.queue.add(PAYROLL_CALCULATE_JOB, {
       run_id: id,
       actor_user_id: actor.id,
+      excluded_employee_ids: excludedEmployeeIds,
     } satisfies PayrollCalculateJob);
     return { job_id: String(job.id ?? "") };
   }
@@ -128,7 +135,8 @@ export class PayrollService {
    * advances are pulled at approval). Idempotent on `(run_id, employee_id)`. Runs inside
    * the worker's transaction.
    */
-  async computeRun(runId: string): Promise<number> {
+  async computeRun(runId: string, excludedEmployeeIds: string[] = []): Promise<number> {
+    const excluded = new Set(excludedEmployeeIds);
     const ex = currentExecutor(this.db);
     const run = await this.load(runId);
     const { start, end } = periodBounds(run.period);
@@ -146,6 +154,8 @@ export class PayrollService {
 
     let count = 0;
     for (const emp of employees) {
+      // Deselected in the wizard's Inputs step — skip rather than pay.
+      if (excluded.has(emp.id)) continue;
       const base = (await this.comp.currentBaseSalary(emp.id, end)) ?? "0";
       const { allowances, deductions } = await this.comp.resolveComponents(emp.id);
       const ot = await this.periodOtPay(emp.id, base, emp.employmentType, start, end);
