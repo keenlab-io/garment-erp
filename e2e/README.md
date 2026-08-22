@@ -43,6 +43,7 @@ Override targets with `E2E_BASE_URL` (app, default `http://localhost:5173`) and
 | `tests/sales.spec.ts` | **reference** module golden path — copy this shape per module |
 | `tests/permissions.spec.ts` | **reference** permission gating (TC-XC) — copy this shape per persona |
 | `tests/inventory.spec.ts` | UAT journey **J3** procure-to-stock — receipt + landed cost, count, guarded adjustment |
+| `tests/hr.spec.ts` | UAT journey **J2** hire-to-payslip — onboarding + OT (J2-03/04/05 skipped: no reconcile UI) |
 | `tests/storybook/` | component/primitive cases against Storybook (doc 99) — add here |
 | `fixtures/auth.ts` | `login()` (locale-independent selectors) + English/light state |
 | `fixtures/personas.ts` | named permission personas → `@erp/contracts` catalog, `personaCredentials()`/`personaStatePath()` |
