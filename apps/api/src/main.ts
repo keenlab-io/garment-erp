@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { ConfigService } from "@nestjs/config";
 import { API_PREFIX } from "@erp/contracts";
 import { AppModule } from "./app.module.js";
@@ -7,7 +8,16 @@ import { appRole } from "./config/app-role.js";
 import { RedisIoAdapter } from "./realtime/redis-io.adapter.js";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Keep bracketed query keys LITERAL. The contracts declare filter params as the exact strings
+  // `filter[status]`, `filter[employee_id]`, … and validate against those keys. Express's default
+  // "extended" parser (qs) turns `?filter[status]=X` into `{ filter: { status: "X" } }`, so the
+  // literal key was never present and every such filter was silently dropped — the request
+  // succeeded while quietly returning unfiltered data. That is how a RECONCILED OT request kept
+  // blocking payroll. "simple" (Node's querystring) leaves the key alone.
+  app.set("query parser", "simple");
+
   app.enableCors();
   // Drain the DB pool, Redis connection, and puppeteer browser on SIGTERM/SIGINT.
   app.enableShutdownHooks();

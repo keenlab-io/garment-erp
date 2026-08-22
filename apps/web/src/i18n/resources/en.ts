@@ -302,6 +302,7 @@ export const hrEn = {
     breakdownAdvance: "Cash-advance repayment",
     breakdownNet: "Net",
     runApproved: "Payroll run approved.",
+    approveFailed: "Couldn't approve this payroll run — it may already be approved.",
     scopeColumn: "Employee",
     flagsColumn: "Flags",
     excludeColumn: "Exclude",

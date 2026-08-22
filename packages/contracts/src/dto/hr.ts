@@ -188,6 +188,16 @@ export const CreateOtRequest = z.object({
 });
 export type CreateOtRequest = z.infer<typeof CreateOtRequest>;
 
+/**
+ * Employees the payroll wizard's Inputs step deselected. The scope is otherwise every
+ * ACTIVE/PROBATION employee, so without this the exclusion checkboxes were display-only and the
+ * run paid people the operator had explicitly removed.
+ */
+export const CalculatePayrollRunRequest = z.object({
+  excluded_employee_ids: z.array(uuid).optional(),
+});
+export type CalculatePayrollRunRequest = z.infer<typeof CalculatePayrollRunRequest>;
+
 /** Reconcile an approved OT request — omitting `approved_hours` defaults to min(req, attended). */
 export const ReconcileOtRequest = z.object({
   approved_hours: qtyString.optional(),
@@ -540,9 +550,11 @@ export const hrContract = c.router(
       method: "POST",
       path: "/payroll-runs/:id/calculate",
       pathParams: z.object({ id: uuid }),
-      body: c.noBody(),
+      body: CalculatePayrollRunRequest,
       responses: withErrors({ 202: jobAccepted }),
-      summary: "Enqueue payslip calculation (only while DRAFT/CALCULATED)",
+      summary:
+        "Enqueue payslip calculation for the run's scope minus `excluded_employee_ids` " +
+        "(only while DRAFT/CALCULATED)",
     },
     listPayslips: {
       method: "GET",
