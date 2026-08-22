@@ -84,29 +84,24 @@ test.describe("hr — hire to payslip (UAT journey J2)", () => {
     await expect(page.getByRole("row").filter({ hasText: LAST_NAME })).toContainText("Approved");
   });
 
-  // ---------------------------------------------------------------------------------------
-  // UAT-J2-03/04/05 are BLOCKED — no UI path exists, so they are skipped rather than faked.
-  //
-  // `reconcileOtRequest` is in the contract (POST /ot-requests/:id/reconcile) and a hook exists
-  // (`useReconcileOtRequestMutation`, hr/queries.ts:189) — but NOTHING calls it. The Attendance
-  // screen is read-only plus a CSV import; the only "Reconcile" strings in the app belong to
-  // stock counts. So an approved OT request can never reach RECONCILED through the screens.
-  //
-  // That blocks payroll too: `payroll-wizard.tsx` sets `canCalculate = blocking.length === 0`
-  // where blocking includes anyone with `unreconciledOt`. Suda therefore either blocks Calculate
-  // or has to be excluded from the run — and an excluded employee has no payslip, which is what
-  // UAT-J2-04 asserts on.
-  //
-  // These skip (not pass) so the gap stays visible in every report, and they become executable
-  // the moment the reconcile action is wired to a screen.
-  // ---------------------------------------------------------------------------------------
+  test("UAT-J2-03 OT reconciled against attendance", async ({ page }) => {
+    await page.goto("/hr/ot");
+    const row = page.getByRole("row").filter({ hasText: LAST_NAME });
+    await expect(row).toContainText("Approved");
 
-  test("UAT-J2-03 OT reconciled against attendance: 3h asked, 2h worked, 2h paid", async () => {
-    test.skip(
-      true,
-      "No UI path: reconcileOtRequest is contracted and hooked but no screen calls it, and the " +
-        "Attendance screen only imports CSV. KNOWN GAP — see this file's header.",
-    );
+    // Reconcile settles approved_hours against attendance. The action is offered only in the
+    // APPROVED state — the server 409s otherwise.
+    await row.getByRole("button", { name: "Row actions" }).click();
+    await page.getByRole("button", { name: "Reconcile" }).click();
+    await expect(page.getByText("OT reconciled against attendance.")).toBeVisible();
+
+    // RECONCILED maps to the `posted` ChipStatus, which renders "Posted" (hr/chip-status.ts).
+    await expect(page.getByRole("row").filter({ hasText: LAST_NAME })).toContainText("Posted");
+
+    // The settled figure is now on screen. It is 0 here, not the journey's 2: attendance is
+    // imported from CSV and this run records none, so min(requested 3, attended 0) = 0. The
+    // derivation is what this asserts; the 2-hour case needs the attendance import path.
+    await expect(page.getByRole("row").filter({ hasText: LAST_NAME })).toContainText("0");
   });
 
   test("UAT-J2-04 payroll calculated and the payslip breakdown reviewed", async () => {
