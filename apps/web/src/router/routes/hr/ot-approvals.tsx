@@ -16,7 +16,12 @@ import {
   useToast,
 } from "@erp/ui";
 import { useDensity } from "../../../density/density-context.js";
-import { useApproveOtRequestMutation, useEmployeesQuery, useOtRequestsQuery } from "../../../hr/queries.js";
+import {
+  useApproveOtRequestMutation,
+  useEmployeesQuery,
+  useOtRequestsQuery,
+  useReconcileOtRequestMutation,
+} from "../../../hr/queries.js";
 import { otRequestStatusToChip } from "../../../hr/chip-status.js";
 import { CreateOtRequestDrawer } from "./ot-request-create-drawer.js";
 
@@ -26,22 +31,32 @@ interface OtRow {
   workDate: string;
   window: string;
   rateType: string;
+  approvedHours: string;
   status: OtRequest["status"];
 }
 
 /**
- * The OT approval queue (M2 §4.3, design "OT approval queue"): submitted requests, an approve
- * row action, and a detail drawer. The contract has no reject endpoint for OT requests (only
- * `approve`/`reconcile`) — rejection is out of this screen's scope.
+ * The OT approval queue (M2 §4.3, design "OT approval queue"): the requests awaiting action, the
+ * approve and reconcile row actions, and a detail drawer. The contract has no reject endpoint for
+ * OT requests (only `approve`/`reconcile`) — rejection is out of this screen's scope.
+ *
+ * Reconcile settles `approved_hours` against attendance (the server takes
+ * `min(requested, attended)`, and attended is 0 when no attendance row exists), moving
+ * APPROVED → RECONCILED. Payroll treats an unreconciled request as a blocking flag, so without
+ * this action a run can never include the employee.
+ *
+ * The queue is deliberately NOT filtered by status: a request has to stay on screen after it is
+ * approved, or there would be nowhere to reconcile it from.
  */
 export function OtApprovalsPage() {
   const { t } = useTranslation("hr");
   const { toast } = useToast();
   const { density } = useDensity();
 
-  const otQueue = useOtRequestsQuery({ "filter[status]": "SUBMITTED" });
+  const otQueue = useOtRequestsQuery();
   const employees = useEmployeesQuery({ limit: 100 });
   const approve = useApproveOtRequestMutation();
+  const reconcile = useReconcileOtRequestMutation();
   const [detailId, setDetailId] = React.useState<string | null>(null);
   const [createOpen, setCreateOpen] = React.useState(false);
 
@@ -59,6 +74,7 @@ export function OtApprovalsPage() {
         workDate: r.work_date,
         window: `${r.start_time}–${r.end_time}`,
         rateType: r.rate_type,
+        approvedHours: r.approved_hours ?? "—",
         status: r.status,
       })),
     [requests, employeeNameById],
@@ -70,6 +86,15 @@ export function OtApprovalsPage() {
     approve.mutate(
       { params: { id } },
       { onSuccess: () => toast({ tone: "success", title: t("approvals.otApproved") }) },
+    );
+  }
+
+  function handleReconcile(id: string) {
+    // No `approved_hours` in the body: the server settles it against attendance as
+    // min(requested, attended) — that derivation is the point of the action.
+    reconcile.mutate(
+      { params: { id }, body: {} },
+      { onSuccess: () => toast({ tone: "success", title: t("approvals.otReconciled") }) },
     );
   }
 
@@ -89,6 +114,7 @@ export function OtApprovalsPage() {
           textColumn<OtRow>("workDate", { header: t("approvals.columnWorkDate") }),
           textColumn<OtRow>("window", { header: t("approvals.columnWindow"), secondary: true }),
           textColumn<OtRow>("rateType", { header: t("approvals.columnRateType"), secondary: true }),
+          textColumn<OtRow>("approvedHours", { header: t("approvals.columnApprovedHours") }),
           statusColumn<OtRow, OtRequest["status"]>("status", {
             header: t("approvals.columnStatus"),
             resolve: otRequestStatusToChip,
@@ -102,11 +128,26 @@ export function OtApprovalsPage() {
         emptyState={{ title: t("approvals.otEmpty") }}
         rowActions={(row) => [
           { key: "view", label: t("approvals.viewAction"), onClick: () => setDetailId(row.id) },
-          {
-            key: "approve",
-            label: t("approvals.approveAction"),
-            onClick: () => handleApprove(row.id),
-          },
+          // Offered only in the state the server accepts — approve is SUBMITTED-only and
+          // reconcile APPROVED-only, both 409 otherwise (ot.service.ts).
+          ...(row.status === "SUBMITTED"
+            ? [
+                {
+                  key: "approve",
+                  label: t("approvals.approveAction"),
+                  onClick: () => handleApprove(row.id),
+                },
+              ]
+            : []),
+          ...(row.status === "APPROVED"
+            ? [
+                {
+                  key: "reconcile",
+                  label: t("approvals.reconcileAction"),
+                  onClick: () => handleReconcile(row.id),
+                },
+              ]
+            : []),
         ]}
       />
 
@@ -139,19 +180,33 @@ export function OtApprovalsPage() {
                   <dd className="text-text-primary">{detail.reason ?? "—"}</dd>
                 </div>
                 <div className="flex justify-between">
+                  <dt className="text-text-muted">{t("approvals.columnApprovedHours")}</dt>
+                  <dd className="text-text-primary">{detail.approved_hours ?? "—"}</dd>
+                </div>
+                <div className="flex justify-between">
                   <dt className="text-text-muted">{t("approvals.columnStatus")}</dt>
                   <dd>
                     <InkChip status={otRequestStatusToChip(detail.status)} />
                   </dd>
                 </div>
               </dl>
-              <Button
-                onClick={() => handleApprove(detail.id)}
-                disabled={detail.status !== "SUBMITTED"}
-                loading={approve.isPending}
-              >
-                {t("approvals.approveAction")}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => handleApprove(detail.id)}
+                  disabled={detail.status !== "SUBMITTED"}
+                  loading={approve.isPending}
+                >
+                  {t("approvals.approveAction")}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => handleReconcile(detail.id)}
+                  disabled={detail.status !== "APPROVED"}
+                  loading={reconcile.isPending}
+                >
+                  {t("approvals.reconcileAction")}
+                </Button>
+              </div>
             </DrawerBody>
           )}
         </DrawerContent>

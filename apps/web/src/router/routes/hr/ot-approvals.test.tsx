@@ -109,6 +109,45 @@ describe("OtApprovalsPage", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  // The row actions must match the states the server accepts: approve is SUBMITTED-only and
+  // reconcile APPROVED-only (ot.service.ts throws StateConflictError otherwise). Offering both
+  // on every row is how a click turns into a 409.
+  it("offers Approve on a submitted request and Reconcile only once approved", async () => {
+    stubHappyPath();
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByText("Somchai Jaidee");
+    await user.click((await screen.findAllByRole("button", { name: "Row actions" }))[0]!);
+    expect(await screen.findByRole("button", { name: "Approve" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reconcile" })).not.toBeInTheDocument();
+  });
+
+  it("reconciles an approved request without sending approved_hours", async () => {
+    const calls: { url: string; body: string | undefined }[] = [];
+    stubFetch((url, init) => {
+      if (url.includes("/reconcile")) {
+        calls.push({ url, body: init?.body as string | undefined });
+        return jsonResponse({ ot_request: { ...OT_REQUEST, status: "RECONCILED", approved_hours: "2.000000" } });
+      }
+      if (url.includes("/ot-requests")) return jsonResponse({ ot_requests: [{ ...OT_REQUEST, status: "APPROVED" }] });
+      if (url.includes("/employees")) return jsonResponse({ data: [EMPLOYEE], next_cursor: null });
+      return undefined;
+    });
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByText("Somchai Jaidee");
+    await user.click((await screen.findAllByRole("button", { name: "Row actions" }))[0]!);
+    await user.click(await screen.findByRole("button", { name: "Reconcile" }));
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.url).toContain("/reconcile");
+    // Omitting approved_hours is what makes the server derive min(requested, attended) —
+    // sending a number here would silently override the attendance check.
+    expect(calls[0]!.body ?? "{}").not.toContain("approved_hours");
+  });
+
   it("opens the create drawer from the 'New OT request' button", async () => {
     stubHappyPath();
     const user = userEvent.setup();
