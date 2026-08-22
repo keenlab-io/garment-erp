@@ -62,7 +62,11 @@ export function LoginPage() {
         <h1 className="font-display text-h2 font-semibold text-text-primary">{t("login.title")}</h1>
         <p className="mt-2 text-sm text-text-secondary">{t("login.subtitle")}</p>
 
-        {notice && (
+        {/* Match the notice EXPLICITLY rather than treating "not reauth" as an expiry. The
+            previous ternary meant any truthy value that slipped past `validateLoginSearch`
+            rendered "Your session expired" — so `/login?notice=anything` told the user a
+            reason that was simply untrue. Unrecognised values now render nothing. */}
+        {(notice === "reauth" || notice === "session-expired") && (
           <Badge tone="warning" className="mt-4">
             {t(notice === "reauth" ? "login.noticeReauth" : "login.noticeSessionExpired")}
           </Badge>

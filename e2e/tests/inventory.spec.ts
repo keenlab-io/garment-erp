@@ -132,8 +132,8 @@ test.describe("inventory — procure to stock (UAT journey J3)", () => {
     await expect(postBtn).toBeVisible();
     await postBtn.click();
 
-    // Posting is what moves the books: the toast confirms, and the action retires with the status.
-    await expect(page.getByText("Adjustment posted")).toBeVisible();
+    // Posting is what moves the books. Assert the action RETIRING, not the toast — toasts
+    // auto-dismiss and race (see hr.spec.ts's header note).
     await expect(postBtn).toHaveCount(0);
   });
 

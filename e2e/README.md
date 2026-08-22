@@ -41,7 +41,9 @@ Override targets with `E2E_BASE_URL` (app, default `http://localhost:5173`) and
 | `tests/auth.setup.ts` | logs in as super-admin **and every seeded persona**, saving `.auth/<key>.json` each |
 | `tests/smoke.spec.ts` | every leaf route in the nav registry renders (super-admin) |
 | `tests/sales.spec.ts` | **reference** module golden path — copy this shape per module |
-| `tests/permissions.spec.ts` | **reference** permission gating (TC-XC) — copy this shape per persona |
+| `tests/auth.spec.ts` | TC-XC-01..05 — login, failure badge, notice banners, session restore (runs unauthenticated) |
+| `tests/permissions.spec.ts` | TC-XC-06..10 — persona gating, super-admin bypass, module-root redirect |
+| `tests/shell.spec.ts` | TC-XC-11..20 — theme, density, locale, command palette, kiosk lockdown |
 | `tests/inventory.spec.ts` | UAT journey **J3** procure-to-stock — receipt + landed cost, count, guarded adjustment |
 | `tests/hr.spec.ts` | UAT journey **J2** hire-to-payslip — onboarding, OT, attendance reconcile, payroll approve |
 | `tests/storybook/data-table.spec.ts` | TC-CMP-01..08 — sort, cursor pagination, bulk select, presets, keyboard nav, density, empty/error |
