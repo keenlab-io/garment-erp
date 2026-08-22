@@ -44,6 +44,7 @@ Override targets with `E2E_BASE_URL` (app, default `http://localhost:5173`) and
 | `tests/auth.spec.ts` | TC-XC-01..05 — login, failure badge, notice banners, session restore (runs unauthenticated) |
 | `tests/permissions.spec.ts` | TC-XC-06..10 — persona gating, super-admin bypass, module-root redirect |
 | `tests/shell.spec.ts` | TC-XC-11..20 — theme, density, locale, command palette, kiosk lockdown |
+| `tests/admin.spec.ts` | TC-ADMIN-01..09 — users, roles, permission matrix, guarded delete, audit log, import |
 | `tests/inventory.spec.ts` | UAT journey **J3** procure-to-stock — receipt + landed cost, count, guarded adjustment |
 | `tests/hr.spec.ts` | UAT journey **J2** hire-to-payslip — onboarding, OT, attendance reconcile, payroll approve |
 | `tests/storybook/data-table.spec.ts` | TC-CMP-01..08 — sort, cursor pagination, bulk select, presets, keyboard nav, density, empty/error |

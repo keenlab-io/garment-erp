@@ -11,6 +11,7 @@ import {
 } from "@erp/db";
 import type { ImportResult, ImportSkip } from "@erp/contracts";
 import type { AuthUser } from "../auth/auth-user.js";
+import { loadWorkbook } from "../common/workbook.js";
 import { ValidationError } from "../common/errors/app-exception.js";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
@@ -195,10 +196,7 @@ export class ImportService {
 
 /** Read the first worksheet's columns A/B into raw rows (1-indexed row numbers). */
 async function readWorkbook(buffer: Buffer): Promise<RawImportRow[]> {
-  const wb = new ExcelJS.Workbook();
-  // exceljs's typings predate the generic `Buffer<ArrayBufferLike>`; the value is a
-  // real Node Buffer either way.
-  await wb.xlsx.load(buffer as unknown as ArrayBuffer);
+  const wb = await loadWorkbook(buffer, "permission file");
   const ws = wb.worksheets[0];
   if (!ws) throw new ValidationError("The workbook has no worksheets");
 
