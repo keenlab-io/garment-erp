@@ -5,7 +5,7 @@ import { test, expect, type Page } from "@playwright/test";
  * Receive a delivery with landed cost, count the shelf, and correct the books under guard.
  *
  * SEED DATA: `Fabric Roll — White` (SEED-FAB-KG-001, base UOM KG) and `Polyester Thread`
- * (SEED-THR-001, base UOM PCS) come from `pnpm db:seed`.
+ * (SEED-THR-001, base UOM PCS) come from `SEED_TEST_DATA=1 pnpm db:seed`.
  *
  * DEVIATION from the journey text, deliberate:
  *

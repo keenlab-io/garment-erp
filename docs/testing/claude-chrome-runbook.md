@@ -22,7 +22,7 @@ coverage matrix.
 
 ```bash
 docker compose -f infra/docker-compose.yml up -d     # Postgres, Redis, MinIO
-pnpm db:migrate && pnpm db:seed                       # superadmin / changeme
+pnpm db:migrate && SEED_TEST_DATA=1 pnpm db:seed      # superadmin / changeme + personas
 pnpm dev                                              # web :5173, api :3000, /socket.io realtime
 pnpm --filter @erp/ui storybook                       # :6006 — only for TC-CMP cases
 ```
@@ -79,7 +79,7 @@ Execution rules Claude must follow (they are also stated in each case's template
   change; note in results if a case needs a second actor and you ran single-tab.
 - **Console errors**: after each case, check the browser console; unexpected errors on a passing
   case are recorded as a note (and often a defect).
-- **Destructive cases** (void, approve, payroll): mind Preconditions — re-seed (`pnpm db:seed`)
+- **Destructive cases** (void, approve, payroll): mind Preconditions — re-seed (`SEED_TEST_DATA=1 pnpm db:seed`)
   between full runs rather than improvising data.
 
 ## 5. Screenshots & evidence

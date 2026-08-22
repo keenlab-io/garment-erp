@@ -2,7 +2,7 @@
 
 Behaviors of the app shell that every module inherits: login/session, permission-gated nav parity,
 theme/density/locale, the command palette, and kiosk routes. Target is the running app at
-`http://localhost:5173` (stack up via `docker compose -f infra/docker-compose.yml up -d`, `pnpm db:seed`, `pnpm dev`).
+`http://localhost:5173` (stack up via `docker compose -f infra/docker-compose.yml up -d`, `SEED_TEST_DATA=1 pnpm db:seed`, `pnpm dev`).
 
 > **Locale note**: the app boots in Thai (`th`) by default. Every quoted string below is the English
 > resource (`apps/web/src/i18n/resources/en.ts`). Automated runs should either switch the language

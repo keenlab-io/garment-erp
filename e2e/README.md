@@ -15,7 +15,7 @@ pnpm --filter @erp/e2e install-browsers   # playwright install chromium
 
 ```bash
 docker compose -f infra/docker-compose.yml up -d   # Postgres/Redis/MinIO
-pnpm db:migrate && pnpm db:seed                     # schema + super-admin (superadmin / changeme)
+pnpm db:migrate && SEED_TEST_DATA=1 pnpm db:seed    # schema + super-admin + personas + master data
 pnpm dev                                            # web :5173 → api :3000 (proxied)
 # component (Storybook) cases: pnpm --filter @erp/ui storybook   # :6006
 ```
@@ -51,8 +51,9 @@ Override targets with `E2E_BASE_URL` (app, default `http://localhost:5173`) and
 ## Personas — important
 
 In the **running app** `VITE_DEV_PERMISSIONS` is **not** a login bypass (it only shapes the Vitest
-unit stub). Every persona here is a **real logged-in user** — and `pnpm db:seed` creates all of
-them: role, user, and binding. Username is the persona `key` verbatim (e.g. `salesSupervisor`),
+unit stub). Every persona here is a **real logged-in user** — and `SEED_TEST_DATA=1 pnpm db:seed`
+creates all of them: role, user, and binding. **That flag is required**: it is off by default so the
+production bootstrap in `infra/k8s/README.md` (same seed file) never creates `changeme` accounts. Username is the persona `key` verbatim (e.g. `salesSupervisor`),
 password `SEED_PERSONA_PASSWORD` (default `changeme`); use `personaCredentials(persona)` rather
 than hardcoding. `PERSONAS` here and `SEED_PERSONAS` in `packages/db/src/seed/seed.ts` must stay
 1:1 — a persona the seed doesn't create cannot log in. See the plan's Personas section.

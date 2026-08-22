@@ -8,7 +8,7 @@ import { defineConfig, devices } from "@playwright/test";
  *   - `storybook`→ isolated @erp/ui components at :6006 (component/primitive cases, doc 99).
  *
  * The stack must be up before running (this config does NOT boot Postgres/Redis/MinIO/api):
- *   docker compose -f infra/docker-compose.yml up -d && pnpm db:seed && pnpm dev
+ *   docker compose -f infra/docker-compose.yml up -d && SEED_TEST_DATA=1 pnpm db:seed && pnpm dev
  * Optionally launch just the web dev server via the (commented) `webServer` block below.
  */
 
