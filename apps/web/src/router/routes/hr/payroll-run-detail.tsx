@@ -62,11 +62,28 @@ export function PayrollRunDetailPage() {
   const otQueue = useOtRequestsQuery({ "filter[status]": "APPROVED" });
   const payslips = usePayslipsQuery(id, { poll: calculating });
 
+  // Stop polling once the worker's payslips land — the calculate POST cannot tell us that,
+  // because it returns as soon as the job is queued.
+  React.useEffect(() => {
+    if (calculating && (payslips.data?.body.payslips.length ?? 0) > 0) setCalculating(false);
+  }, [calculating, payslips.data]);
+
   const calculate = useCalculatePayrollRunMutation();
   const approve = useApprovePayrollRunMutation();
 
+  // Only APPROVED requests are unreconciled; RECONCILED ones are settled and must not block.
+  // The status is filtered HERE rather than relied on from the query: `filter[status]` never
+  // reaches the server (Express/qs parses the bracketed key into a nested object while the
+  // contract expects the literal string), so the response carries every status. Without this
+  // filter any employee who has ever had an OT request was flagged forever and could never be
+  // included in a payroll run.
   const unreconciledEmployeeIds = React.useMemo(
-    () => new Set((otQueue.data?.body.ot_requests ?? []).map((r) => r.employee_id)),
+    () =>
+      new Set(
+        (otQueue.data?.body.ot_requests ?? [])
+          .filter((r) => r.status === "APPROVED")
+          .map((r) => r.employee_id),
+      ),
     [otQueue.data],
   );
 
@@ -184,7 +201,12 @@ export function PayrollRunDetailPage() {
           setCalculating(true);
           try {
             await calculate.mutateAsync({ params: { id } });
-          } finally {
+            // Deliberately NOT cleared here. The POST only ENQUEUES the job (PayrollWorker
+            // writes the payslips afterwards), so clearing on response switched off
+            // `poll: calculating` before anything existed to fetch — the payslips never
+            // arrived and "Continue to review" stayed disabled until a manual reload.
+            // The effect below clears it once they land.
+          } catch {
             setCalculating(false);
           }
         }}
