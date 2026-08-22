@@ -1,3 +1,4 @@
+import { Readable } from "node:stream";
 import { Inject, Injectable } from "@nestjs/common";
 import { and, between, eq } from "drizzle-orm";
 import ExcelJS from "exceljs";
@@ -91,10 +92,37 @@ export class AttendanceService {
   }
 }
 
+/**
+ * Load an upload as a workbook. BOTH .xlsx and .csv are accepted, because both are advertised —
+ * by this endpoint's contract summary and by the file picker's `accept` attribute — and a time
+ * clock exporting CSV is the ordinary case. A CSV previously reached `xlsx.load` and threw
+ * unhandled, so the user got a 500 "Internal server error" instead of anything actionable.
+ *
+ * The format is sniffed rather than trusted from the filename: .xlsx is a zip, so it always
+ * begins with the "PK" local-file-header magic; anything else is read as delimited text. An
+ * unreadable file is a 422, not a 500 — it is bad input, not a server fault.
+ */
+async function loadWorkbook(buffer: Buffer): Promise<ExcelJS.Workbook> {
+  const wb = new ExcelJS.Workbook();
+  const isXlsx = buffer.length >= 2 && buffer[0] === 0x50 && buffer[1] === 0x4b; // "PK"
+  try {
+    if (isXlsx) {
+      await wb.xlsx.load(buffer as unknown as ArrayBuffer);
+    } else {
+      await wb.csv.read(Readable.from(buffer));
+    }
+  } catch {
+    throw new ValidationError(
+      "Couldn't read the attendance file. Upload an .xlsx workbook or a .csv file with " +
+        "columns: employee code, work date, clock in, clock out.",
+    );
+  }
+  return wb;
+}
+
 /** Read the first worksheet's rows into parsed attendance records (skips a header). */
 async function readWorkbook(buffer: Buffer): Promise<AttendanceRow[]> {
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(buffer as unknown as ArrayBuffer);
+  const wb = await loadWorkbook(buffer);
   const ws = wb.worksheets[0];
   if (!ws) throw new ValidationError("The workbook has no worksheets");
 
