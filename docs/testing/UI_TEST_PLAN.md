@@ -337,9 +337,8 @@ than a red check) but is **not yet a required check**. Promote it in branch prot
 been green across a few dozen runs. It stays out of the affected-only turbo graph — `ci.yml`
 excludes `@erp/e2e` by name and this workflow invokes Playwright directly.
 
-**When the doc-99 component cases land** in `e2e/tests/storybook/`, this job also needs
-`pnpm --filter @erp/ui storybook` running on `:6006`; today that Playwright project matches no
-specs, so the suite passes without it.
+The job also starts **Storybook on `:6006`**, which the `storybook` Playwright project needs —
+all 26 doc-99 component cases are codified there.
 
 ## 9. Maintenance rules
 
