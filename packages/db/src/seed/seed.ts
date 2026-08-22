@@ -216,6 +216,28 @@ const SEED_ITEMS = [
     standardCost: "250.0000",
     minStock: "20.000000",
   },
+  // The two purchased items UAT journey J3 (procure-to-stock) receives, counts and adjusts.
+  // Seeded rather than created through the UI because the item-create form asks for the base
+  // UOM's raw uuid ("The contract has no UOM catalog endpoint yet" — items-list.tsx), which no
+  // test (and no human) can know up front. See e2e/tests/inventory.spec.ts.
+  {
+    id: "99999999-9999-4999-8999-000000000003",
+    code: "SEED-FAB-KG-001",
+    name: "Fabric Roll — White",
+    itemType: "RAW",
+    uomCode: "KG",
+    standardCost: "100.0000",
+    minStock: "5.000000",
+  },
+  {
+    id: "99999999-9999-4999-8999-000000000004",
+    code: "SEED-THR-001",
+    name: "Polyester Thread",
+    itemType: "RAW",
+    uomCode: "PCS",
+    standardCost: "100.0000",
+    minStock: "5.000000",
+  },
 ];
 
 // One scannable variant of the finished good, so the barcode/label screens and the kiosk
