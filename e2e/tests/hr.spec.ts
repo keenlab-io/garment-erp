@@ -92,7 +92,13 @@ test.describe("hr — hire to payslip (UAT journey J2)", () => {
     const row = page.getByRole("row").filter({ hasText: LAST_NAME });
     await expect(row).toContainText("Pending");
     await row.getByRole("button", { name: "Row actions" }).click();
+    // Wait for the approval to land before reading the row: the list refetches on success, so
+    // asserting straight after the click races the re-render.
+    const approved = page.waitForResponse(
+      (r) => r.url().includes("/approve") && r.request().method() === "POST",
+    );
     await page.getByRole("button", { name: "Approve" }).click();
+    expect((await approved).status()).toBeLessThan(400);
     // Assert the durable state, not the toast: toasts auto-dismiss and raced this check.
     await expect(page.getByRole("row").filter({ hasText: LAST_NAME })).toContainText("Approved");
   });

@@ -50,6 +50,7 @@ Override targets with `E2E_BASE_URL` (app, default `http://localhost:5173`) and
 | `tests/production.spec.ts` | TC-PROD-01..11 — timeline, work orders, kiosk lockdown, scan loop, defects, offline queue, WIP |
 | `tests/inventory.spec.ts` | UAT journey **J3** procure-to-stock — receipt + landed cost, count, guarded adjustment |
 | `tests/hr.spec.ts` | UAT journey **J2** hire-to-payslip — onboarding, OT, attendance reconcile, payroll approve |
+| `tests/hr-module.spec.ts` | TC-HR-01, 03..05, 08..10, 13..15 — employees, org, attendance, tax exports, salary masking, payroll gate |
 | `tests/storybook/data-table.spec.ts` | TC-CMP-01..08 — sort, cursor pagination, bulk select, presets, keyboard nav, density, empty/error |
 | `tests/storybook/primitives.spec.ts` | TC-CMP-09/10, 22–26 — InkChip, FormField ARIA, Money/Qty cells, PermissionButton, MaskedValue |
 | `tests/storybook/dialogs-and-inputs.spec.ts` | TC-CMP-11..21 — confirm/guarded dialogs, combobox, select, wizard, scan, toast |
