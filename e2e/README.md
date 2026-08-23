@@ -40,7 +40,8 @@ Override targets with `E2E_BASE_URL` (app, default `http://localhost:5173`) and
 | `playwright.config.ts` | projects: `setup` → `app` (:5173, authed) and `storybook` (:6006) |
 | `tests/auth.setup.ts` | logs in as super-admin **and every seeded persona**, saving `.auth/<key>.json` each |
 | `tests/smoke.spec.ts` | every leaf route in the nav registry renders (super-admin) |
-| `tests/sales.spec.ts` | **reference** module golden path — copy this shape per module |
+| `tests/sales.spec.ts` | TC-SALES-01/02 — **reference** golden path, copy this shape per module |
+| `tests/sales-module.spec.ts` | TC-SALES-03..12 — VAT and WHT arithmetic, PromptPay gating, customers, aging, templates |
 | `tests/auth.spec.ts` | TC-XC-01..05 — login, failure badge, notice banners, session restore (runs unauthenticated) |
 | `tests/permissions.spec.ts` | TC-XC-06..10 — persona gating, super-admin bypass, module-root redirect |
 | `tests/shell.spec.ts` | TC-XC-11..20 — theme, density, locale, command palette, kiosk lockdown |

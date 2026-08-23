@@ -1,12 +1,14 @@
 import { test, expect, type Page } from "@playwright/test";
 
 /**
- * Reference module spec — Sales documents. This is the copy-me pattern for the other module
+ * Reference module spec — Sales documents (TC-SALES-01/02). The rest of the catalog
+ * (03..12, including the VAT and WHT arithmetic) lives in sales-module.spec.ts.
+ * This is the copy-me pattern for the other module
  * golden paths (see docs/testing/test-cases/03-sales.md for the full catalog). Runs authenticated
  * as super-admin (storageState from the `setup` project), English + light theme.
  *
  * SEED DATA: `SEED_TEST_DATA=1 pnpm db:seed` creates the customer (`Acme Garments Co., Ltd.`) and items
- * (`SEED-FAB-001`, `SEED-FG-001`) this spec selects. If TC-SALES-04 fails at the customer or item
+ * (`SEED-FAB-001`, `SEED-FG-001`) this spec selects. If TC-SALES-02 fails at the customer or item
  * picker, the seed has not been run — that is the fix, not a looser selector.
  *
  * NO RELOADS mid-lifecycle: a created document lives in a per-session client store
@@ -49,7 +51,7 @@ test.describe("sales — documents worklist & editor (reference)", () => {
     await expect(page.getByRole("button", { name: "Create quotation" })).toBeDisabled();
   });
 
-  test("TC-SALES-04 quotation → invoice lifecycle", async ({ page }) => {
+  test("TC-SALES-02 quotation → send → approve → convert → issue → pay", async ({ page }) => {
     await page.goto("/sales/documents/new/edit");
     await expect(page.getByRole("heading", { level: 1, name: "New document" })).toBeVisible();
 
