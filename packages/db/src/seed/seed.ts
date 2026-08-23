@@ -18,6 +18,10 @@ import {
   user,
   userRole,
   warehouse,
+  routingTemplate,
+  routingStep,
+  workOrder,
+  workOrderStep,
   type ItemType,
 } from "../schema/index.js";
 
@@ -244,6 +248,31 @@ const SEED_ITEMS = [
   },
 ];
 
+// Production master data. The work-order screens need a routing template before anything can be
+// created, and the create wizard's "Finished item id" takes a raw uuid — so a ready-made work
+// order is seeded too, giving the timeline, scan station, defect capture and WIP board something
+// real to render. Fixed ids keep every insert idempotent.
+const SEED_ROUTING_TEMPLATE = {
+  id: "aaaaaaaa-1111-4aaa-8aaa-000000000001",
+  name: "Polo Shirt — Standard Route",
+  isActive: true,
+};
+
+const SEED_ROUTING_STEPS = [
+  { id: "aaaaaaaa-2222-4aaa-8aaa-000000000001", seq: 1, name: "Cutting", standardTimeMin: 30 },
+  { id: "aaaaaaaa-2222-4aaa-8aaa-000000000002", seq: 2, name: "Printing", standardTimeMin: 45 },
+  { id: "aaaaaaaa-2222-4aaa-8aaa-000000000003", seq: 3, name: "Sewing", standardTimeMin: 60 },
+  { id: "aaaaaaaa-2222-4aaa-8aaa-000000000004", seq: 4, name: "Packing", standardTimeMin: 15 },
+];
+
+const SEED_WORK_ORDER = {
+  id: "aaaaaaaa-3333-4aaa-8aaa-000000000001",
+  woNo: "SEED-WO-0001",
+  finishedItemId: "99999999-9999-4999-8999-000000000002", // SEED-FG-001 Polo Shirt
+  qty: "100.000000",
+  routingTemplateId: "aaaaaaaa-1111-4aaa-8aaa-000000000001",
+};
+
 // One scannable variant of the finished good, so the barcode/label screens and the kiosk
 // scan field have a real code to resolve. `barcode` is a valid EAN-13 (check digit included).
 const SEED_SKU = {
@@ -387,6 +416,36 @@ async function seedTestData(db: ReturnType<typeof createDb>["db"]) {
     .onConflictDoNothing();
 
   await db.insert(sku).values(SEED_SKU).onConflictDoNothing();
+
+  // Production: template -> steps -> a work order carrying one step row per routing step.
+  // Without a template the work-order wizard cannot be used at all, and the timeline, scan
+  // station and WIP board have nothing to render.
+  await db.insert(routingTemplate).values(SEED_ROUTING_TEMPLATE).onConflictDoNothing();
+  await db
+    .insert(routingStep)
+    .values(SEED_ROUTING_STEPS.map((r) => ({ ...r, templateId: SEED_ROUTING_TEMPLATE.id })))
+    .onConflictDoNothing();
+  await db.insert(workOrder).values(SEED_WORK_ORDER).onConflictDoNothing();
+  // Steps are RESET on every seed, not merely created once. The scan-station specs consume them
+  // (a started step stays started, a finished one is gone for good), so after one run the work
+  // order would answer "no step left to scan" forever. Re-seeding is how a developer gets a
+  // usable fixture back.
+  await db
+    .insert(workOrderStep)
+    .values(
+      SEED_ROUTING_STEPS.map((r) => ({
+        id: `aaaaaaaa-4444-4aaa-8aaa-00000000000${r.seq}`,
+        woId: SEED_WORK_ORDER.id,
+        routingStepId: r.id,
+        seq: r.seq,
+        name: r.name,
+        standardTimeMin: r.standardTimeMin,
+      })),
+    )
+    .onConflictDoUpdate({
+      target: workOrderStep.id,
+      set: { status: "PENDING", startedAt: null, finishedAt: null },
+    });
 }
 
 async function main() {
@@ -444,7 +503,7 @@ async function main() {
       "Seed complete: super-admin + base sequences + permission catalog + base uom + warehouse + " +
         "HR config" +
         (SEED_TEST_DATA
-          ? ` + ${SEED_PERSONAS.length} UI-test personas + sales/inventory master data`
+          ? ` + ${SEED_PERSONAS.length} UI-test personas + sales/inventory/production master data`
           : " (test data skipped — set SEED_TEST_DATA=1 to include personas + sample master data)"),
     );
   } finally {
