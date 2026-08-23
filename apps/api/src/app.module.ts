@@ -3,6 +3,8 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { AuditModule } from "./audit/audit.module.js";
 import { AuthModule } from "./auth/auth.module.js";
 import { JwtGuard } from "./auth/jwt.guard.js";
+import { PERMISSION_RESOLVER } from "./auth/auth.tokens.js";
+import { RolePermissionResolver } from "./iam/role-permission.resolver.js";
 import { PermissionsGuard } from "./auth/permissions.guard.js";
 import { AllExceptionsFilter } from "./common/errors/all-exceptions.filter.js";
 import { IdempotencyInterceptor } from "./common/idempotency/idempotency.interceptor.js";
@@ -36,8 +38,8 @@ import { StorageModule } from "./storage/storage.module.js";
     EventsModule,
     AuthModule,
     AuditModule,
-    // IamModule imported after AuthModule so its PERMISSION_RESOLVER binding
-    // (RolePermissionResolver) overrides M0's empty-set default (design D1).
+    // IamModule supplies the real PERMISSION_RESOLVER (RolePermissionResolver). Import order
+    // alone is NOT enough to rebind it for the global guard — see the provider below.
     IamModule,
     InventoryModule,
     HrModule,
@@ -54,6 +56,16 @@ import { StorageModule } from "./storage/storage.module.js";
   controllers: [HealthController],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    // Rebind PERMISSION_RESOLVER in THIS injector, which is the one that instantiates the
+    // `APP_GUARD` JwtGuard below.
+    //
+    // AuthModule is @Global() and binds M0's empty-set DefaultPermissionResolver. IamModule
+    // re-provides the token and exports it, but the global binding still won here, so the guard
+    // attached an EMPTY permission set to every request. `assertPermissions` reads that set, so
+    // every non-super-admin was refused on every permission-checked endpoint in every module —
+    // RBAC granted nothing. `/auth/me` masked it by re-deriving permissions from the database,
+    // so the UI showed the right modules while the API refused the calls behind them.
+    { provide: PERMISSION_RESOLVER, useExisting: RolePermissionResolver },
     { provide: APP_GUARD, useClass: JwtGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_INTERCEPTOR, useClass: IdempotencyInterceptor },
