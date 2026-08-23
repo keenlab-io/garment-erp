@@ -30,6 +30,8 @@ import { UserService } from "./user.service.js";
     RolePermissionResolver,
     { provide: PERMISSION_RESOLVER, useExisting: RolePermissionResolver },
   ],
-  exports: [PERMISSION_RESOLVER],
+  // RolePermissionResolver is exported as well as the token: AppModule re-provides the token in
+  // its OWN injector so the `APP_GUARD` JwtGuard picks up the real resolver (see app.module.ts).
+  exports: [PERMISSION_RESOLVER, RolePermissionResolver],
 })
 export class IamModule {}
