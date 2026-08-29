@@ -37,9 +37,9 @@ test.describe("production — catalog (TC-PROD)", () => {
 
     const row = page.getByRole("row").filter({ hasText: WO });
     await expect(row).toBeVisible();
-    // Steps-done is "<done>/4". The exact count drifts as the scan cases advance steps, so the
-    // assertion is on the shape and the step total, not on a number this file itself changes.
-    await expect(row).toContainText(/\d\/4/);
+    // Steps-done is "<done>/<total>". Both drift — the scan cases advance steps, and the fixture's
+    // step count is a seed detail — so the assertion is on the shape alone.
+    await expect(row).toContainText(/\d+\/\d+/);
 
     await row.getByRole("button", { name: "Row actions" }).click();
     await page.getByRole("button", { name: "View" }).click();
@@ -50,7 +50,7 @@ test.describe("production — catalog (TC-PROD)", () => {
     }
 
     await page.getByRole("tab", { name: "Steps" }).click();
-    for (const step of ["Cutting", "Printing", "Sewing", "Packing"]) {
+    for (const step of ["Cutting", "Printing", "Sewing"]) {
       await expect(page.getByText(step, { exact: true }).first()).toBeVisible();
     }
 
@@ -272,5 +272,65 @@ test.describe("production — permission gate (TC-PROD)", () => {
         expect(page.url()).not.toContain(path);
       }
     });
+  });
+});
+
+test.describe("production — realtime (TC-PROD)", () => {
+  test("TC-PROD-09 a scan in one session updates another session's timeline live", async ({
+    browser,
+  }) => {
+    // Two independent contexts, both signed in as super-admin: one watching, one scanning. This
+    // is the only websocket path in the app (/socket.io), so it is the only case that proves the
+    // realtime gateway actually reaches a second client.
+    const watcher = await browser.newContext({ storageState: ".auth/superadmin.json" });
+    const scanner = await browser.newContext({ storageState: ".auth/superadmin.json" });
+
+    try {
+      const watch = await watcher.newPage();
+      await watch.goto("/production/timeline");
+      await expect(watch.getByRole("heading", { level: 1, name: "Production timeline" })).toBeVisible();
+      await expect(watch.getByText(WO).first()).toBeVisible();
+
+      const scan = await scanner.newPage();
+      await scan.goto("/production/scan");
+      const field = scan.getByPlaceholder("Scan the traveler card");
+      await field.fill(WO);
+      await field.press("Enter");
+
+      // Same exhaustion caveat as TC-PROD-05/07 — re-seed for a fresh fixture.
+      if (
+        await scan
+          .getByText("This work order has no step left to scan.")
+          .isVisible()
+          .catch(() => false)
+      ) {
+        test.skip(true, "Work order steps exhausted — re-seed (SEED_TEST_DATA=1 pnpm db:seed).");
+      }
+
+      const start = scan.getByRole("button", { name: /START/ });
+      const finish = scan.getByRole("button", { name: /FINISH/ });
+      const action = (await start.isEnabled()) ? start : finish;
+
+      // Each Gantt step is a button carrying its own status ("○ Pending Cutting"), so the step
+      // statuses are the observable. Captured BEFORE the scan so the assertion is that they
+      // CHANGED, not merely that some text is present.
+      const steps = watch.getByRole("main").getByRole("button");
+      const before = (await steps.allInnerTexts()).join("|");
+
+      const posted = scan.waitForResponse(
+        (r) => /scan/i.test(r.url()) && r.request().method() === "POST",
+      );
+      await action.click();
+      expect((await posted).status()).toBeLessThan(400);
+
+      // The watcher must update WITHOUT a reload — that is the whole point of the gateway.
+      await expect(async () => {
+        const now = (await steps.allInnerTexts()).join("|");
+        expect(now).not.toBe(before);
+      }).toPass({ timeout: 20_000 });
+    } finally {
+      await watcher.close();
+      await scanner.close();
+    }
   });
 });

@@ -84,7 +84,14 @@ export function PaymentsPage() {
     // off the balance -> PAID, otherwise PARTIALLY_PAID).
     const newAmountPaid = toDecimal(invoice.amount_paid).plus(toDecimal(result.body.payment.amount));
     const newStatus = newAmountPaid.gte(toDecimal(invoice.grand_total)) ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID;
-    upsertInvoice({ ...invoice, amount_paid: asMoney(newAmountPaid.toFixed(4)), status: newStatus }, result.body.receipt);
+    // `?? undefined` matters: the receipt is issued on the FIRST payment, so every later one
+    // answers `receipt: null` — and null is not undefined, so passing it straight through
+    // overwrote the stored receipt and made the receipt block vanish from a fully-paid invoice
+    // (the store keeps the prior value only for `undefined` — see `upsertInvoice`).
+    upsertInvoice(
+      { ...invoice, amount_paid: asMoney(newAmountPaid.toFixed(4)), status: newStatus },
+      result.body.receipt ?? undefined,
+    );
     toast({ tone: "success", title: t("payments.recorded") });
   }
 
