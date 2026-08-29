@@ -18,25 +18,55 @@
 # WHAT IS DELIBERATELY MISSING, AND WHY
 #
 # There is no `default-deny-ingress` and no policy admitting the Tailscale proxy to erp-web.
-# Both existed briefly and took the site down: with default-deny in force, traffic from the
-# operator's proxy pod to erp-web was dropped, so garment-erp.keenlab.io returned 502 and the
-# tailnet address timed out. The proxy pod's own labels did not match the `podSelector` that
-# was meant to admit it, which suggests the traffic does not arrive with that pod as its
-# source — most likely the original tailnet client IP (100.64.0.0/10) is preserved, and a
-# podSelector can never match a source that is not a pod.
+# Both existed briefly and took the site down twice: with default-deny in force, traffic from
+# the operator's proxy pod to erp-web was dropped, so garment-erp.keenlab.io returned 502 and
+# later 504, and the tailnet address timed out.
 #
-# That is a hypothesis, not a finding. Before re-adding a default-deny, capture the actual
-# source address of proxy traffic arriving at an erp-web pod and write the rule against it —
-# an `ipBlock` for the tailnet CGNAT range if the hypothesis holds.
+# The cause is label injection by kustomize — confirmed 2026-08-29, not a guess. The base
+# sets
 #
-# Whatever the rule, test the real browser path (https://garment-erp.keenlab.io) before
-# trusting it. The deploy's smoke test runs `wget` INSIDE the web pod against 127.0.0.1, so
-# it exercises web -> api and proves nothing about proxy -> web. A green deploy is not
-# evidence that ingress works.
+#     labels:
+#       - includeSelectors: true
+#         pairs:
+#           app.kubernetes.io/part-of: erp
 #
-# The two policies below are known-good: they were live throughout a fully working site and
-# carry the protection that actually mattered (nothing outside this namespace can reach the
-# datastores).
+# and `includeSelectors: true` rewrites EVERY selector it can reach, including the
+# `ingress.from[].podSelector` of a NetworkPolicy. The rule authored here as
+#
+#     podSelector:
+#       matchLabels:
+#         tailscale.com/parent-resource: erp-web
+#         tailscale.com/parent-resource-ns: erp
+#
+# therefore reached the cluster carrying a third requirement — `app.kubernetes.io/part-of:
+# erp` — on the SOURCE pod. The Tailscale proxy pod is created by the operator, not by this
+# kustomization, so it never has that label. matchLabels is an AND, so the selector matched
+# zero pods, the allow rule admitted nothing, and default-deny dropped everything.
+#
+# The two policies below survived the same injection because their sources ARE managed here:
+# erp-web pods do carry `app.kubernetes.io/part-of: erp`. That asymmetry is the whole story,
+# and it is why those two looked "known-good" while the proxy rule never worked at all.
+#
+# An earlier version of this note guessed that the tailnet client IP (100.64.0.0/10) was
+# preserved and that a podSelector therefore could not match the source. That was wrong. A
+# podSelector is the right tool; it simply must not demand a label the operator's pod cannot
+# have. Do not spend time chasing an `ipBlock` rule on the strength of that guess.
+#
+# To re-add a default-deny safely:
+#   1. Keep the proxy rule out of the label transformer's reach, or select only on
+#      `tailscale.com/*` labels — then verify against the RENDERED output, not the source:
+#      `kubectl kustomize infra/k8s/overlays/prod` must show a from-selector with no
+#      `app.kubernetes.io/part-of` in it.
+#   2. Confirm the selector matches a real pod:
+#      `kubectl get pod -n tailscale -l tailscale.com/parent-resource=erp-web --show-labels`
+#   3. Test the real browser path (https://garment-erp.keenlab.io). The deploy's smoke test
+#      runs `wget` INSIDE the web pod against 127.0.0.1, so it exercises web -> api and says
+#      nothing about proxy -> web. A green deploy is not evidence that ingress works.
+#
+# Deleting a policy from this file is also not enough on its own. The deploy applies with
+# `kubectl kustomize . | kubectl apply -f -` and does not prune, so an object already in the
+# cluster outlives its removal from the base and has to be deleted explicitly. That is why
+# these two kept dropping traffic for 13 days after the commit that removed them here.
 # ---------------------------------------------------------------------------------------
 ---
 # nginx in the web pod reverse-proxies /api and /socket.io to the erp-api Service. Nothing

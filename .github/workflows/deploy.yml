@@ -239,6 +239,52 @@ jobs:
             "ghcr.io/OWNER/erp-web=${{ steps.images.outputs.web }}"
           kubectl kustomize . | kubectl apply -f -
 
+      # `kubectl apply` never deletes. A resource removed from the base just lingers in the
+      # cluster — still enforced, no longer in git. Not theoretical: default-deny-ingress and
+      # allow-web-from-tailscale-proxy were removed from the base on 2026-08-16 and went on
+      # dropping every public request to erp-web for the next 13 days, because nothing ever
+      # deleted the live objects. Diagnosed 2026-08-29; see infra/k8s/base/networkpolicy.yaml.
+      #
+      # This REPORTS drift, it does not prune it. `kubectl apply --prune -l
+      # app.kubernetes.io/part-of=erp` is not a safe substitute: the StatefulSet volumes
+      # (data-erp-postgres-0, data-erp-redis-0, data-erp-minio-0) inherit that label but are
+      # rendered inside volumeClaimTemplates rather than as standalone objects, so prune reads
+      # the production database volume as an orphan and deletes it. Verified 2026-08-29.
+      - name: Report resources in the cluster but not in git
+        run: |
+          set -euo pipefail
+          cd infra/k8s/overlays/prod
+          kubectl kustomize . > /tmp/rendered.yaml
+          # kubectl's output is normalised: `kind:` and `metadata:` at column 0, `  name:`
+          # first inside metadata. That is enough structure to key on without a YAML parser.
+          awk '
+            /^kind:/     { kind = $2; next }
+            /^metadata:/ { inmeta = 1; next }
+            inmeta && /^  name:/ { print tolower(kind) "/" $2; inmeta = 0; next }
+            /^[^ ]/      { inmeta = 0 }
+          ' /tmp/rendered.yaml | sort -u > /tmp/rendered-keys.txt
+
+          # Deliberately excludes persistentvolumeclaim (see above) and secret (created out
+          # of band by the steps further up, never rendered by kustomize).
+          : > /tmp/orphans.txt
+          for k in networkpolicy service deployment statefulset configmap \
+                   poddisruptionbudget serviceaccount; do
+            for res in $(kubectl -n "$NAMESPACE" get "$k" \
+                           -l app.kubernetes.io/part-of=erp \
+                           -o name --ignore-not-found); do
+              name="${res##*/}"
+              grep -qx "$k/$name" /tmp/rendered-keys.txt || echo "$k/$name" >> /tmp/orphans.txt
+            done
+          done
+
+          if [ -s /tmp/orphans.txt ]; then
+            echo "::warning::live in $NAMESPACE but absent from the rendered manifests — delete explicitly if unwanted"
+            sed 's/^/  orphan: /' /tmp/orphans.txt
+            echo "  remove with: kubectl -n $NAMESPACE delete <kind>/<name>"
+          else
+            echo "no drift: every labelled resource in $NAMESPACE is present in the manifests"
+          fi
+
       # api first: its env schema is zod-validated fail-fast, so a bad config or secret
       # surfaces here as a CrashLoopBackOff before web is touched.
       - name: Wait for rollout
@@ -260,6 +306,32 @@ jobs:
           # {"status":"ok"} at the same moment localhost:8080 is refused.
           kubectl -n "$NAMESPACE" exec deploy/erp-web -- \
             wget -qO- --timeout=10 http://127.0.0.1:8080/api/v1/health
+
+      # The step above proves web -> api from INSIDE the pod. It says nothing about whether a
+      # human can reach the site: Nginx Proxy Manager -> Tailscale proxy -> erp-web all sits
+      # outside it. A default-deny NetworkPolicy severed exactly that hop twice while this
+      # deploy stayed green, which is how the breakage survived a "successful" release. Hit
+      # the real public URL, the way a user does.
+      #
+      # Failing here triggers the rollback below. That will not repair an ingress-layer fault
+      # on its own — but the whole point is that the deploy must not report success while the
+      # site is unreachable.
+      - name: Smoke test public ingress
+        run: |
+          set -euo pipefail
+          url=https://garment-erp.keenlab.io/
+          code=000
+          for attempt in 1 2 3 4 5; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$url" || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "$url -> $code"
+              exit 0
+            fi
+            echo "attempt $attempt: $url -> $code"
+            sleep 10
+          done
+          echo "::error::$url is not serving (last status $code) — rollout finished but the site is unreachable"
+          exit 1
 
       - name: Roll back on failure
         if: failure()
