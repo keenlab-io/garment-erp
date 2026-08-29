@@ -150,3 +150,115 @@ test.describe("reports — permission gates (TC-RPT)", () => {
     });
   });
 });
+
+/**
+ * Async job lifecycles — TC-RPT-07/09. Both poll `GET /exports/:job_id` until the job resolves,
+ * so both script that endpoint with `page.route` rather than depending on a real worker: the
+ * point under test is how the UI narrates a job, not how fast the queue drains.
+ */
+test.describe("reports — async jobs (TC-RPT)", () => {
+  /** Force every job poll to answer `status`, so DONE and FAILED are both reachable on demand. */
+  async function scriptJobPoll(page: Page, status: "DONE" | "FAILED") {
+    await page.route(/\/api\/v1\/exports\/[^/]+$/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          job_id: "scripted",
+          status,
+          file_url: status === "DONE" ? "https://example.invalid/report.pdf" : null,
+        }),
+      }),
+    );
+  }
+
+  test("TC-RPT-07 an export job narrates pending → ready with a Download action", async ({
+    page,
+  }) => {
+    await scriptJobPoll(page, "DONE");
+    await page.goto("/reports/sales.overview");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+    // The export controls are the raw format enums — stable, if unlovely.
+    const enqueued = page.waitForResponse(
+      (r) => r.url().includes("/export") && r.request().method() === "POST",
+    );
+    await main(page).getByRole("button", { name: "PDF" }).click();
+    expect((await enqueued).status()).toBe(202);
+
+    // The toast is the only completion signal there is — no export history exists.
+    const notifications = page.getByRole("region", { name: /notification/i });
+    await expect(notifications).toContainText("Export ready");
+    await expect(notifications.getByRole("button", { name: "Download" })).toBeVisible();
+  });
+
+  test("TC-RPT-07b a failed export resolves to danger with no Download", async ({ page }) => {
+    await scriptJobPoll(page, "FAILED");
+    await page.goto("/reports/sales.overview");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+    await main(page).getByRole("button", { name: "CSV" }).click();
+
+    const notifications = page.getByRole("region", { name: /notification/i });
+    await expect(notifications).toContainText("Export failed");
+    // Nothing to download — offering the action would be a lie.
+    await expect(notifications.getByRole("button", { name: "Download" })).toHaveCount(0);
+  });
+
+  test("TC-RPT-09 run-now narrates the digest job, and offers Retry when it fails", async ({
+    page,
+  }) => {
+    // A schedule to run. Created here rather than shared, so this case owns its fixture.
+    await page.goto("/reports/schedules");
+    const name = `Run-now ${RUN}`;
+    await main(page).getByLabel("Schedule name").fill(name);
+    await main(page).getByRole("combobox", { name: "Report" }).click();
+    await expect(page.getByRole("option").first()).toBeVisible();
+    await page.getByRole("option").first().click();
+    await main(page).getByPlaceholder("name@example.com").fill(`digest.${RUN}@example.com`);
+    await main(page).getByRole("button", { name: "Add" }).click();
+    await main(page).getByRole("button", { name: "Save schedule" }).click();
+
+    const row = page.getByRole("listitem").filter({ hasText: name });
+    await expect(row).toBeVisible();
+
+    // ---- failure first: it is the path that carries a Retry ---------------------------------
+    await scriptJobPoll(page, "FAILED");
+    await row.getByRole("button", { name: "Run now" }).click();
+    const notifications = page.getByRole("region", { name: /notification/i });
+    await expect(notifications).toContainText("Digest send failed");
+    await expect(notifications.getByRole("button", { name: "Retry" })).toBeVisible();
+
+    // ---- retry, now succeeding ---------------------------------------------------------------
+    await scriptJobPoll(page, "DONE");
+    await notifications.getByRole("button", { name: "Retry" }).click();
+    await expect(notifications).toContainText("Digest sent");
+  });
+});
+
+test.describe("reports — landing overview (TC-RPT)", () => {
+  test("TC-RPT-05 a dimension slice shows the chip rail, and Clear empties the params", async ({
+    page,
+  }) => {
+    // The slice is driven by typed search params. Entering via the URL rather than by clicking a
+    // Recharts node is deliberate: chart points carry no stable hook (flagged in the catalog),
+    // and the catalog itself names the search-param change as the ground truth.
+    await page.goto("/?dimension=day&value=2026-08-01");
+    await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
+
+    const rail = page.getByRole("group", { name: "Active filters" });
+    await expect(rail).toBeVisible();
+    // The chip renders the dimension and a FORMATTED date ("Day: Aug 1, 2026"), not the raw
+    // param — so match the label, not the ISO value that produced it.
+    await expect(rail).toContainText("Day:");
+
+    // Clear empties the params and retires the rail; the panels refetch unfiltered.
+    //
+    // The catalog offers "Remove … or Clear". Only Clear exists here: dashboard.tsx passes
+    // `onClear` but no `onRemove`, so ActiveFilterChipRail renders no per-chip remove button —
+    // while still passing a `remove` label that nothing consumes. Harmless, but a loose end.
+    await rail.getByRole("button", { name: "Clear" }).click();
+    await expect(page).toHaveURL(/\/$|\/\?$/);
+    await expect(page.getByRole("group", { name: "Active filters" })).toHaveCount(0);
+  });
+});

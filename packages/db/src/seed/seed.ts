@@ -258,11 +258,21 @@ const SEED_ROUTING_TEMPLATE = {
   isActive: true,
 };
 
+// Ten steps, not the four a real polo route would have. The scan specs CONSUME steps (a finished
+// one is gone for good) and several run per pass, so a four-step fixture exhausts after a couple
+// of local runs and those cases start skipping. CI reseeds every run and never notices; a
+// developer would just see silent skips. Ten is cheap and survives a working session.
 const SEED_ROUTING_STEPS = [
   { id: "aaaaaaaa-2222-4aaa-8aaa-000000000001", seq: 1, name: "Cutting", standardTimeMin: 30 },
   { id: "aaaaaaaa-2222-4aaa-8aaa-000000000002", seq: 2, name: "Printing", standardTimeMin: 45 },
   { id: "aaaaaaaa-2222-4aaa-8aaa-000000000003", seq: 3, name: "Sewing", standardTimeMin: 60 },
   { id: "aaaaaaaa-2222-4aaa-8aaa-000000000004", seq: 4, name: "Packing", standardTimeMin: 15 },
+  { id: "aaaaaaaa-2222-4aaa-8aaa-000000000005", seq: 5, name: "Trimming", standardTimeMin: 20 },
+  { id: "aaaaaaaa-2222-4aaa-8aaa-000000000006", seq: 6, name: "Pressing", standardTimeMin: 25 },
+  { id: "aaaaaaaa-2222-4aaa-8aaa-000000000007", seq: 7, name: "Labelling", standardTimeMin: 10 },
+  { id: "aaaaaaaa-2222-4aaa-8aaa-000000000008", seq: 8, name: "Inspection", standardTimeMin: 35 },
+  { id: "aaaaaaaa-2222-4aaa-8aaa-000000000009", seq: 9, name: "Folding", standardTimeMin: 15 },
+  { id: "aaaaaaaa-2222-4aaa-8aaa-000000000010", seq: 10, name: "Boxing", standardTimeMin: 20 },
 ];
 
 const SEED_WORK_ORDER = {
@@ -434,7 +444,7 @@ async function seedTestData(db: ReturnType<typeof createDb>["db"]) {
     .insert(workOrderStep)
     .values(
       SEED_ROUTING_STEPS.map((r) => ({
-        id: `aaaaaaaa-4444-4aaa-8aaa-00000000000${r.seq}`,
+        id: `aaaaaaaa-4444-4aaa-8aaa-${String(r.seq).padStart(12, "0")}`,
         woId: SEED_WORK_ORDER.id,
         routingStepId: r.id,
         seq: r.seq,
