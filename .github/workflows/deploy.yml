@@ -215,6 +215,24 @@ jobs:
         run: |
           set -euo pipefail
           job="erp-migrate-${{ github.sha }}"
+
+          # A Job's spec.template is immutable, and this name is keyed on the commit SHA
+          # alone while the image digest is rebuilt on every run. So re-deploying the SAME
+          # commit — workflow_dispatch, the documented way to re-converge after a failure —
+          # re-applies this name with a different digest, and the API server rejects the
+          # whole apply with "field is immutable". That turned the recovery path into a dead
+          # end on 2026-08-29: an expired GHCR_PULL_TOKEN left three failed migrate Jobs
+          # stranded, and every retry after the token was rotated failed on the leftovers
+          # rather than on anything real.
+          #
+          # Replacing a previous attempt is always safe here: backoffLimit is 0, so a Job
+          # that exists either succeeded (migrations are idempotent — re-running applies
+          # nothing) or failed (nothing to preserve but logs, and those are what the
+          # `describe`/`logs` calls below are for). --wait blocks until the old pod is gone,
+          # so the new Job never races a terminating one. Jobs from OTHER commits are left
+          # alone and expire on the manifest's own ttlSecondsAfterFinished.
+          kubectl -n "$NAMESPACE" delete job "$job" --ignore-not-found --wait=true
+
           sed -e "s|__IMAGE__|${{ steps.images.outputs.api }}|g" \
               -e "s|__TAG__|${{ github.sha }}|g" \
               infra/k8s/jobs/migrate-job.yaml | kubectl apply -f -
