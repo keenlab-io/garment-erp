@@ -255,6 +255,8 @@ export const hrEn = {
     tabReporting: "Reporting",
     fieldNationalId: "National ID",
     fieldEmploymentType: "Employment type",
+    fieldPosition: "Position",
+    positionNone: "No position",
     fieldHireDate: "Hire date",
     fieldProbationEndDate: "Probation end date",
     edit: "Edit",
