@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { EmployeeDocumentType, EmploymentType } from "@erp/contracts";
 import {
   Button,
+  Combobox,
   FormField,
   Input,
   InkChip,
@@ -27,6 +28,7 @@ import {
   useEmployeeDocumentUrlMutation,
   useEmployeeDocumentsQuery,
   useEmployeeQuery,
+  usePositionsQuery,
   useUpdateEmployeeMutation,
   useUploadEmployeeDocumentMutation,
 } from "../../../hr/queries.js";
@@ -42,6 +44,13 @@ const TAB_LABEL_KEY = {
   "pay-components": "employeeDetail.tabPayComponents",
   reporting: "employeeDetail.tabReporting",
 } as const satisfies Record<EmployeeTab, string>;
+
+/**
+ * Sentinel for "clear the position" in the profile Combobox. `position_id` is nullable on the
+ * contract, so the picker needs a real option value for "none" (an empty string would never
+ * render as checked) that `handleSave` maps back to `null`.
+ */
+const NO_POSITION = "__none__";
 
 const STATUS_CHIP: Record<string, ChipStatus> = {
   PROBATION: "pending",
@@ -146,6 +155,7 @@ function ProfileTab({ employeeId }: { employeeId: string }) {
   const { toast } = useToast();
   const dateFormat = useDateFormat({ dateStyle: "medium" });
   const employeeQuery = useEmployeeQuery(employeeId);
+  const positions = usePositionsQuery();
   const updateEmployee = useUpdateEmployeeMutation();
   const employee = employeeQuery.data?.body.employee;
 
@@ -153,16 +163,26 @@ function ProfileTab({ employeeId }: { employeeId: string }) {
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
   const [employmentType, setEmploymentType] = React.useState<EmploymentType>("MONTHLY");
+  const [positionId, setPositionId] = React.useState(NO_POSITION);
 
   React.useEffect(() => {
     if (employee && editing) {
       setFirstName(employee.first_name);
       setLastName(employee.last_name);
       setEmploymentType(employee.employment_type);
+      setPositionId(employee.position_id ?? NO_POSITION);
     }
   }, [employee, editing]);
 
+  const positionOptions = [
+    { value: NO_POSITION, label: t("employeeDetail.positionNone") },
+    ...(positions.data?.body.positions ?? []).map((p) => ({ value: p.id, label: p.title })),
+  ];
+
   if (!employee) return null;
+
+  const positionTitle =
+    positions.data?.body.positions.find((p) => p.id === employee.position_id)?.title ?? null;
 
   function handleSave() {
     if (!employee) return;
@@ -170,7 +190,12 @@ function ProfileTab({ employeeId }: { employeeId: string }) {
       {
         params: { id: employeeId },
         headers: { "if-match": String(employee.version) },
-        body: { first_name: firstName, last_name: lastName, employment_type: employmentType },
+        body: {
+          first_name: firstName,
+          last_name: lastName,
+          employment_type: employmentType,
+          position_id: positionId === NO_POSITION ? null : positionId,
+        },
       },
       {
         onSuccess: () => {
@@ -199,6 +224,12 @@ function ProfileTab({ employeeId }: { employeeId: string }) {
                 {t("employeeDetail.fieldEmploymentType")}
               </dt>
               <dd className="text-text-primary">{employee.employment_type}</dd>
+            </div>
+            <div>
+              <dt className="text-caption uppercase tracking-wide text-text-muted">
+                {t("employeeDetail.fieldPosition")}
+              </dt>
+              <dd className="text-text-primary">{positionTitle ?? "\u2014"}</dd>
             </div>
             <div>
               <dt className="text-caption uppercase tracking-wide text-text-muted">
@@ -239,6 +270,15 @@ function ProfileTab({ employeeId }: { employeeId: string }) {
                 <SelectItem value="DAILY">{t("employees.employmentDaily")}</SelectItem>
               </SelectContent>
             </Select>
+          </FormField>
+          <FormField label={t("employeeDetail.fieldPosition")}>
+            <Combobox
+              value={positionId}
+              onValueChange={setPositionId}
+              options={positionOptions}
+              loading={positions.isLoading}
+              aria-label={t("employeeDetail.fieldPosition")}
+            />
           </FormField>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => setEditing(false)}>

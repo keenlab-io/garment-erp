@@ -281,6 +281,8 @@ export const hrTh: HrResources = {
     tabReporting: "สายบังคับบัญชา",
     fieldNationalId: "เลขบัตรประชาชน",
     fieldEmploymentType: "ประเภทการจ้าง",
+    fieldPosition: "ตำแหน่ง",
+    positionNone: "ไม่ระบุตำแหน่ง",
     fieldHireDate: "วันที่เริ่มงาน",
     fieldProbationEndDate: "วันสิ้นสุดทดลองงาน",
     edit: "แก้ไข",
