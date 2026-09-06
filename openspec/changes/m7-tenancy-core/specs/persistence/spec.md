@@ -1,0 +1,104 @@
+## MODIFIED Requirements
+
+### Requirement: Shared column conventions
+`@erp/db` SHALL export reusable column builders that every table uses instead of redefining columns:
+- `auditColumns`: `id` (uuid primary key defaulting to `gen_random_uuid()`), `createdAt`/`updatedAt` (timestamptz, not null, default now), `createdBy`/`updatedBy` (uuid, FK to `user.id` declared per-table, not inside `auditColumns`), and `deletedAt` (nullable timestamptz) for soft delete.
+- `versionColumn`: an integer `version` column, not null, default 0, for optimistic concurrency.
+- `tenantColumn`: a `tenantId` uuid column, not null, defaulting to `current_setting('app.tenant_id', true)::uuid`, with the FK to `tenant.id` declared per-table (same cycle-avoidance rule as `auditColumns`). Every business table MUST spread it; the static tenancy parity test enforces this.
+- Numeric helpers: `money` = numeric(18,4), `qty` = numeric(18,6), `rate` = numeric(9,6).
+- `citext`: a custom type mapping to the Postgres `citext` type for case-insensitive unique text.
+- `notDeleted(deletedAt)`: a predicate helper equivalent to `deleted_at IS NULL` for filtering soft-deleted rows.
+
+#### Scenario: Table composed from shared columns
+- **WHEN** a module defines a table spreading `auditColumns`, `versionColumn`, and `tenantColumn`
+- **THEN** the created table has `id` uuid primary key with a generated default, `created_at`/`updated_at` timestamptz defaults, nullable `created_by`/`updated_by`/`deleted_at`, an integer `version` defaulting to 0, and a not-null `tenant_id` defaulting to the session GUC
+
+#### Scenario: Insert without explicit tenant inherits the ambient tenant
+- **WHEN** a row is inserted inside a transaction where `app.tenant_id` is set and no `tenantId` value is supplied
+- **THEN** the stored row's `tenant_id` equals the GUC value
+
+#### Scenario: Soft-deleted rows excluded by predicate
+- **WHEN** a query filters with `notDeleted(table.deletedAt)`
+- **THEN** rows whose `deleted_at` is set are excluded and rows with `deleted_at IS NULL` are returned
+
+#### Scenario: Case-insensitive uniqueness via citext
+- **WHEN** a row exists with a citext-unique value `Admin` and an insert is attempted with `admin` in the same tenant
+- **THEN** the insert is rejected by the unique constraint
+
+### Requirement: Platform table — user
+`@erp/db` SHALL define a `user` table owned by M0 that other modules extend and MUST NOT
+redefine. It SHALL contain: `username` and `email` as citext unique **per tenant**
+(`UNIQUE (tenant_id, username)` / `UNIQUE (tenant_id, email)` — never globally),
+`passwordHash`, `status` typed as `UserStatus` with default `PENDING`,
+`permissionsVersion` (integer, default 1), `isSuperAdmin` (boolean, tenant-scoped
+semantics per the authorization capability), `failedLoginCount`, `lockedUntil`,
+`lastLoginAt`, plus the shared audit, `version`, and `tenantColumn` columns.
+
+#### Scenario: New user defaults
+- **WHEN** a user row is inserted with only `username`, `email`, and `passwordHash` inside a tenant-scoped transaction
+- **THEN** the row has `status = 'PENDING'`, `permissions_version = 1`, `version = 0`, a generated uuid `id`, and the ambient `tenant_id`
+
+#### Scenario: Duplicate email rejected case-insensitively within a tenant
+- **WHEN** a user exists with email `Ops@example.com` in tenant A and another tenant-A insert uses `ops@example.com`
+- **THEN** the unique constraint rejects the insert
+
+#### Scenario: Same email allowed across tenants
+- **WHEN** tenant A has a user `ops@example.com` and tenant B inserts a user with the same email
+- **THEN** the insert succeeds — uniqueness is `(tenant_id, email)`
+
+### Requirement: Platform tables — audit_log, document_sequence, idempotency_key
+`@erp/db` SHALL define three further platform tables, all tenant-scoped:
+- `audit_log` per spec §1.2 with a not-null `tenant_id` (append-only behavior is specified by the `audit-log` capability; control-plane events use the separate `platform_audit_log`).
+- `document_sequence` with primary key `(tenant_id, key)` and a unique constraint on `(tenant_id, key, year_scope)` (consumption semantics are specified by the `document-sequencing` capability).
+- `idempotency_key` with composite primary key `(tenant_id, key, user_id)` and columns `requestHash`, `responseStatus`, `responseBody` (jsonb), `expiresAt`.
+
+#### Scenario: Idempotency key uniqueness is per tenant and user
+- **WHEN** users in two different tenants store an idempotency record with the same `key`
+- **THEN** both rows are accepted, and a second row for the same `(tenant_id, key, user_id)` triple is rejected by the primary key
+
+#### Scenario: Platform tables exist after migration
+- **WHEN** all committed migrations are applied to an empty database
+- **THEN** the tables `user`, `session`, `audit_log`, `document_sequence`, `idempotency_key`, `tenant`, `tenant_domain`, `platform_admin`, `platform_audit_log`, and `support_session` all exist
+
+### Requirement: Migrations
+Migrations SHALL be generated by drizzle-kit from the compiled schema output
+(`dist/schema/index.js`, built before generation) and committed to `tooling/drizzle` at
+the repository root, **except where the change cannot be expressed by drizzle-kit** —
+roles, grants, policies, data backfills, materialized-view rebuilds — which SHALL be
+hand-authored SQL migrations in the same journal (precedent:
+`0001_audit_append_only.sql`; tenancy: `0012_tenancy.sql`). After a hand-authored
+migration, the drizzle schema definitions MUST be updated in the same change so that
+`db:generate` produces no diff. The first migration MUST create the required Postgres
+extensions `pgcrypto` and `citext` before any table that depends on them. `@erp/db`
+SHALL provide a migration runner (`db:migrate`) that applies the committed migrations,
+connecting with owner credentials (`DATABASE_OWNER_URL`, falling back to
+`DATABASE_URL`), while the runtime connects as the non-owner `erp_app` role.
+
+#### Scenario: Migrations apply on an empty database
+- **WHEN** `db:migrate` is run against a fresh Postgres database
+- **THEN** all migrations through `0012_tenancy.sql` apply in order without error
+
+#### Scenario: Migration generation is deterministic after a hand-authored migration
+- **WHEN** `db:generate` is run after `0012_tenancy.sql` is applied and the schema definitions are updated
+- **THEN** no new migration file is produced — the drizzle definitions and the hand SQL agree
+
+#### Scenario: Single-tenant data is backfilled, not lost
+- **WHEN** `0012_tenancy.sql` is applied to a populated single-tenant database
+- **THEN** every pre-existing business row carries the default tenant's id and all constraints hold
+
+## ADDED Requirements
+
+### Requirement: Runtime connections use the erp_app role
+`createDb` (`packages/db/src/client.ts`) SHALL be handed a `DATABASE_URL` whose
+credentials are the `erp_app` role in every runtime environment, including development
+and CI — a superuser or owner connection silently bypasses Row-Level Security and would
+make every environment except production test a different database. The dev compose
+init and `.env.example` SHALL reflect this.
+
+#### Scenario: Dev exercises the same policies as prod
+- **WHEN** a developer runs `pnpm dev` against the compose database
+- **THEN** the API connects as `erp_app` and RLS filters queries exactly as in production
+
+#### Scenario: The integration suite refuses a bypassing role
+- **WHEN** the RLS integration test detects the connected role is a superuser or has `BYPASSRLS`
+- **THEN** the suite fails with a configuration error rather than green-lighting untested policies
