@@ -91,6 +91,85 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # GHCR_PULL_TOKEN is the ONE credential in this deploy that CI never exercises itself:
+      # every step here authenticates with GITHUB_TOKEN, while the PAT is only ever handed to
+      # the cluster and first used minutes later, by a kubelet, on a node. A bad PAT therefore
+      # cannot fail this job early — it fails as ImagePullBackOff inside the migrate Job, which
+      # then burns its activeDeadlineSeconds and reports "DeadlineExceeded", naming a timeout
+      # instead of the credential. That misdirection cost 14 days (2026-08-23 to 2026-09-06),
+      # and it hid a second trap underneath: GHCR_PULL_TOKEN existed at BOTH repo scope and
+      # `production` environment scope. This job declares `environment: production`, so it only
+      # ever reads the environment copy. Two rotations updated the repo copy, reported success,
+      # and changed nothing — the expired 2026-08-08 environment token stayed in force
+      # throughout. Hence the scope note in the hint below: it is the part people get wrong.
+      #
+      # So test the PAT the way the kubelet will, before anything mutates the cluster: fetch a
+      # pull scope for both images from the real GHCR token endpoint using the SAME username
+      # the ghcr-pull secret is built with, then actually HEAD a manifest with the result. The
+      # token endpoint hands out a token for a well-formed anonymous request too, so checking
+      # only that call would pass with no credential at all — the manifest fetch is the part
+      # that proves read access to a PRIVATE package.
+      #
+      # Keep this before "Join the tailnet": it needs no cluster access, and failing here costs
+      # seconds instead of a 10-minute rollout-and-rollback.
+      - name: Preflight — verify GHCR_PULL_TOKEN can pull the images
+        env:
+          # Via env, never inline in the run script: an inline ${{ secrets.* }} is substituted
+          # into the shell source, so `set -x` or an error trace could echo it.
+          GHCR_USER: ${{ steps.repo.outputs.owner }}
+          GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$GHCR_TOKEN" ]; then
+            echo "::error::GHCR_PULL_TOKEN is empty or unset. The cluster cannot pull private" \
+                 "images without it. Mint a classic PAT with read:packages and set it."
+            exit 1
+          fi
+
+          fail() {
+            echo "::error::GHCR_PULL_TOKEN cannot pull ${REGISTRY}/${GHCR_USER}/$1 ($2)."
+            cat >&2 <<'HINT'
+          The kubelet will hit this same wall as ImagePullBackOff, so stop here.
+
+          Mint a replacement at https://github.com/settings/tokens (classic):
+            * scope: read:packages  (fine-grained PATs are NOT reliable for GHCR pulls)
+            * owner must have read access to the keenlab-io/erp-api and erp-web packages
+            * if the org enforces SAML SSO, click "Configure SSO" and authorize it for
+              keenlab-io - an unauthorized PAT returns exactly this 403
+          Then set it at the scope THIS JOB READS. The job declares `environment: production`,
+          and an environment secret shadows a repo secret of the same name, so a repo-scoped
+          update is silently ignored here:
+            gh secret set GHCR_PULL_TOKEN --env production --repo keenlab-io/garment-erp
+
+          Verify a candidate token locally before saving it:
+            echo -n 'ghp_xxx' | docker login ghcr.io -u keenlab-io --password-stdin \
+              && docker manifest inspect ghcr.io/keenlab-io/erp-api:latest >/dev/null \
+              && echo OK
+          HINT
+            exit 1
+          }
+
+          for app in api web; do
+            repo="${GHCR_USER}/erp-${app}"
+
+            # -u sends the PAT as HTTP Basic; curl keeps it out of the process args.
+            tok=$(curl -sS -u "${GHCR_USER}:${GHCR_TOKEN}" \
+                    "https://ghcr.io/token?scope=repository%3A${repo}%3Apull&service=ghcr.io" \
+                  | python3 -c 'import json,sys; print(json.load(sys.stdin).get("token",""))' \
+                  || true)
+            [ -n "$tok" ] || fail "erp-${app}" "token endpoint refused the credential"
+
+            code=$(curl -sS -o /dev/null -w '%{http_code}' \
+                     -H "Authorization: Bearer ${tok}" \
+                     -H 'Accept: application/vnd.oci.image.index.v1+json' \
+                     -H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
+                     "https://ghcr.io/v2/${repo}/manifests/sha-${GITHUB_SHA}")
+            [ "$code" = "200" ] || fail "erp-${app}" "manifest fetch returned HTTP ${code}"
+
+            echo "erp-${app}: GHCR_PULL_TOKEN OK"
+          done
+
       # Resolve the immutable SHA tags to digests and deploy by digest, so the rollout is
       # unaffected if a tag is ever moved.
       - name: Resolve image digests
