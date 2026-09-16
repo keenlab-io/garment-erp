@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nextProvider } from "react-i18next";
-import { ToastProvider } from "@erp/ui";
+import { ToastProvider, TooltipProvider } from "@erp/ui";
 import i18n from "../../../i18n/i18n";
 import { SessionProvider } from "../../../session/session-context";
 import type { AuthUser } from "../../../session/dev-user";
@@ -74,14 +74,24 @@ const MANAGER: AuthUser = {
   permissions: [],
 };
 
-function renderPage() {
+const VIEWER: AuthUser = {
+  id: "u2",
+  name: "Viewer",
+  email: "v@example.com",
+  isSuperAdmin: false,
+  permissions: [],
+};
+
+function renderPage(user: AuthUser = MANAGER) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={queryClient}>
-        <SessionProvider initialUser={MANAGER}>
+        <SessionProvider initialUser={user}>
           <ToastProvider>
-            <OrgStructurePage />
+            <TooltipProvider>
+              <OrgStructurePage />
+            </TooltipProvider>
           </ToastProvider>
         </SessionProvider>
       </QueryClientProvider>
@@ -190,5 +200,79 @@ describe("OrgStructurePage", () => {
 
     await waitFor(() => expect(calls).toEqual([{ name: "Cutting" }]));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("edits a department through the row action, seeding the drawer from its current values", async () => {
+    const puts: unknown[] = [];
+    stubFetch((url, init) => {
+      const method = init?.method ?? "GET";
+      if (url.includes("/positions")) return jsonResponse({ positions: [POSITION] });
+      if (url.includes(`/departments/${DEPARTMENT.id}`) && method === "PUT") {
+        puts.push(init?.body ? JSON.parse(init.body as string) : undefined);
+        return jsonResponse({ department: { ...DEPARTMENT, name: "Cutting" } });
+      }
+      if (url.includes("/departments")) return jsonResponse({ departments: [DEPARTMENT] });
+      return undefined;
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const cells = await screen.findAllByText("Sewing");
+    const departmentRow = cells[1]!.closest("tr")!;
+    await user.click(within(departmentRow).getByRole("button", { name: "Row actions" }));
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "Edit department" })).toBeInTheDocument();
+    const nameInput = within(dialog).getByLabelText(/^Name/);
+    expect(nameInput).toHaveValue("Sewing");
+
+    await user.clear(nameInput);
+    await user.type(nameInput, "Cutting");
+    await user.click(within(dialog).getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(puts).toEqual([{ name: "Cutting", parent_id: null }]));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("deletes a position behind the confirm dialog; a 409 keeps the dialog open with its message", async () => {
+    stubFetch((url, init) => {
+      const method = init?.method ?? "GET";
+      if (url.includes("/positions")) {
+        if (method === "DELETE") {
+          return jsonResponse(
+            { code: "STATE_CONFLICT", message: "1 employee still holds this position.", details: [] },
+            409,
+          );
+        }
+        return jsonResponse({ positions: [POSITION] });
+      }
+      if (url.includes("/departments")) return jsonResponse({ departments: [DEPARTMENT] });
+      return undefined;
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const row = (await screen.findByText("Line supervisor")).closest("tr")!;
+    await user.click(within(row).getByRole("button", { name: "Row actions" }));
+    await user.click(await screen.findByRole("button", { name: "Delete" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "Delete this position?" })).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+    await within(dialog).findByText("1 employee still holds this position.");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("hides row actions for a view-only user (absent, not disabled)", async () => {
+    stubHappyPath();
+    renderPage(VIEWER);
+
+    await screen.findByText("Line supervisor");
+    expect(screen.queryByRole("button", { name: "Row actions" })).not.toBeInTheDocument();
   });
 });

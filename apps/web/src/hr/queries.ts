@@ -20,6 +20,7 @@ export const hrKeys = {
   employeesAll: () => [...hrKeys.all, "employees"] as const,
   employees: (query: Partial<EmployeesQuery> = {}) => [...hrKeys.employeesAll(), query] as const,
   employee: (id: string) => [...hrKeys.employeesAll(), id] as const,
+  reportingLine: (id: string) => [...hrKeys.employeesAll(), id, "reporting-line"] as const,
   employeeDocuments: (id: string) => [...hrKeys.employeesAll(), id, "documents"] as const,
   otRequestsAll: () => [...hrKeys.all, "ot-requests"] as const,
   otRequests: (query: Partial<OtRequestsQuery> = {}) => [...hrKeys.otRequestsAll(), query] as const,
@@ -74,6 +75,24 @@ export function useCreateDepartmentMutation() {
   });
 }
 
+export function useUpdateDepartmentMutation() {
+  const queryClient = useQueryClient();
+  return api.hr.updateDepartment.useMutation({
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrKeys.departmentsAll() });
+    },
+  });
+}
+
+export function useDeleteDepartmentMutation() {
+  const queryClient = useQueryClient();
+  return api.hr.deleteDepartment.useMutation({
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrKeys.departmentsAll() });
+    },
+  });
+}
+
 export function usePositionsQuery() {
   return api.hr.listPositions.useQuery(hrKeys.positionsAll());
 }
@@ -81,6 +100,24 @@ export function usePositionsQuery() {
 export function useCreatePositionMutation() {
   const queryClient = useQueryClient();
   return api.hr.createPosition.useMutation({
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrKeys.positionsAll() });
+    },
+  });
+}
+
+export function useUpdatePositionMutation() {
+  const queryClient = useQueryClient();
+  return api.hr.updatePosition.useMutation({
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: hrKeys.positionsAll() });
+    },
+  });
+}
+
+export function useDeletePositionMutation() {
+  const queryClient = useQueryClient();
+  return api.hr.deletePosition.useMutation({
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: hrKeys.positionsAll() });
     },
@@ -114,6 +151,19 @@ export function useUpdateEmployeeMutation() {
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: hrKeys.employeesAll() });
       void queryClient.invalidateQueries({ queryKey: hrKeys.employee(variables.params.id) });
+    },
+  });
+}
+
+export function useReportingLineQuery(employeeId: string) {
+  return api.hr.getReportingLine.useQuery(hrKeys.reportingLine(employeeId), { params: { id: employeeId } });
+}
+
+export function useSetReportingLineMutation() {
+  const queryClient = useQueryClient();
+  return api.hr.setReportingLine.useMutation({
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: hrKeys.reportingLine(variables.params.id) });
     },
   });
 }
