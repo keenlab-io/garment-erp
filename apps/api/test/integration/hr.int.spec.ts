@@ -1,18 +1,22 @@
 import { randomUUID } from "node:crypto";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import type { Queue } from "bullmq";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   advancePolicy,
   attendance,
+  auditLog,
   cashAdvance,
   createDb,
+  department,
   employee,
   otRate,
   otRequest,
   payrollRun,
   payslip,
+  position,
+  reportingLine,
   salaryRecord,
   ssoConfig,
   taxBracket,
@@ -28,6 +32,7 @@ import {
   type TaxBracket,
 } from "../../src/hr/payroll-math.js";
 import type { AuthUser } from "../../src/auth/auth-user.js";
+import { AuditService } from "../../src/audit/audit.service.js";
 import type { CryptoService } from "../../src/common/crypto/crypto.service.js";
 import {
   BusinessRuleError,
@@ -37,9 +42,11 @@ import {
 import { UnitOfWork } from "../../src/db/unit-of-work.service.js";
 import { EventBusService } from "../../src/events/event-bus.service.js";
 import type { PdfService } from "../../src/pdf/pdf.service.js";
+import type { SequenceService } from "../../src/sequence/sequence.service.js";
 import type { StorageService } from "../../src/storage/storage.service.js";
 import { CashAdvanceService } from "../../src/hr/cash-advance.service.js";
 import { CompensationService } from "../../src/hr/compensation.service.js";
+import { EmployeeService } from "../../src/hr/employee.service.js";
 import { OtService } from "../../src/hr/ot.service.js";
 import { PayrollConfigService } from "../../src/hr/payroll-config.service.js";
 import { PayrollService } from "../../src/hr/payroll.service.js";
@@ -424,4 +431,282 @@ describe.skipIf(!url)("HR & payroll services (integration)", () => {
       .where(eq(payrollRun.period, "2026-07"));
     return slipFor(run!.id);
   }
+});
+
+// Gated on DATABASE_URL_TEST. Drives `EmployeeService`'s org-structure and reporting-line
+// methods (design D1–D6) end-to-end against a real Postgres — task 4.1–4.3. `EmployeeService`
+// is constructed directly (not through Nest DI); the collaborators unused by these methods
+// (sequences/crypto/storage/comp/events) are never called, so untyped stand-ins are enough —
+// only `AuditService` (real, `currentExecutor`-backed) matters here.
+describe.skipIf(!url)("HR org structure & reporting line (integration)", () => {
+  let conn: ReturnType<typeof createDb>;
+  let uow: UnitOfWork;
+  let employees: EmployeeService;
+
+  const actor: AuthUser = {
+    id: randomUUID(),
+    sessionId: randomUUID(),
+    isSuperAdmin: true,
+    permissions: new Set(),
+  };
+
+  const createdDepartmentIds: string[] = [];
+  const createdPositionIds: string[] = [];
+  const createdEmployeeIds: string[] = [];
+
+  beforeAll(() => {
+    conn = createDb(url as string, { max: 1 });
+    uow = new UnitOfWork(conn.db);
+    employees = new EmployeeService(
+      conn.db,
+      {} as SequenceService,
+      {} as CryptoService,
+      {} as StorageService,
+      {} as CompensationService,
+      {} as EventBusService,
+      new AuditService(conn.db),
+    );
+  });
+
+  afterAll(async () => {
+    // Children first: reporting_line rows FK to employee; employee.position_id FKs to
+    // position; position.department_id FKs to department.
+    if (createdEmployeeIds.length > 0) {
+      await conn.db
+        .delete(reportingLine)
+        .where(inArray(reportingLine.employeeId, createdEmployeeIds));
+      await conn.db.delete(employee).where(inArray(employee.id, createdEmployeeIds));
+    }
+    if (createdPositionIds.length > 0) {
+      await conn.db.delete(position).where(inArray(position.id, createdPositionIds));
+    }
+    if (createdDepartmentIds.length > 0) {
+      await conn.db.delete(department).where(inArray(department.id, createdDepartmentIds));
+    }
+    await conn.queryClient.end();
+  });
+
+  async function makeDepartment(name: string, parentId?: string) {
+    const dept = await uow.withTransaction(() =>
+      employees.createDepartment({ name, parent_id: parentId }, actor),
+    );
+    createdDepartmentIds.push(dept.id);
+    return dept;
+  }
+
+  async function makePosition(title: string, departmentId: string) {
+    const pos = await uow.withTransaction(() =>
+      employees.createPosition({ title, department_id: departmentId }, actor),
+    );
+    createdPositionIds.push(pos.id);
+    return pos;
+  }
+
+  async function makeEmployee(name: string, positionId: string | null = null) {
+    const [row] = await conn.db
+      .insert(employee)
+      .values({
+        empCode: `ORG-${randomUUID().slice(0, 8)}`,
+        firstName: name,
+        lastName: "Test",
+        employmentType: "MONTHLY",
+        status: "ACTIVE",
+        hireDate: "2024-01-01",
+        positionId,
+      })
+      .returning({ id: employee.id, positionId: employee.positionId });
+    createdEmployeeIds.push(row!.id);
+    return row!;
+  }
+
+  // ── 4.1 · departments & positions ───────────────────────────────────────────
+
+  it("renames and re-parents a department", async () => {
+    const parentA = await makeDepartment("Parent A");
+    const parentB = await makeDepartment("Parent B");
+    const child = await makeDepartment("Child", parentA.id);
+
+    const updated = await uow.withTransaction(() =>
+      employees.updateDepartment(
+        child.id,
+        { name: "Child Renamed", parent_id: parentB.id },
+        actor,
+      ),
+    );
+    expect(updated.name).toBe("Child Renamed");
+    expect(updated.parent_id).toBe(parentB.id);
+  });
+
+  it("rejects re-parenting a department into its own subtree (422)", async () => {
+    const root = await makeDepartment("Root");
+    const child = await makeDepartment("Root Child", root.id);
+    const grandchild = await makeDepartment("Root Grandchild", child.id);
+
+    await expect(
+      uow.withTransaction(() =>
+        employees.updateDepartment(root.id, { parent_id: grandchild.id }, actor),
+      ),
+    ).rejects.toBeInstanceOf(BusinessRuleError);
+  });
+
+  it("rejects deleting a department with a live child department (409)", async () => {
+    const parent = await makeDepartment("Blocked Parent");
+    await makeDepartment("Blocking Child", parent.id);
+
+    await expect(
+      uow.withTransaction(() => employees.deleteDepartment(parent.id, actor)),
+    ).rejects.toBeInstanceOf(StateConflictError);
+  });
+
+  it("rejects deleting a department with a live position (409)", async () => {
+    const dept = await makeDepartment("Dept With Position");
+    await makePosition("Blocking Position", dept.id);
+
+    await expect(
+      uow.withTransaction(() => employees.deleteDepartment(dept.id, actor)),
+    ).rejects.toBeInstanceOf(StateConflictError);
+  });
+
+  it("rejects deleting an occupied position (409)", async () => {
+    const dept = await makeDepartment("Occupied Dept");
+    const occupied = await makePosition("Occupied Position", dept.id);
+    await makeEmployee("Occupant", occupied.id);
+
+    await expect(
+      uow.withTransaction(() => employees.deletePosition(occupied.id, actor)),
+    ).rejects.toBeInstanceOf(StateConflictError);
+  });
+
+  it("soft-deletes an unreferenced position: it vanishes from listPositions while an unrelated employee keeps its position_id", async () => {
+    const dept = await makeDepartment("Mixed Dept");
+    const kept = await makePosition("Kept Position", dept.id);
+    const free = await makePosition("Free Position", dept.id);
+    const worker = await makeEmployee("Worker", kept.id);
+
+    await uow.withTransaction(() => employees.deletePosition(free.id, actor));
+
+    const remaining = await employees.listPositions();
+    expect(remaining.map((p) => p.id)).not.toContain(free.id);
+    expect(remaining.map((p) => p.id)).toContain(kept.id);
+
+    const [row] = await conn.db
+      .select({ positionId: employee.positionId })
+      .from(employee)
+      .where(eq(employee.id, worker.id));
+    expect(row?.positionId).toBe(kept.id);
+  });
+
+  // ── 4.2 · reporting line ─────────────────────────────────────────────────────
+
+  it("sets, changes, and clears a reporting line via a single upserted row", async () => {
+    const dept = await makeDepartment("Reporting Dept");
+    const pos = await makePosition("Reporting Position", dept.id);
+    const report = await makeEmployee("Report", pos.id);
+    const managerOne = await makeEmployee("Manager One", pos.id);
+    const managerTwo = await makeEmployee("Manager Two", pos.id);
+
+    const setFirst = await uow.withTransaction(() =>
+      employees.setReportingLine(report.id, { manager_employee_id: managerOne.id }, actor),
+    );
+    expect(setFirst.manager?.id).toBe(managerOne.id);
+
+    const changed = await uow.withTransaction(() =>
+      employees.setReportingLine(report.id, { manager_employee_id: managerTwo.id }, actor),
+    );
+    expect(changed.manager?.id).toBe(managerTwo.id);
+
+    const rowsAfterChange = await conn.db
+      .select({ n: count() })
+      .from(reportingLine)
+      .where(eq(reportingLine.employeeId, report.id));
+    expect(rowsAfterChange[0]?.n).toBe(1);
+
+    const cleared = await uow.withTransaction(() =>
+      employees.setReportingLine(report.id, { manager_employee_id: null }, actor),
+    );
+    expect(cleared.manager).toBeNull();
+
+    const rowsAfterClear = await conn.db
+      .select({ n: count() })
+      .from(reportingLine)
+      .where(eq(reportingLine.employeeId, report.id));
+    expect(rowsAfterClear[0]?.n).toBe(1);
+  });
+
+  it("reads a manager's direct reports and carries no salary or national-id fields", async () => {
+    const dept = await makeDepartment("Reads Dept");
+    const pos = await makePosition("Reads Position", dept.id);
+    const manager = await makeEmployee("Reading Manager", pos.id);
+    const reportOne = await makeEmployee("Reading Report One", pos.id);
+    const reportTwo = await makeEmployee("Reading Report Two", pos.id);
+
+    await uow.withTransaction(() =>
+      employees.setReportingLine(reportOne.id, { manager_employee_id: manager.id }, actor),
+    );
+    await uow.withTransaction(() =>
+      employees.setReportingLine(reportTwo.id, { manager_employee_id: manager.id }, actor),
+    );
+
+    const line = await employees.getReportingLine(manager.id);
+    expect(line.direct_reports.map((r) => r.id).sort()).toEqual(
+      [reportOne.id, reportTwo.id].sort(),
+    );
+    for (const ref of [...line.direct_reports, line.manager].filter(Boolean)) {
+      expect(Object.keys(ref as object).sort()).toEqual(
+        ["emp_code", "first_name", "id", "last_name"].sort(),
+      );
+    }
+  });
+
+  it("rejects a managerial cycle (422)", async () => {
+    const dept = await makeDepartment("Cycle Dept");
+    const pos = await makePosition("Cycle Position", dept.id);
+    const a = await makeEmployee("Cycle A", pos.id);
+    const b = await makeEmployee("Cycle B", pos.id);
+
+    await uow.withTransaction(() =>
+      employees.setReportingLine(b.id, { manager_employee_id: a.id }, actor),
+    );
+
+    await expect(
+      uow.withTransaction(() =>
+        employees.setReportingLine(a.id, { manager_employee_id: b.id }, actor),
+      ),
+    ).rejects.toBeInstanceOf(BusinessRuleError);
+  });
+
+  // ── 4.3 · audit rows ─────────────────────────────────────────────────────────
+
+  it("writes an audit_log row with before/after for a department update", async () => {
+    const dept = await makeDepartment("Audited Update Dept");
+
+    await uow.withTransaction(() =>
+      employees.updateDepartment(dept.id, { name: "Audited Update Dept Renamed" }, actor),
+    );
+
+    const rows = await conn.db
+      .select()
+      .from(auditLog)
+      .where(and(eq(auditLog.entityType, "department"), eq(auditLog.entityId, dept.id)));
+    const updateRow = rows.find((r) => r.action === "UPDATE");
+    expect(updateRow).toBeDefined();
+    expect(updateRow?.before).not.toBeNull();
+    expect(updateRow?.after).not.toBeNull();
+  });
+
+  it("writes an audit_log row with before/after for a position delete", async () => {
+    const dept = await makeDepartment("Audited Delete Dept");
+    const pos = await makePosition("Audited Delete Position", dept.id);
+
+    await uow.withTransaction(() => employees.deletePosition(pos.id, actor));
+
+    const rows = await conn.db
+      .select()
+      .from(auditLog)
+      .where(and(eq(auditLog.entityType, "position"), eq(auditLog.entityId, pos.id)));
+    const deleteRow = rows.find((r) => r.action === "DELETE");
+    expect(deleteRow).toBeDefined();
+    expect(deleteRow?.before).not.toBeNull();
+    expect(deleteRow?.after).toBeNull();
+  });
 });
