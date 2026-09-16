@@ -76,6 +76,28 @@ export class HrController {
     });
   }
 
+  @TsRestHandler(contract.hr.updateDepartment)
+  updateDepartment(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.hr.updateDepartment, async ({ params, body }) => {
+      assertPermissions(user, "hr.employee.manage");
+      const department = await this.uow.withTransaction(() =>
+        this.employees.updateDepartment(params.id, body, user),
+      );
+      return { status: 200, body: { department } };
+    });
+  }
+
+  @TsRestHandler(contract.hr.deleteDepartment)
+  deleteDepartment(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.hr.deleteDepartment, async ({ params }) => {
+      assertPermissions(user, "hr.employee.manage");
+      await this.uow.withTransaction(() =>
+        this.employees.deleteDepartment(params.id, user),
+      );
+      return { status: 204, body: undefined };
+    });
+  }
+
   @TsRestHandler(contract.hr.listPositions)
   listPositions(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.listPositions, async () => {
@@ -92,6 +114,51 @@ export class HrController {
         this.employees.createPosition(body, user),
       );
       return { status: 201, body: { position } };
+    });
+  }
+
+  @TsRestHandler(contract.hr.updatePosition)
+  updatePosition(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.hr.updatePosition, async ({ params, body }) => {
+      assertPermissions(user, "hr.employee.manage");
+      const position = await this.uow.withTransaction(() =>
+        this.employees.updatePosition(params.id, body, user),
+      );
+      return { status: 200, body: { position } };
+    });
+  }
+
+  @TsRestHandler(contract.hr.deletePosition)
+  deletePosition(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.hr.deletePosition, async ({ params }) => {
+      assertPermissions(user, "hr.employee.manage");
+      await this.uow.withTransaction(() => this.employees.deletePosition(params.id, user));
+      return { status: 204, body: undefined };
+    });
+  }
+
+  // The reporting line is org structure too (spec §2.2) — kept beside the tree it edits,
+  // and projecting `EmployeeRef` only, so neither handler needs salary gating.
+
+  @TsRestHandler(contract.hr.getReportingLine)
+  getReportingLine(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.hr.getReportingLine, async ({ params }) => {
+      assertPermissions(user, "hr.employee.view");
+      return {
+        status: 200,
+        body: { reporting_line: await this.employees.getReportingLine(params.id) },
+      };
+    });
+  }
+
+  @TsRestHandler(contract.hr.setReportingLine)
+  setReportingLine(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.hr.setReportingLine, async ({ params, body }) => {
+      assertPermissions(user, "hr.employee.manage");
+      const reporting_line = await this.uow.withTransaction(() =>
+        this.employees.setReportingLine(params.id, body, user),
+      );
+      return { status: 200, body: { reporting_line } };
     });
   }
 

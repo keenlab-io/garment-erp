@@ -23,35 +23,36 @@
 
 ## 2. API — `apps/api/src/hr`
 
-- [ ] 2.1 `employee.service.ts`: `updateDepartment(id, input, actor)` — load the row (404 via
+- [x] 2.1 `employee.service.ts`: `updateDepartment(id, input, actor)` — load the row (404 via
   `NotFoundError` if missing or soft-deleted), run the ancestor guard when `parent_id`
   changes, patch `name`/`parentId` + `updatedBy`, return the `Department` shape
-- [ ] 2.2 `employee.service.ts`: private `assertNoDepartmentCycle(id, newParentId)` — walk up
+- [x] 2.2 `employee.service.ts`: private `assertNoDepartmentCycle(id, newParentId)` — walk up
   `parent_id` from `newParentId` on `currentExecutor(db)`; `BusinessRuleError` on reaching
   `id` (self-reference is depth 0) or on exceeding a 256-hop limit (design D3)
-- [ ] 2.3 `employee.service.ts`: `deleteDepartment(id, actor)` — count live child departments
+- [x] 2.3 `employee.service.ts`: `deleteDepartment(id, actor)` — count live child departments
   and live positions in the same tx; `StateConflictError` naming the blocking count, else
   stamp `deletedAt`/`updatedBy` (design D2)
-- [ ] 2.4 `employee.service.ts`: `updatePosition(id, input, actor)` (retitle, edit
+- [x] 2.4 `employee.service.ts`: `updatePosition(id, input, actor)` (retitle, edit
   `job_description`, move `department_id` — validate the target department exists and is
   live) and `deletePosition(id, actor)` (409 while any employee holds it; employees keep
   their `position_id` either way, design D4)
-- [ ] 2.5 `employee.service.ts`: `getReportingLine(id)` — join `reporting_line` for the
+- [x] 2.5 `employee.service.ts`: `getReportingLine(id)` — join `reporting_line` for the
   manager and select the reverse side for `direct_reports`, projecting `EmployeeRef` only
   (no salary/PII, design D5)
-- [ ] 2.6 `employee.service.ts`: `setReportingLine(id, input, actor)` — assert both employees
+- [x] 2.6 `employee.service.ts`: `setReportingLine(id, input, actor)` — assert both employees
   exist, run `assertNoManagerCycle(id, managerId)` (the same upward walk over
   `manager_employee_id`), then `insert(...).onConflictDoUpdate` on `employee_id`; `null`
   clears
-- [ ] 2.7 Write `AuditService.record` inside each mutation's transaction — `entityType`
+- [x] 2.7 Write `AuditService.record` inside each mutation's transaction — `entityType`
   `department` | `position` | `reporting_line`, action `UPDATE`/`DELETE`, `before`/`after`
   snapshots (design D6); inject `AuditService` into `EmployeeService` and make sure
-  `HrModule` imports the audit module
-- [ ] 2.8 `hr.controller.ts`: six `@TsRestHandler`s beside the existing org handlers —
+  `HrModule` imports the audit module — `AuditModule` is `@Global`, so injecting
+  `AuditService` needs no module change
+- [x] 2.8 `hr.controller.ts`: six `@TsRestHandler`s beside the existing org handlers —
   `assertPermissions(user, "hr.employee.view")` for the reporting-line read,
   `"hr.employee.manage"` for every mutation, each mutation wrapped in
   `this.uow.withTransaction(...)`
-- [ ] 2.9 Verify: `pnpm --filter @erp/api typecheck && pnpm --filter @erp/api lint`
+- [x] 2.9 Verify: `pnpm --filter @erp/api typecheck && pnpm --filter @erp/api lint`
 
 ## 3. Web — `apps/web/src`
 
