@@ -79,23 +79,23 @@
 
 ## 4. Tests
 
-- [ ] 4.1 `apps/api/test/integration/hr.int.spec.ts`: rename + re-parent a department; reject
+- [x] 4.1 `apps/api/test/integration/hr.int.spec.ts`: rename + re-parent a department; reject
   a re-parent into its own subtree (422); reject deleting a department with a live child and
   with a live position (409); reject deleting an occupied position (409); soft-delete an
   unreferenced position and assert it vanishes from `GET /positions` while the employee row
   keeps its `position_id`
-- [ ] 4.2 `apps/api/test/integration/hr.int.spec.ts`: set/change/clear a reporting line
+- [x] 4.2 `apps/api/test/integration/hr.int.spec.ts`: set/change/clear a reporting line
   (one row, upserted), read manager + direct reports, reject a managerial cycle (422),
   assert the response carries no salary or national-id fields
-- [ ] 4.3 `apps/api/test/integration/hr.int.spec.ts`: assert an `audit_log` row with
+- [x] 4.3 `apps/api/test/integration/hr.int.spec.ts`: assert an `audit_log` row with
   `before`/`after` lands for one update and one delete
-- [ ] 4.4 `apps/web/src/router/routes/hr/org-structure.test.tsx`: edit a department through
+- [x] 4.4 `apps/web/src/router/routes/hr/org-structure.test.tsx`: edit a department through
   the seeded drawer; delete behind the confirm dialog; a 409 keeps the dialog open with its
   message; no row actions for a view-only user
-- [ ] 4.5 `apps/web/src/router/routes/hr/employee-detail.test.tsx`: Reporting tab renders the
+- [x] 4.5 `apps/web/src/router/routes/hr/employee-detail.test.tsx`: Reporting tab renders the
   manager and direct reports, assigns a manager, and clears one
-- [ ] 4.6 `e2e/tests/hr-module.spec.ts`: extend the org-structure pass — create a department,
+- [x] 4.6 `e2e/tests/hr-module.spec.ts`: extend the org-structure pass — create a department,
   rename it, try to delete it while it holds a position (refused), delete the position, then
   the department
-- [ ] 4.7 Verify: `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green, then the
+- [x] 4.7 Verify: `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green, then the
   integration suite against the live stack

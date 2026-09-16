@@ -30,6 +30,11 @@ test.describe("hr — screens (TC-HR)", () => {
     await expect(page.getByRole("heading", { name: "Positions" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Departments" })).toBeVisible();
 
+    // Positions renders first, Departments second — scope row lookups to each grid so a
+    // department name showing up in the positions table's "Department" column can't collide.
+    const positionsGrid = page.getByRole("grid").nth(0);
+    const departmentsGrid = page.getByRole("grid").nth(1);
+
     // A position needs a department, so the department is created first.
     await page.getByRole("button", { name: "New department" }).first().click();
     const drawer = page.getByRole("dialog");
@@ -40,6 +45,72 @@ test.describe("hr — screens (TC-HR)", () => {
     await drawer.getByRole("button", { name: "New department" }).click();
     expect((await created).status()).toBeLessThan(400);
     await expect(page.getByText(`Production ${RUN}`)).toBeVisible();
+
+    // Rename it through the row action (task 4.6).
+    const departmentRow = departmentsGrid.getByRole("row", { name: `Production ${RUN}` });
+    await departmentRow.getByRole("button", { name: "Row actions" }).click();
+    await page.getByRole("button", { name: "Edit" }).click();
+    const editDrawer = page.getByRole("dialog");
+    await expect(editDrawer.getByRole("heading", { name: "Edit department" })).toBeVisible();
+    const nameInput = editDrawer.getByLabel(/^Name/);
+    await nameInput.fill(`Production ${RUN} Renamed`);
+    const renamed = page.waitForResponse(
+      (r) => /\/departments\/[^/]+$/.test(r.url()) && r.request().method() === "PUT",
+    );
+    await editDrawer.getByRole("button", { name: "Save changes" }).click();
+    expect((await renamed).status()).toBeLessThan(400);
+    await expect(page.getByText(`Production ${RUN} Renamed`)).toBeVisible();
+
+    // Give it a position, then the department can't be deleted while it holds one.
+    await page.getByRole("button", { name: "New position" }).first().click();
+    const positionDrawer = page.getByRole("dialog");
+    await positionDrawer.getByLabel(/^Title/).fill(`Operator ${RUN}`);
+    await positionDrawer.getByRole("combobox", { name: "Department" }).click();
+    await page.getByRole("option", { name: `Production ${RUN} Renamed` }).click();
+    const positionCreated = page.waitForResponse(
+      (r) => r.url().includes("/positions") && r.request().method() === "POST",
+    );
+    await positionDrawer.getByRole("button", { name: "New position" }).click();
+    expect((await positionCreated).status()).toBeLessThan(400);
+    await expect(page.getByText(`Operator ${RUN}`)).toBeVisible();
+
+    const occupiedRow = departmentsGrid.getByRole("row", { name: `Production ${RUN} Renamed` });
+    await occupiedRow.getByRole("button", { name: "Row actions" }).click();
+    await page.getByRole("button", { name: "Delete" }).click();
+    const refusedDialog = page.getByRole("dialog");
+    await expect(refusedDialog.getByRole("heading", { name: "Delete this department?" })).toBeVisible();
+    const refused = page.waitForResponse(
+      (r) => /\/departments\/[^/]+$/.test(r.url()) && r.request().method() === "DELETE",
+    );
+    await refusedDialog.getByRole("button", { name: "Delete" }).click();
+    expect((await refused).status()).toBe(409);
+    await expect(refusedDialog.getByText(/live position/i)).toBeVisible();
+    await refusedDialog.getByRole("button", { name: "Cancel" }).click();
+
+    // Delete the position, then the now-empty department.
+    const positionRow = positionsGrid.getByRole("row", { name: `Operator ${RUN}` });
+    await positionRow.getByRole("button", { name: "Row actions" }).click();
+    await page.getByRole("button", { name: "Delete" }).click();
+    const positionDeleteDialog = page.getByRole("dialog");
+    await expect(
+      positionDeleteDialog.getByRole("heading", { name: "Delete this position?" }),
+    ).toBeVisible();
+    const positionDeleted = page.waitForResponse(
+      (r) => /\/positions\/[^/]+$/.test(r.url()) && r.request().method() === "DELETE",
+    );
+    await positionDeleteDialog.getByRole("button", { name: "Delete" }).click();
+    expect((await positionDeleted).status()).toBeLessThan(400);
+    await expect(page.getByText(`Operator ${RUN}`)).toHaveCount(0);
+
+    await occupiedRow.getByRole("button", { name: "Row actions" }).click();
+    await page.getByRole("button", { name: "Delete" }).click();
+    const departmentDeleteDialog = page.getByRole("dialog");
+    const departmentDeleted = page.waitForResponse(
+      (r) => /\/departments\/[^/]+$/.test(r.url()) && r.request().method() === "DELETE",
+    );
+    await departmentDeleteDialog.getByRole("button", { name: "Delete" }).click();
+    expect((await departmentDeleted).status()).toBeLessThan(400);
+    await expect(page.getByText(`Production ${RUN} Renamed`)).toHaveCount(0);
   });
 
   test("TC-HR-10 the attendance month grid renders", async ({ page }) => {
