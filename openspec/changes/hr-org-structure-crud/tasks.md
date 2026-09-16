@@ -56,26 +56,26 @@
 
 ## 3. Web — `apps/web/src`
 
-- [ ] 3.1 `hr/queries.ts`: `useUpdateDepartmentMutation`, `useDeleteDepartmentMutation`,
+- [x] 3.1 `hr/queries.ts`: `useUpdateDepartmentMutation`, `useDeleteDepartmentMutation`,
   `useUpdatePositionMutation`, `useDeletePositionMutation` (invalidate
   `hrKeys.departmentsAll()`/`positionsAll()`), plus `useReportingLineQuery(employeeId)` and
   `useSetReportingLineMutation` with a `hrKeys.reportingLine(id)` key
-- [ ] 3.2 `router/routes/hr/org-structure.tsx`: give both drawers an optional `editing` prop
+- [x] 3.2 `router/routes/hr/org-structure.tsx`: give both drawers an optional `editing` prop
   (seed fields, switch title/submit label, dispatch update instead of create — design D7)
-- [ ] 3.3 `router/routes/hr/org-structure.tsx`: add Edit/Delete row actions to both Data
+- [x] 3.3 `router/routes/hr/org-structure.tsx`: add Edit/Delete row actions to both Data
   Tables, gated on `hr.employee.manage` so they are absent (not disabled) without it; Delete
   opens `ConfirmDialog` with the consequence text and renders a 409's `message` inline
-- [ ] 3.4 `router/routes/hr/employee-detail.tsx`: replace the `reportingEmpty` placeholder
+- [x] 3.4 `router/routes/hr/employee-detail.tsx`: replace the `reportingEmpty` placeholder
   with the Reporting tab — manager `Combobox` over employees (clearable, `PermissionButton`
   save) and a read-only direct-reports list; read-only rendering without
   `hr.employee.manage`
 - [x] 3.5 `router/routes/hr/employee-detail.tsx`: show the position in the Profile tab and
   make it editable in the profile edit form (`NO_POSITION` sentinel → `position_id: null`)
   — *shipped ahead of this change; covered by `employee-detail.test.tsx`*
-- [ ] 3.6 Add the new `hr` i18n keys to **both** `resources/en.ts` and `resources/th.ts`
+- [x] 3.6 Add the new `hr` i18n keys to **both** `resources/en.ts` and `resources/th.ts`
   (edit/delete labels, confirm copy, manager/direct-reports labels) — the i18n completeness
   test fails on any key present in one locale only
-- [ ] 3.7 Verify: `pnpm --filter @erp/web typecheck && pnpm --filter @erp/web lint`
+- [x] 3.7 Verify: `pnpm --filter @erp/web typecheck && pnpm --filter @erp/web lint`
 
 ## 4. Tests
 

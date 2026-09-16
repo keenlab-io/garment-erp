@@ -18,6 +18,7 @@ import {
   SelectValue,
   Skeleton,
   cn,
+  usePermissions,
   useToast,
 } from "@erp/ui";
 import type { ChipStatus } from "@erp/ui";
@@ -28,7 +29,10 @@ import {
   useEmployeeDocumentUrlMutation,
   useEmployeeDocumentsQuery,
   useEmployeeQuery,
+  useEmployeesQuery,
   usePositionsQuery,
+  useReportingLineQuery,
+  useSetReportingLineMutation,
   useUpdateEmployeeMutation,
   useUploadEmployeeDocumentMutation,
 } from "../../../hr/queries.js";
@@ -52,6 +56,9 @@ const TAB_LABEL_KEY = {
  */
 const NO_POSITION = "__none__";
 
+/** Same sentinel pattern as `NO_POSITION` — gives the manager Combobox a real "clear" option. */
+const NO_MANAGER = "__none__";
+
 const STATUS_CHIP: Record<string, ChipStatus> = {
   PROBATION: "pending",
   ACTIVE: "approved",
@@ -62,9 +69,10 @@ const STATUS_CHIP: Record<string, ChipStatus> = {
 /**
  * The employee detail screen (M2 §4.1, design MD4): tabbed Profile · Documents · Salary ·
  * Pay components · Reporting. Salary/national-id are `MaskedValue`-gated by `hr.salary.view`;
- * documents download via a fresh signed URL (never rendered inline). "Pay components" and
- * "Reporting" have no `@erp/contracts` read surface yet (no assign/list-components or
- * reporting-line endpoint) — they render an honest empty state rather than fabricated data.
+ * documents download via a fresh signed URL (never rendered inline). "Pay components" has no
+ * `@erp/contracts` read surface yet (no assign/list-components endpoint) — it renders an honest
+ * empty state rather than fabricated data. "Reporting" (design D5/D7 of the org-CRUD change)
+ * reads/writes `GET`/`PUT /employees/:id/reporting-line`.
  */
 export function EmployeeDetailPage() {
   const { id } = useParams({ from: "/hr/employees/$id" });
@@ -145,7 +153,7 @@ export function EmployeeDetailPage() {
       {tab === "pay-components" && (
         <p className="text-sm text-text-muted">{t("employeeDetail.payComponentsEmpty")}</p>
       )}
-      {tab === "reporting" && <p className="text-sm text-text-muted">{t("employeeDetail.reportingEmpty")}</p>}
+      {tab === "reporting" && <ReportingTab employeeId={id} />}
     </div>
   );
 }
@@ -290,6 +298,126 @@ function ProfileTab({ employeeId }: { employeeId: string }) {
           </div>
         </>
       )}
+    </section>
+  );
+}
+
+/**
+ * The manager Combobox + direct-reports list (hr-org-structure-crud §3.4, design D5/D7). Entering
+ * edit mode is itself gated on `hr.employee.manage` — a viewer without it only ever sees the
+ * read-only manager name and direct-reports list, never the picker.
+ */
+function ReportingTab({ employeeId }: { employeeId: string }) {
+  const { t } = useTranslation("hr");
+  const { toast } = useToast();
+  const { has } = usePermissions();
+  const canManage = has("hr.employee.manage");
+
+  const reportingLineQuery = useReportingLineQuery(employeeId);
+  const employeesQuery = useEmployeesQuery({ limit: 100 });
+  const setReportingLine = useSetReportingLineMutation();
+
+  const [editing, setEditing] = React.useState(false);
+  const [managerId, setManagerId] = React.useState(NO_MANAGER);
+
+  const reportingLine = reportingLineQuery.data?.body.reporting_line;
+  const manager = reportingLine?.manager ?? null;
+  const directReports = reportingLine?.direct_reports ?? [];
+
+  React.useEffect(() => {
+    if (editing) setManagerId(manager?.id ?? NO_MANAGER);
+  }, [editing, manager]);
+
+  const managerOptions = [
+    { value: NO_MANAGER, label: t("employeeDetail.noManager") },
+    ...(employeesQuery.data?.body.data ?? [])
+      .filter((employee) => employee.id !== employeeId)
+      .map((employee) => ({ value: employee.id, label: `${employee.first_name} ${employee.last_name}` })),
+  ];
+
+  function handleSave() {
+    setReportingLine.mutate(
+      {
+        params: { id: employeeId },
+        body: { manager_employee_id: managerId === NO_MANAGER ? null : managerId },
+      },
+      {
+        onSuccess: () => {
+          toast({ tone: "success", title: t("employeeDetail.managerSaved") });
+          setEditing(false);
+        },
+      },
+    );
+  }
+
+  if (reportingLineQuery.isLoading) {
+    return (
+      <section className="flex flex-col gap-4 rounded-lg border border-border bg-bg-surface p-5 shadow-sm">
+        <Skeleton className="h-6 w-48" />
+        <Skeleton className="h-24 w-full" />
+      </section>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-6 rounded-lg border border-border bg-bg-surface p-5 shadow-sm">
+      <div className="flex flex-col gap-2">
+        <span className="text-caption uppercase tracking-wide text-text-muted">
+          {t("employeeDetail.managerLabel")}
+        </span>
+        {!editing ? (
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-text-primary">
+              {manager ? `${manager.first_name} ${manager.last_name}` : t("employeeDetail.noManager")}
+            </p>
+            {canManage && (
+              <Button variant="secondary" onClick={() => setEditing(true)}>
+                {t("employeeDetail.editManager")}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <Combobox
+              value={managerId}
+              onValueChange={setManagerId}
+              options={managerOptions}
+              loading={employeesQuery.isLoading}
+              aria-label={t("employeeDetail.managerLabel")}
+            />
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setEditing(false)}>
+                {t("employees.createCancel")}
+              </Button>
+              <PermissionButton
+                required="hr.employee.manage"
+                onClick={handleSave}
+                loading={setReportingLine.isPending}
+              >
+                {t("employeeDetail.save")}
+              </PermissionButton>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <span className="text-caption uppercase tracking-wide text-text-muted">
+          {t("employeeDetail.directReportsLabel")}
+        </span>
+        {directReports.length === 0 ? (
+          <p className="text-sm text-text-muted">{t("employeeDetail.directReportsEmpty")}</p>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {directReports.map((report) => (
+              <li key={report.id} className="text-text-primary">
+                {report.first_name} {report.last_name}{" "}
+                <span className="text-text-muted">({report.emp_code})</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }
