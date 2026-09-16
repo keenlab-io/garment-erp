@@ -1,12 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql, type SQL } from "drizzle-orm";
+import type { PgTable } from "drizzle-orm/pg-core";
 import {
   department,
   employee,
   employeeDocument,
   notDeleted,
   position,
+  reportingLine,
   type Db,
 } from "@erp/db";
 import type {
@@ -17,14 +19,24 @@ import type {
   Employee,
   EmployeeDocument,
   EmployeeDocumentType,
+  EmployeeRef,
   EmployeesQuery,
   Position,
+  ReportingLine,
+  SetReportingLineRequest,
+  UpdateDepartmentRequest,
   UpdateEmployeeRequest,
+  UpdatePositionRequest,
 } from "@erp/contracts";
+import { AuditService } from "../audit/audit.service.js";
 import type { AuthUser } from "../auth/auth-user.js";
 import { assertVersion } from "../common/concurrency/if-match.js";
 import { CryptoService } from "../common/crypto/crypto.service.js";
-import { NotFoundError, StateConflictError } from "../common/errors/app-exception.js";
+import {
+  BusinessRuleError,
+  NotFoundError,
+  StateConflictError,
+} from "../common/errors/app-exception.js";
 import { buildPage } from "../common/pagination/cursor.js";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
@@ -35,6 +47,21 @@ import { StorageService } from "../storage/storage.service.js";
 import { CompensationService } from "./compensation.service.js";
 import { HR_EVENTS, type EmployeeCreatedPayload } from "./hr.events.js";
 import { decodeEmployeeCursor, mN } from "./hr.util.js";
+
+/**
+ * Defensive bound on the upward walks in `assertNoDepartmentCycle` /
+ * `assertNoManagerCycle` (design D3). A real org chart is nowhere near this deep, so
+ * exceeding it means the stored data already contains a cycle — error rather than loop.
+ */
+const CYCLE_HOP_LIMIT = 256;
+
+/** The `EmployeeRef` projection — deliberately no salary/PII columns (design D5). */
+const EMPLOYEE_REF_COLUMNS = {
+  id: employee.id,
+  emp_code: employee.empCode,
+  first_name: employee.firstName,
+  last_name: employee.lastName,
+} satisfies Record<keyof EmployeeRef, unknown>;
 
 /**
  * Employee master, documents & org structure (task 4.1). Create issues an `emp_code`
@@ -52,6 +79,7 @@ export class EmployeeService {
     private readonly storage: StorageService,
     private readonly comp: CompensationService,
     private readonly events: EventBusService,
+    private readonly audit: AuditService,
   ) {}
 
   async create(input: CreateEmployeeRequest, actor: AuthUser): Promise<Employee> {
@@ -246,6 +274,81 @@ export class EmployeeService {
     return rows.map((r) => ({ id: r.id, name: r.name, parent_id: r.parentId }));
   }
 
+  /**
+   * Rename and/or re-parent a department. Re-parenting is cycle-guarded inside the caller's
+   * transaction so concurrent edits cannot commit a loop (design D1/D3). Last-write-wins —
+   * org rows carry no `version` — but the audit row makes an overwrite reconstructable.
+   */
+  async updateDepartment(
+    id: string,
+    input: UpdateDepartmentRequest,
+    actor: AuthUser,
+  ): Promise<Department> {
+    const ex = currentExecutor(this.db);
+    const before = await this.loadDepartment(id);
+
+    const patch: Record<string, unknown> = { updatedBy: actor.id, updatedAt: new Date() };
+    if (input.name !== undefined) patch.name = input.name;
+    if (input.parent_id !== undefined && input.parent_id !== before.parent_id) {
+      if (input.parent_id !== null) {
+        await this.loadDepartment(input.parent_id, "Parent department not found");
+        await this.assertNoDepartmentCycle(id, input.parent_id);
+      }
+      patch.parentId = input.parent_id;
+    }
+
+    await ex.update(department).set(patch).where(eq(department.id, id));
+    const after = await this.loadDepartment(id);
+    await this.audit.record({
+      action: "UPDATE",
+      entityType: "department",
+      entityId: id,
+      actorUserId: actor.id,
+      before,
+      after,
+    });
+    return after;
+  }
+
+  /**
+   * Soft-delete a department. Refused with 409 while it still has live children or live
+   * positions — the operator moves them first rather than the delete cascading (design D2).
+   */
+  async deleteDepartment(id: string, actor: AuthUser): Promise<void> {
+    const ex = currentExecutor(this.db);
+    const before = await this.loadDepartment(id);
+
+    const children = await this.countLive(
+      department,
+      and(eq(department.parentId, id), notDeleted(department.deletedAt)),
+    );
+    if (children > 0) {
+      throw new StateConflictError(
+        `Department still has ${children} live child department(s)`,
+      );
+    }
+    const positions = await this.countLive(
+      position,
+      and(eq(position.departmentId, id), notDeleted(position.deletedAt)),
+    );
+    if (positions > 0) {
+      throw new StateConflictError(`Department still has ${positions} live position(s)`);
+    }
+
+    await ex
+      .update(department)
+      .set({ deletedAt: new Date(), updatedBy: actor.id, updatedAt: new Date() })
+      .where(eq(department.id, id));
+    await this.audit.record({
+      action: "DELETE",
+      entityType: "department",
+      entityId: id,
+      actorUserId: actor.id,
+      before,
+      after: null,
+    });
+  }
+
   async createPosition(
     input: CreatePositionRequest,
     actor: AuthUser,
@@ -285,16 +388,238 @@ export class EmployeeService {
     }));
   }
 
+  /**
+   * Retitle a position, edit its job description, or move it to another department. Moving
+   * takes its employees with it — they keep the same `position_id` (design D4).
+   */
+  async updatePosition(
+    id: string,
+    input: UpdatePositionRequest,
+    actor: AuthUser,
+  ): Promise<Position> {
+    const ex = currentExecutor(this.db);
+    const before = await this.loadPosition(id);
+
+    const patch: Record<string, unknown> = { updatedBy: actor.id, updatedAt: new Date() };
+    if (input.title !== undefined) patch.title = input.title;
+    if (input.job_description !== undefined) patch.jobDescription = input.job_description;
+    if (input.department_id !== undefined && input.department_id !== before.department_id) {
+      await this.loadDepartment(input.department_id, "Target department not found");
+      patch.departmentId = input.department_id;
+    }
+
+    await ex.update(position).set(patch).where(eq(position.id, id));
+    const after = await this.loadPosition(id);
+    await this.audit.record({
+      action: "UPDATE",
+      entityType: "position",
+      entityId: id,
+      actorUserId: actor.id,
+      before,
+      after,
+    });
+    return after;
+  }
+
+  /**
+   * Soft-delete a position. Refused with 409 while any live employee still holds it — a
+   * resigned employee counts, because the assignment is history worth keeping readable
+   * (design D2). Either way no employee's `position_id` is ever silently nulled.
+   */
+  async deletePosition(id: string, actor: AuthUser): Promise<void> {
+    const ex = currentExecutor(this.db);
+    const before = await this.loadPosition(id);
+
+    const holders = await this.countLive(
+      employee,
+      and(eq(employee.positionId, id), notDeleted(employee.deletedAt)),
+    );
+    if (holders > 0) {
+      throw new StateConflictError(`Position is still held by ${holders} employee(s)`);
+    }
+
+    await ex
+      .update(position)
+      .set({ deletedAt: new Date(), updatedBy: actor.id, updatedAt: new Date() })
+      .where(eq(position.id, id));
+    await this.audit.record({
+      action: "DELETE",
+      entityType: "position",
+      entityId: id,
+      actorUserId: actor.id,
+      before,
+      after: null,
+    });
+  }
+
+  // ── Reporting line ─────────────────────────────────────────────────────────
+
+  /**
+   * An employee's manager plus their direct reports — the same table read in both
+   * directions. Projects `EmployeeRef` only: no salary or national ID crosses this
+   * endpoint, so it needs no salary gating (design D5).
+   */
+  async getReportingLine(id: string): Promise<ReportingLine> {
+    const ex = currentExecutor(this.db);
+    await this.assertExists(id);
+
+    const [managerRow] = await ex
+      .select(EMPLOYEE_REF_COLUMNS)
+      .from(reportingLine)
+      .innerJoin(employee, eq(employee.id, reportingLine.managerEmployeeId))
+      .where(and(eq(reportingLine.employeeId, id), notDeleted(employee.deletedAt)))
+      .limit(1);
+
+    const reports = await ex
+      .select(EMPLOYEE_REF_COLUMNS)
+      .from(reportingLine)
+      .innerJoin(employee, eq(employee.id, reportingLine.employeeId))
+      .where(and(eq(reportingLine.managerEmployeeId, id), notDeleted(employee.deletedAt)))
+      .orderBy(employee.empCode);
+
+    return { manager: managerRow ?? null, direct_reports: reports };
+  }
+
+  /**
+   * Set or clear (`manager_employee_id: null`) an employee's manager. One upsert on the
+   * `employee_id` primary key, cycle-guarded in the caller's transaction (design D3/D5).
+   */
+  async setReportingLine(
+    id: string,
+    input: SetReportingLineRequest,
+    actor: AuthUser,
+  ): Promise<ReportingLine> {
+    const ex = currentExecutor(this.db);
+    await this.assertExists(id);
+    const managerId = input.manager_employee_id;
+    if (managerId !== null) {
+      await this.assertExists(managerId, "Manager not found");
+      await this.assertNoManagerCycle(id, managerId);
+    }
+
+    const [before] = await ex
+      .select({ managerEmployeeId: reportingLine.managerEmployeeId })
+      .from(reportingLine)
+      .where(eq(reportingLine.employeeId, id))
+      .limit(1);
+
+    await ex
+      .insert(reportingLine)
+      .values({ employeeId: id, managerEmployeeId: managerId })
+      .onConflictDoUpdate({
+        target: reportingLine.employeeId,
+        set: { managerEmployeeId: managerId },
+      });
+
+    await this.audit.record({
+      action: "UPDATE",
+      entityType: "reporting_line",
+      entityId: id,
+      actorUserId: actor.id,
+      before: { manager_employee_id: before?.managerEmployeeId ?? null },
+      after: { manager_employee_id: managerId },
+    });
+    return this.getReportingLine(id);
+  }
+
   // ── Internal ─────────────────────────────────────────────────────────────────
 
-  private async assertExists(id: string): Promise<void> {
+  private async assertExists(id: string, message = "Employee not found"): Promise<void> {
     const ex = currentExecutor(this.db);
     const [row] = await ex
       .select({ id: employee.id })
       .from(employee)
       .where(and(eq(employee.id, id), notDeleted(employee.deletedAt)))
       .limit(1);
-    if (!row) throw new NotFoundError("Employee not found");
+    if (!row) throw new NotFoundError(message);
+  }
+
+  /** Load a live department as the wire DTO; 404 if missing or soft-deleted. */
+  private async loadDepartment(
+    id: string,
+    message = "Department not found",
+  ): Promise<Department> {
+    const ex = currentExecutor(this.db);
+    const [row] = await ex
+      .select()
+      .from(department)
+      .where(and(eq(department.id, id), notDeleted(department.deletedAt)))
+      .limit(1);
+    if (!row) throw new NotFoundError(message);
+    return { id: row.id, name: row.name, parent_id: row.parentId };
+  }
+
+  /** Load a live position as the wire DTO; 404 if missing or soft-deleted. */
+  private async loadPosition(id: string): Promise<Position> {
+    const ex = currentExecutor(this.db);
+    const [row] = await ex
+      .select()
+      .from(position)
+      .where(and(eq(position.id, id), notDeleted(position.deletedAt)))
+      .limit(1);
+    if (!row) throw new NotFoundError("Position not found");
+    return {
+      id: row.id,
+      title: row.title,
+      job_description: row.jobDescription,
+      department_id: row.departmentId,
+    };
+  }
+
+  /** Count rows matching `where` on the caller's executor (in-transaction referent checks). */
+  private async countLive(table: PgTable, where: SQL | undefined): Promise<number> {
+    const ex = currentExecutor(this.db);
+    const [row] = await ex
+      .select({ n: sql<number>`count(*)::int` })
+      .from(table)
+      .where(where);
+    return row?.n ?? 0;
+  }
+
+  /**
+   * Refuse a re-parent that would make `id` its own ancestor. Walks *upward* from the
+   * proposed parent following `parent_id` — self-reference is the depth-0 case — and bails
+   * out at `CYCLE_HOP_LIMIT` so pre-existing bad data errors instead of looping (design D3).
+   */
+  private async assertNoDepartmentCycle(id: string, newParentId: string): Promise<void> {
+    const ex = currentExecutor(this.db);
+    let cursor: string | null = newParentId;
+    for (let hop = 0; cursor !== null; hop += 1) {
+      if (cursor === id) {
+        throw new BusinessRuleError("A department cannot become its own ancestor");
+      }
+      if (hop >= CYCLE_HOP_LIMIT) {
+        throw new BusinessRuleError("Department hierarchy is too deep to re-parent safely");
+      }
+      const [row]: { parentId: string | null }[] = await ex
+        .select({ parentId: department.parentId })
+        .from(department)
+        .where(eq(department.id, cursor))
+        .limit(1);
+      cursor = row?.parentId ?? null;
+    }
+  }
+
+  /** The same upward walk over `manager_employee_id` — an employee may not manage themselves. */
+  private async assertNoManagerCycle(id: string, newManagerId: string): Promise<void> {
+    const ex = currentExecutor(this.db);
+    let cursor: string | null = newManagerId;
+    for (let hop = 0; cursor !== null; hop += 1) {
+      if (cursor === id) {
+        throw new BusinessRuleError(
+          "An employee cannot report to themselves, directly or indirectly",
+        );
+      }
+      if (hop >= CYCLE_HOP_LIMIT) {
+        throw new BusinessRuleError("Reporting chain is too deep to reassign safely");
+      }
+      const [row]: { managerEmployeeId: string | null }[] = await ex
+        .select({ managerEmployeeId: reportingLine.managerEmployeeId })
+        .from(reportingLine)
+        .where(eq(reportingLine.employeeId, cursor))
+        .limit(1);
+      cursor = row?.managerEmployeeId ?? null;
+    }
   }
 
   /**
