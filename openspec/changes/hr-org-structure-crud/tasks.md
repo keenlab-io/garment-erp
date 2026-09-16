@@ -5,21 +5,21 @@
 
 ## 1. Contracts — `packages/contracts/src/dto/hr.ts`
 
-- [ ] 1.1 Add `UpdateDepartmentRequest` (`{ name?, parent_id? }`, `parent_id` nullable) and
+- [x] 1.1 Add `UpdateDepartmentRequest` (`{ name?, parent_id? }`, `parent_id` nullable) and
   `UpdatePositionRequest` (`{ title?, job_description?, department_id? }`, `job_description`
   nullable) — partial bodies, same "provided fields replace stored values" doc comment as
   `UpdateEmployeeRequest`
-- [ ] 1.2 Add `EmployeeRef` (`{ id, emp_code, first_name, last_name }`), `ReportingLine`
+- [x] 1.2 Add `EmployeeRef` (`{ id, emp_code, first_name, last_name }`), `ReportingLine`
   (`{ manager: EmployeeRef.nullable(), direct_reports: z.array(EmployeeRef) }`) and
   `SetReportingLineRequest` (`{ manager_employee_id: uuid.nullable() }`)
-- [ ] 1.3 Add the endpoints to `hrContract`: `updateDepartment` (`PUT /departments/:id` → 200
+- [x] 1.3 Add the endpoints to `hrContract`: `updateDepartment` (`PUT /departments/:id` → 200
   `{ department }`), `deleteDepartment` (`DELETE /departments/:id`, `body: c.noBody()`, →
   `204: z.void()`), `updatePosition`, `deletePosition` (same shapes), `getReportingLine`
   (`GET /employees/:id/reporting-line` → 200 `{ reporting_line: ReportingLine }`),
   `setReportingLine` (`PUT /employees/:id/reporting-line` → 200 `{ reporting_line }`).
   Follow `deleteRole` for the DELETE shape; summaries state the guard ("409 while in use")
-- [ ] 1.4 Export the new DTO types from the package barrel
-- [ ] 1.5 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 1.4 Export the new DTO types from the package barrel
+- [x] 1.5 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 2. API — `apps/api/src/hr`
 

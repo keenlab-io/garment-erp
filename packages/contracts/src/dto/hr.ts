@@ -59,6 +59,13 @@ export const CreateDepartmentRequest = z.object({
 });
 export type CreateDepartmentRequest = z.infer<typeof CreateDepartmentRequest>;
 
+/** A partial update; provided fields replace the stored values. */
+export const UpdateDepartmentRequest = z.object({
+  name: z.string().min(1).optional(),
+  parent_id: uuid.nullable().optional(),
+});
+export type UpdateDepartmentRequest = z.infer<typeof UpdateDepartmentRequest>;
+
 /** A position (job) within a department. */
 export const Position = z.object({
   id: uuid,
@@ -74,6 +81,35 @@ export const CreatePositionRequest = z.object({
   department_id: uuid,
 });
 export type CreatePositionRequest = z.infer<typeof CreatePositionRequest>;
+
+/** A partial update; provided fields replace the stored values. */
+export const UpdatePositionRequest = z.object({
+  title: z.string().min(1).optional(),
+  job_description: z.string().nullable().optional(),
+  department_id: uuid.optional(),
+});
+export type UpdatePositionRequest = z.infer<typeof UpdatePositionRequest>;
+
+/** The minimal projection of an employee used in refs — no salary/PII. */
+export const EmployeeRef = z.object({
+  id: uuid,
+  emp_code: z.string(),
+  first_name: z.string(),
+  last_name: z.string(),
+});
+export type EmployeeRef = z.infer<typeof EmployeeRef>;
+
+/** An employee's manager and direct reports. */
+export const ReportingLine = z.object({
+  manager: EmployeeRef.nullable(),
+  direct_reports: z.array(EmployeeRef),
+});
+export type ReportingLine = z.infer<typeof ReportingLine>;
+
+export const SetReportingLineRequest = z.object({
+  manager_employee_id: uuid.nullable(),
+});
+export type SetReportingLineRequest = z.infer<typeof SetReportingLineRequest>;
 
 // ── Employees ─────────────────────────────────────────────────────────────────
 
@@ -357,6 +393,22 @@ export const hrContract = c.router(
       responses: withErrors({ 201: z.object({ department: Department }) }),
       summary: "Create a department",
     },
+    updateDepartment: {
+      method: "PUT",
+      path: "/departments/:id",
+      pathParams: z.object({ id: uuid }),
+      body: UpdateDepartmentRequest,
+      responses: withErrors({ 200: z.object({ department: Department }) }),
+      summary: "Update a department (rename/re-parent; 422 on an ancestor cycle)",
+    },
+    deleteDepartment: {
+      method: "DELETE",
+      path: "/departments/:id",
+      pathParams: z.object({ id: uuid }),
+      body: c.noBody(),
+      responses: withErrors({ 204: z.void() }),
+      summary: "Delete a department (409 while it has live children or live positions)",
+    },
     listPositions: {
       method: "GET",
       path: "/positions",
@@ -369,6 +421,22 @@ export const hrContract = c.router(
       body: CreatePositionRequest,
       responses: withErrors({ 201: z.object({ position: Position }) }),
       summary: "Create a position within a department",
+    },
+    updatePosition: {
+      method: "PUT",
+      path: "/positions/:id",
+      pathParams: z.object({ id: uuid }),
+      body: UpdatePositionRequest,
+      responses: withErrors({ 200: z.object({ position: Position }) }),
+      summary: "Update a position (retitle, edit description, or move department)",
+    },
+    deletePosition: {
+      method: "DELETE",
+      path: "/positions/:id",
+      pathParams: z.object({ id: uuid }),
+      body: c.noBody(),
+      responses: withErrors({ 204: z.void() }),
+      summary: "Delete a position (409 while any live employee still holds it)",
     },
 
     // Employees (hr.employee.view / hr.employee.manage; salary fields gated by hr.salary.view)
@@ -401,6 +469,21 @@ export const hrContract = c.router(
       body: UpdateEmployeeRequest,
       responses: withErrors({ 200: z.object({ employee: Employee }) }),
       summary: "Update an employee (If-Match; 409 on version conflict)",
+    },
+    getReportingLine: {
+      method: "GET",
+      path: "/employees/:id/reporting-line",
+      pathParams: z.object({ id: uuid }),
+      responses: withErrors({ 200: z.object({ reporting_line: ReportingLine }) }),
+      summary: "Get an employee's manager and direct reports (hr.employee.view)",
+    },
+    setReportingLine: {
+      method: "PUT",
+      path: "/employees/:id/reporting-line",
+      pathParams: z.object({ id: uuid }),
+      body: SetReportingLineRequest,
+      responses: withErrors({ 200: z.object({ reporting_line: ReportingLine }) }),
+      summary: "Set or clear an employee's manager (422 on a managerial cycle)",
     },
     listEmployeeDocuments: {
       method: "GET",
