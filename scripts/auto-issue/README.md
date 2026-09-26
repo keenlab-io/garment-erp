@@ -39,9 +39,11 @@ scripts/auto-issue/run.sh --only 53
 scripts/auto-issue/run.sh 3            # first 3 open issues (skipping #32)
 scripts/auto-issue/run.sh 5 --from 53  # 5 issues starting at #53
 
-# Watch it (separate terminal).
-scripts/auto-issue/monitor.sh          # dashboard
-scripts/auto-issue/monitor.sh tail     # live transcript of the active agent
+# Watch it (separate terminal). run.sh itself is quiet: the agent's full stream-json transcript
+# (whole files, full build/test logs) goes only to .runs/<ts>/issue-N.jsonl, never the terminal.
+scripts/auto-issue/monitor.sh          # dashboard (refresh INTERVAL=10s, GitHub lookups GH_INTERVAL=60s)
+scripts/auto-issue/monitor.sh tail     # live transcript of the active agent (from its last 30 events)
+scripts/auto-issue/run.sh --progress   # or: one short line per tool call in the run.sh terminal
 
 # Full backlog (all open issues ascending, skip #32).
 scripts/auto-issue/run.sh

@@ -4,19 +4,21 @@
 #
 # Usage:
 #   ./monitor.sh              Dashboard: progress table + active issue + PR checks + recent agent output
-#   ./monitor.sh tail         Follow the current agent's transcript (assistant text + tool calls)
+#   ./monitor.sh tail         Follow the current agent's transcript from its last 30 events
 #   ./monitor.sh log <N>      Pretty-print the full transcript for issue N
 #   ./monitor.sh <file.jsonl> Pretty-print an arbitrary stream-json transcript (for testing the formatter)
 #
 # Environment:
 #   RUNS_DIR   Root of run artifacts (default: <scriptdir>/.runs)
-#   INTERVAL   Dashboard refresh seconds (default: 5)
+#   INTERVAL      Dashboard refresh seconds (default: 10)
+#   GH_INTERVAL   Seconds between GitHub PR/check lookups on the dashboard (default: 60)
 #
 set -uo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 RUNS_DIR="${RUNS_DIR:-$SCRIPT_DIR/.runs}"
-INTERVAL="${INTERVAL:-5}"
+INTERVAL="${INTERVAL:-10}"
+GH_INTERVAL="${GH_INTERVAL:-60}"
 
 if [[ -t 1 ]]; then
   C_RESET=$'\033[0m'; C_DIM=$'\033[2m'; C_BOLD=$'\033[1m'
@@ -63,6 +65,8 @@ current_issue() {
 
 dashboard() {
   local rd; rd="$(run_dir)"
+  # PR/check lookups hit the GitHub API; cache them for GH_INTERVAL instead of every refresh.
+  local gh_issue="" gh_at=0 gh_pr="" gh_checks=""
   while true; do
     local cur; cur="$(current_issue "$rd")"
     clear
@@ -90,17 +94,22 @@ dashboard() {
 
     # PR checks for the active issue, if any.
     if [[ "$cur" =~ ^[0-9]+$ ]]; then
-      local pr
-      pr="$(gh pr list --head "auto/issue-$cur" --json url -q '.[0].url' 2>/dev/null || true)"
-      if [[ -n "$pr" ]]; then
-        printf '%s│  PR: %s%s\n' "$C_DIM" "$C_RESET" "$pr"
-        gh pr checks "auto/issue-$cur" 2>/dev/null | awk -F'\t' '{printf "   %s %s\n",$2,$1}' | head -6
+      if [[ "$cur" != "$gh_issue" ]] || (( SECONDS - gh_at >= GH_INTERVAL )); then
+        gh_issue="$cur"; gh_at=$SECONDS
+        gh_pr="$(gh pr list --head "auto/issue-$cur" --json url -q '.[0].url' 2>/dev/null || true)"
+        gh_checks=""
+        [[ -n "$gh_pr" ]] && gh_checks="$(gh pr checks "auto/issue-$cur" 2>/dev/null | awk -F'\t' '{printf "   %s %s\n",$2,$1}' | head -6)"
+      fi
+      if [[ -n "$gh_pr" ]]; then
+        printf '%s│  PR: %s%s\n' "$C_DIM" "$C_RESET" "$gh_pr"
+        [[ -n "$gh_checks" ]] && printf '%s\n' "$gh_checks"
       fi
       # Last few lines of agent activity.
       local jsonl="$rd/issue-$cur.jsonl"
       if [[ -f "$jsonl" ]]; then
         printf '%s├─ recent agent output ─%s\n' "$C_DIM" "$C_RESET"
-        tail -n 40 "$jsonl" | fmt_stream | grep -v '^$' | tail -n 12
+        # Read only the transcript's last 256 KB: single tool-result lines can be megabytes.
+        tail -c 262144 "$jsonl" | tail -n 40 | fmt_stream | grep -v '^$' | tail -n 12
       fi
     fi
 
@@ -116,7 +125,8 @@ follow() {
   [[ "$cur" =~ ^[0-9]+$ ]] || die "no active issue to follow (current=$cur)"
   local jsonl="$rd/issue-$cur.jsonl"
   printf '%s── following issue #%s ── %s%s\n' "$C_BOLD" "$cur" "$jsonl" "$C_RESET"
-  tail -n +1 -f "$jsonl" | fmt_stream
+  # Start from recent events rather than replaying the whole (possibly huge) transcript.
+  tail -n 30 -F "$jsonl" 2>/dev/null | fmt_stream
 }
 
 print_log() {

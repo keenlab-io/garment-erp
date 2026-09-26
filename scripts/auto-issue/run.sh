@@ -31,6 +31,8 @@
 #   --stop-on-fail       Halt the loop on the first non-success issue (default: continue).
 #   --model M            Force one model for every issue (alias/id, e.g. opus|sonnet); disables routing.
 #   --no-escalate        Do not retry a failed default-model issue on the hard model.
+#   --progress           Print one short line per agent tool call (default: quiet — the full
+#                        transcript only goes to .runs/<ts>/issue-N.jsonl; watch it with monitor.sh).
 #   -h, --help           Show this help.
 #
 # Environment:
@@ -40,6 +42,7 @@
 #   ISSUE_TIMEOUT       Per-issue wall-clock cap in seconds (default: 7200)
 #   KEEP_WORKTREES      If 1, keep worktrees after a failed issue for debugging (default: remove)
 #   RUNS_DIR            Where to write logs/state/worktrees (default: <scriptdir>/.runs)
+#   PROGRESS            If 1, same as --progress.
 #
 set -uo pipefail
 
@@ -51,6 +54,7 @@ IMPL_MODEL_DEFAULT="${IMPL_MODEL_DEFAULT:-sonnet}"
 IMPL_MODEL_HARD="${IMPL_MODEL_HARD:-opus}"
 FORCE_MODEL="${MODEL:-}"   # MODEL env (back-compat) forces a single model; --model overrides it
 ESCALATE=1
+PROGRESS="${PROGRESS:-0}"
 
 ISSUE_TIMEOUT="${ISSUE_TIMEOUT:-7200}"
 RUNS_DIR="${RUNS_DIR:-$SCRIPT_DIR/.runs}"
@@ -77,7 +81,7 @@ log()  { printf '%s[run]%s %s\n' "$C_CYAN" "$C_RESET" "$*"; }
 warn() { printf '%s[run]%s %s\n' "$C_YELLOW" "$C_RESET" "$*" >&2; }
 die()  { printf '%s[run] ERROR:%s %s\n' "$C_RED" "$C_RESET" "$*" >&2; exit 1; }
 
-usage() { sed -n '3,42p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0; }
+usage() { sed -n '3,45p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0; }
 
 # ---------- arg parsing ----------
 while [[ $# -gt 0 ]]; do
@@ -91,6 +95,7 @@ while [[ $# -gt 0 ]]; do
     --stop-on-fail) STOP_ON_FAIL=1; shift ;;
     --model)        FORCE_MODEL="${2:?--model needs a value}"; shift 2 ;;
     --no-escalate)  ESCALATE=0; shift ;;
+    --progress)     PROGRESS=1; shift ;;
     -h|--help)      usage ;;
     -*)             die "unknown option: $1 (use --help)" ;;
     *)              # bare positive integer = COUNT (number of issues to run sequentially)
@@ -196,6 +201,19 @@ run_issue() {
     >"$RUN_DIR/issue-${n}.install.log" 2>&1 \
     || warn "issue #$n: pnpm install non-zero (see issue-${n}.install.log; agent will retry)"
 
+  # The raw stream-json transcript (every tool result: whole files, full build/test logs) goes ONLY
+  # to the .jsonl file — echoing it to the terminal made the terminal the bottleneck. --progress adds
+  # a compact tail of it: one clipped line per tool call, nothing else.
+  local progress_pid=""
+  : >"$jsonl"
+  if [[ "$PROGRESS" == "1" ]]; then
+    ( tail -n +1 -F "$jsonl" 2>/dev/null | jq -rR --unbuffered '
+      fromjson? | select(.type=="assistant") | .message.content[]? | select(.type=="tool_use")
+      | "   › " + .name + " " + ((.input.description // .input.command // .input.file_path // "")
+          | gsub("\n";" ") | .[0:100])' 2>/dev/null ) &
+    progress_pid=$!
+  fi
+
   local prompt="Work GitHub issue #$n to completion now, following the playbook. When finished, print the final RESULT line."
   local rc=0
   (
@@ -206,8 +224,12 @@ run_issue() {
         --dangerously-skip-permissions \
         --append-system-prompt "$(cat "$PLAYBOOK")" \
         --output-format stream-json --verbose
-  ) 2>&1 | tee "$jsonl"
-  rc=${PIPESTATUS[0]}
+  ) >"$jsonl" 2>&1
+  rc=$?
+  if [[ -n "$progress_pid" ]]; then
+    sleep 1; pkill -P "$progress_pid" 2>/dev/null; kill "$progress_pid" 2>/dev/null; wait "$progress_pid" 2>/dev/null
+  fi
+  log "issue #$n: agent exited ($rc) — transcript $(du -h "$jsonl" | cut -f1): $jsonl"
 
   # Extract the agent's final RESULT line (from the stream-json 'result' event or any RESULT text).
   local result_line status pr
