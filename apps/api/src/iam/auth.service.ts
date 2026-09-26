@@ -27,6 +27,15 @@ import {
  * snapshots the user's `permissionsVersion` at issuance so the M0 guard can reject a
  * token once the version bumps (instant revocation, design D2).
  */
+
+// TODO(M7 §4-5): source from the tenant resolved by the `tid` claim once the tenancy
+// module + `tenant` table land — no tenant data model exists yet in this build.
+const PLACEHOLDER_TENANT: MeResponse["tenant"] = {
+  id: "00000000-0000-0000-0000-000000000000",
+  name: "Default",
+  slug: "default",
+};
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -227,6 +236,7 @@ export class AuthService {
         is_super_admin: u.isSuperAdmin,
         employee_id: u.employeeId,
       },
+      tenant: PLACEHOLDER_TENANT,
       roles,
       permissions,
     };

@@ -64,9 +64,18 @@ export const RoleRef = z.object({
 });
 export type RoleRef = z.infer<typeof RoleRef>;
 
-/** `GET /auth/me` payload — identity, bound roles, and the effective permission union. */
+/** The caller's tenant, as resolved from the token's `tid` claim (M7 §1.5) — never from request input. */
+export const MeTenant = z.object({
+  id: uuid,
+  name: z.string(),
+  slug: z.string(),
+});
+export type MeTenant = z.infer<typeof MeTenant>;
+
+/** `GET /auth/me` payload — identity, tenant, bound roles, and the effective permission union. */
 export const MeResponse = z.object({
   user: AuthUser,
+  tenant: MeTenant,
   roles: z.array(RoleRef),
   permissions: z.array(permissionCode),
 });

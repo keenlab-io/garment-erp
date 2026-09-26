@@ -7,3 +7,4 @@ export * from "./hr.js";
 export * from "./production.js";
 export * from "./reporting.js";
 export * from "./sales.js";
+export * from "./tenancy.js";
