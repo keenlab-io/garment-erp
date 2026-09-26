@@ -85,6 +85,13 @@
       "when": 1784356167194,
       "tag": "0011_reporting_materialized_views",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790431937104,
+      "tag": "0012_tenancy",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,6 @@
 import argon2 from "argon2";
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { DEFAULT_TENANT_ID, DEFAULT_TENANT_SLUG } from "../base-columns.js";
 import { createDb, type Tx } from "../client.js";
 import {
   customer,
@@ -407,7 +408,7 @@ async function main() {
   const url = process.env.DATABASE_OWNER_URL ?? process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_OWNER_URL or DATABASE_URL is required to run the seed");
 
-  const tenantSlug = process.env.DEFAULT_TENANT_SLUG ?? "default";
+  const tenantSlug = process.env.DEFAULT_TENANT_SLUG ?? DEFAULT_TENANT_SLUG;
   const password = process.env.SEED_SUPERADMIN_PASSWORD ?? "changeme";
   const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
 
@@ -420,11 +421,18 @@ async function main() {
       .values(PERMISSION_CODES.map((code) => ({ code })))
       .onConflictDoNothing();
 
-    // Create-or-find the default tenant (control-plane table, not under RLS). The tenancy
-    // migration backfills existing single-tenant data into this same slug.
+    // Create-or-find the default tenant (control-plane table, not under RLS). Migration 0012
+    // already inserts `DEFAULT_TENANT_ID`/`DEFAULT_TENANT_SLUG` and backfills existing
+    // single-tenant data into it; a custom DEFAULT_TENANT_SLUG gets a generated id.
     await db
       .insert(tenant)
-      .values({ slug: tenantSlug, name: tenantSlug, kind: "CUSTOMER", status: "ACTIVE" })
+      .values({
+        ...(tenantSlug === DEFAULT_TENANT_SLUG ? { id: DEFAULT_TENANT_ID } : {}),
+        slug: tenantSlug,
+        name: tenantSlug,
+        kind: "CUSTOMER",
+        status: "ACTIVE",
+      })
       .onConflictDoNothing();
     const [defaultTenant] = await db
       .select({ id: tenant.id })
