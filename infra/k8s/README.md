@@ -150,7 +150,7 @@ either a decision or a credential.
 
    ```bash
    kubectl -n erp run mc-bucket --rm -i --restart=Never --image=minio/mc --overrides='
-   {"spec":{"restartPolicy":"Never","containers":[{"name":"mc-bucket","image":"minio/mc",
+   {"spec":{"restartPolicy":"Never","containers":[{"name":"mc-bucket","image":"pgsty/mc:RELEASE.2026-09-16T00-00-00Z",
    "envFrom":[{"secretRef":{"name":"erp-secrets"}}],
    "command":["sh","-c","mc alias set s3 http://erp-minio:9000 \"$MINIO_ROOT_USER\" \"$MINIO_ROOT_PASSWORD\" && mc mb -p s3/erp && mc ls s3"]}]}}'
    ```
@@ -162,7 +162,7 @@ either a decision or a credential.
 
    ```bash
    kubectl -n erp run mc-verify --rm -i --restart=Never --image=minio/mc --overrides='
-   {"spec":{"restartPolicy":"Never","containers":[{"name":"mc-verify","image":"minio/mc",
+   {"spec":{"restartPolicy":"Never","containers":[{"name":"mc-verify","image":"pgsty/mc:RELEASE.2026-09-16T00-00-00Z",
    "envFrom":[{"secretRef":{"name":"erp-secrets"}}],
    "command":["sh","-c","mc alias set app http://erp-minio:9000 \"$S3_ACCESS_KEY\" \"$S3_SECRET_KEY\" && echo probe | mc pipe app/erp/_probe.txt && mc rm app/erp/_probe.txt && echo APP_CREDS_OK"]}]}}'
    ```
