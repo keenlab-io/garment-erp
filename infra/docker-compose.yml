@@ -16,6 +16,8 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - erp-pgdata:/var/lib/postgresql/data
+      # Creates the M7 tenancy roles (erp_owner / erp_app) on first boot of a fresh volume.
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erp}"]
       interval: 5s

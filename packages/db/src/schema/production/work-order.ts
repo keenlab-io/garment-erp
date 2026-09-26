@@ -9,7 +9,8 @@ import {
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
-import { qty, versionColumn } from "../../base-columns.js";
+import { qty, tenantColumn, versionColumn } from "../../base-columns.js";
+import { tenantFk } from "../platform/tenant.js";
 import type { WorkOrderStatus, WorkOrderStepStatus } from "../enums.js";
 import { routingStep, routingTemplate } from "./routing.js";
 
@@ -17,23 +18,31 @@ import { routingStep, routingTemplate } from "./routing.js";
 // bare uuids with no FK — the M3 item and (future) M5 customer tables aren't owned by this
 // module (design D8); a later migration adds the constraints. Carries the optimistic-
 // concurrency `version` column.
-export const workOrder = pgTable("work_order", {
-  id: uuid()
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  woNo: text().notNull().unique(),
-  customerId: uuid(),
-  finishedItemId: uuid().notNull(),
-  qty: qty().notNull(),
-  dueDate: date(),
-  routingTemplateId: uuid()
-    .notNull()
-    .references(() => routingTemplate.id),
-  machine: text(),
-  mockupFileKey: text(),
-  status: text().$type<WorkOrderStatus>().notNull().default("PENDING"),
-  ...versionColumn,
-});
+export const workOrder = pgTable(
+  "work_order",
+  {
+    id: uuid()
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    ...tenantColumn,
+    woNo: text().notNull(),
+    customerId: uuid(),
+    finishedItemId: uuid().notNull(),
+    qty: qty().notNull(),
+    dueDate: date(),
+    routingTemplateId: uuid()
+      .notNull()
+      .references(() => routingTemplate.id),
+    machine: text(),
+    mockupFileKey: text(),
+    status: text().$type<WorkOrderStatus>().notNull().default("PENDING"),
+    ...versionColumn,
+  },
+  (t) => [
+    tenantFk(t),
+    unique("work_order_tenant_wo_no_uq").on(t.tenantId, t.woNo),
+  ],
+);
 
 // Materialized work-order step — a snapshot of the routing step's `seq`/`name`/
 // `standard_time_min` at WO creation (design D1), so later template edits never mutate a
@@ -47,6 +56,7 @@ export const workOrderStep = pgTable(
     id: uuid()
       .primaryKey()
       .default(sql`gen_random_uuid()`),
+    ...tenantColumn,
     woId: uuid()
       .notNull()
       .references(() => workOrder.id),
@@ -66,5 +76,5 @@ export const workOrderStep = pgTable(
     // no matter how many times the ~60s sweep re-observes the same overrun.
     delayNotified: boolean().notNull().default(false),
   },
-  (t) => [unique().on(t.woId, t.routingStepId)],
+  (t) => [tenantFk(t), unique().on(t.woId, t.routingStepId)],
 );

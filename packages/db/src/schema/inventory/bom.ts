@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, integer, pgTable, unique, uuid } from "drizzle-orm/pg-core";
-import { money, qty, rate } from "../../base-columns.js";
+import { money, qty, rate, tenantColumn } from "../../base-columns.js";
+import { tenantFk } from "../platform/tenant.js";
 import { item, uom } from "./catalog.js";
 
 // Bill of materials (spec §3.2) — the recipe rolled up for costing and consumed by
@@ -16,6 +17,7 @@ export const bom = pgTable(
     id: uuid()
       .primaryKey()
       .default(sql`gen_random_uuid()`),
+    ...tenantColumn,
     finishedItemId: uuid()
       .notNull()
       .references(() => item.id),
@@ -23,24 +25,29 @@ export const bom = pgTable(
     conversionCost: money(),
     isActive: boolean().notNull().default(true),
   },
-  (t) => [unique().on(t.finishedItemId, t.version)],
+  (t) => [tenantFk(t), unique().on(t.finishedItemId, t.version)],
 );
 
 // BOM component line. `qty` (in `uom_id`) of `raw_item_id` per finished unit; `scrap_pct`
 // inflates the required qty during roll-up/backflush.
-export const bomLine = pgTable("bom_line", {
-  id: uuid()
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  bomId: uuid()
-    .notNull()
-    .references(() => bom.id),
-  rawItemId: uuid()
-    .notNull()
-    .references(() => item.id),
-  qty: qty().notNull(),
-  uomId: uuid()
-    .notNull()
-    .references(() => uom.id),
-  scrapPct: rate().notNull().default("0"),
-});
+export const bomLine = pgTable(
+  "bom_line",
+  {
+    id: uuid()
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    ...tenantColumn,
+    bomId: uuid()
+      .notNull()
+      .references(() => bom.id),
+    rawItemId: uuid()
+      .notNull()
+      .references(() => item.id),
+    qty: qty().notNull(),
+    uomId: uuid()
+      .notNull()
+      .references(() => uom.id),
+    scrapPct: rate().notNull().default("0"),
+  },
+  (t) => [tenantFk(t)],
+);
