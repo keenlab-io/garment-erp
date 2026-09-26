@@ -432,6 +432,46 @@ Three verification layers, each its own deliverable (spec'd as requirements unde
 own precedent — enum and permission drift were made build-failing for far lower stakes; tenancy
 regressions are the one class of bug this product cannot ship.
 
+### D17. Transitional tenant default; RLS enablement lands after the tenancy module + infra seams
+
+D14 ships the whole conversion — columns, constraints, roles, **and** RLS — as one migration,
+but M7 is delivered as a series of PRs (tasks §2 schema, §3 migration, §4 tenancy module, §7 infra
+seams, …) and each must be green on its own. That is impossible with the D14 ordering: the schema
+(§2) without the migration fails every insert (`tenant_id` does not exist), and the migration with
+the fail-closed default `current_setting('app.tenant_id', true)::uuid` fails every insert
+(`NOT NULL` — nothing sets the GUC until `UnitOfWork` learns to in §4, and jobs/sequences/audit only
+become tenant-aware in §7). Enabling FORCE RLS before those land would make every read return zero
+rows.
+
+So 0012 lands **with** the §2 schema and carries a *transitional* default:
+
+```sql
+tenant_id uuid NOT NULL DEFAULT coalesce(
+  nullif(current_setting('app.tenant_id', true), '')::uuid,   -- '' = GUC reset in this session
+  '00000000-0000-4000-8000-000000000001'::uuid)               -- DEFAULT_TENANT_ID (@erp/db)
+```
+
+— a code path with a tenant in scope gets that tenant; one without lands in the default tenant,
+exactly the single-tenant behavior of today. The deterministic `DEFAULT_TENANT_ID` is exported from
+`@erp/db` and shared by the drizzle column default, 0012 §2's insert, and the dev seed. 0012 creates
+the roles, ownership and grants (§6) but **no** `ENABLE/FORCE ROW LEVEL SECURITY` and no policies;
+CI and dev keep migrating and running as the bootstrap superuser.
+
+Task 7.9 then ships the follow-up migration (`00NN_tenancy_rls.sql`): enable + force RLS with the
+`tenant_isolation` policy (USING + WITH CHECK) on every non-exempt table **and** drop the COALESCE
+fallback, restoring the fail-closed default — at which point D1/D2/D14's guarantees hold as
+designed. The fallback is only safe while there is exactly one tenant in practice; no second
+tenant may be provisioned (m8/§6 provisioning) on a database that has not taken the 7.9 migration.
+Numbering consequence: the RLS migration takes the next slot after 0012, shifting the m8/m9/m10
+migration numbers by one.
+
+*Rejected alternatives:* (a) one PR for §2–§7 — too large to review, and the repo's auto-issue
+pipeline delivers one task section per PR; (b) the fail-closed default from day one with a
+temporary `SET app.tenant_id` in the test harness — green CI while the running app could not
+insert a row; (c) enabling RLS in 0012 with a permissive transitional policy — a policy that
+admits everything is the "decorative RLS" failure D2 warns about, and would still need a second
+migration to tighten.
+
 ## Risks / Trade-offs
 
 - **[Every authenticated request now opens a transaction]** (D3) — holds a pool connection for the

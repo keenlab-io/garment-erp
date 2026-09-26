@@ -193,3 +193,17 @@ export type ExportStatus = "PENDING" | "RUNNING" | "DONE" | "FAILED";
 
 // The five report-catalog groups, gating access via `report.<group>.view`.
 export type ReportGroup = "INVENTORY" | "SALES" | "COST" | "PROFIT" | "TAX";
+
+// ── M7 Tenancy Core ───────────────────────────────────────────────────────────
+// These duplicate the enums in `packages/contracts/src/enums/tenancy.ts` (the same
+// no-cross-import rule as above); the parity test keeps them in lockstep.
+
+// Distinguishes real customer tenants from the demo pool (m10 provisions the DEMO_* kinds).
+export type TenantKind = "CUSTOMER" | "DEMO_TEMPLATE" | "DEMO_SANDBOX";
+
+// Tenant lifecycle. SUSPENDED/PURGING reject every request (login included); READ_ONLY
+// rejects mutations only.
+export type TenantStatus = "ACTIVE" | "READ_ONLY" | "SUSPENDED" | "PURGING";
+
+// How a `tenant_domain` hostname resolves: to its single tenant, or into the m10 demo pool.
+export type DomainResolutionMode = "TENANT" | "DEMO_POOL";

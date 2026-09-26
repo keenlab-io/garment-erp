@@ -1,5 +1,7 @@
 import { sql } from "drizzle-orm";
 import { index, inet, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { tenantColumn } from "../../base-columns.js";
+import { tenantFk } from "./tenant.js";
 import { user } from "./users.js";
 
 // Auth session — one row per issued token pair. `tokenId` is the JWT jti;
@@ -10,6 +12,7 @@ export const session = pgTable(
   "session",
   {
     id: uuid().primaryKey().default(sql`gen_random_uuid()`),
+    ...tenantColumn,
     userId: uuid()
       .notNull()
       .references(() => user.id),
@@ -22,6 +25,7 @@ export const session = pgTable(
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    tenantFk(t),
     index("session_active_token_idx")
       .on(t.tokenId)
       .where(sql`${t.revokedAt} is null`),

@@ -1,4 +1,6 @@
 import { pgTable, primaryKey, uuid } from "drizzle-orm/pg-core";
+import { tenantColumn } from "../../base-columns.js";
+import { tenantFk } from "../platform/tenant.js";
 import { user } from "../platform/users.js";
 import { role } from "./roles.js";
 
@@ -9,6 +11,7 @@ import { role } from "./roles.js";
 export const userRole = pgTable(
   "user_role",
   {
+    ...tenantColumn,
     userId: uuid()
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -16,5 +19,5 @@ export const userRole = pgTable(
       .notNull()
       .references(() => role.id),
   },
-  (t) => [primaryKey({ columns: [t.userId, t.roleId] })],
+  (t) => [tenantFk(t), primaryKey({ columns: [t.userId, t.roleId] })],
 );

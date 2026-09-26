@@ -17,6 +17,34 @@ export const auditColumns = {
   deletedAt: timestamp({ withTimezone: true }),
 };
 
+// The deterministic id of the default tenant (`slug 'default'`). Migration 0012 inserts it
+// and backfills every pre-tenancy row into it; the dev seed creates the same row. Also the
+// TRANSITIONAL fallback of `tenantColumn`'s default (below) — see M7 design D17.
+export const DEFAULT_TENANT_ID = "00000000-0000-4000-8000-000000000001";
+export const DEFAULT_TENANT_SLUG = "default";
+
+// Tenant scope (M7). Every business table spreads this; the default reads the
+// transaction-local `app.tenant_id` GUC that UnitOfWork sets, so inserts inherit the
+// ambient tenant without naming it. The FK to `tenant.id` is declared PER-TABLE via
+// `tenantFk` (`schema/platform/tenant.ts`), not here — same cycle-avoidance rule as
+// `created_by`. Every natural-key unique on a tenant table is composite `(tenant_id, …)`:
+// "unique" in the table comments means unique within one tenant.
+//
+// TRANSITIONAL (M7 design D17, task 7.9): until the tenancy module sets the GUC on every
+// transaction, an unset GUC falls back to DEFAULT_TENANT_ID (`nullif` because a reset GUC
+// reads as '' rather than NULL). The RLS migration (task 7.9) drops the fallback so the
+// default is `current_setting('app.tenant_id', true)::uuid` again — no tenant in scope →
+// NULL → NOT NULL rejects the write, failing closed.
+export const tenantColumn = {
+  tenantId: uuid()
+    .notNull()
+    .default(
+      sql.raw(
+        `coalesce(nullif(current_setting('app.tenant_id', true), '')::uuid, '${DEFAULT_TENANT_ID}'::uuid)`,
+      ),
+    ),
+};
+
 // Optimistic-concurrency version counter.
 export const versionColumn = { version: integer().notNull().default(0) };
 

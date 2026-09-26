@@ -1,5 +1,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, integer, pgTable, text, unique, uuid } from "drizzle-orm/pg-core";
+import { tenantColumn } from "../../base-columns.js";
+import { tenantFk } from "../platform/tenant.js";
 import type { ProductType } from "../enums.js";
 
 // Routing templates and their ordered steps (spec §4.2). A template is a reusable production
@@ -8,14 +10,19 @@ import type { ProductType } from "../enums.js";
 
 // Routing template header. `product_type` classifies the routing (nullable — not every
 // template maps to one product type); `is_active` hides retired templates from new WOs.
-export const routingTemplate = pgTable("routing_template", {
-  id: uuid()
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  name: text().notNull(),
-  productType: text().$type<ProductType>(),
-  isActive: boolean().notNull().default(true),
-});
+export const routingTemplate = pgTable(
+  "routing_template",
+  {
+    id: uuid()
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    ...tenantColumn,
+    name: text().notNull(),
+    productType: text().$type<ProductType>(),
+    isActive: boolean().notNull().default(true),
+  },
+  (t) => [tenantFk(t)],
+);
 
 // Routing step. `standard_time_min` is the expected duration used for delay detection at
 // scan time. `department_id` is a bare uuid — the M2/M3 department table doesn't exist yet
@@ -27,6 +34,7 @@ export const routingStep = pgTable(
     id: uuid()
       .primaryKey()
       .default(sql`gen_random_uuid()`),
+    ...tenantColumn,
     templateId: uuid()
       .notNull()
       .references(() => routingTemplate.id),
@@ -35,5 +43,5 @@ export const routingStep = pgTable(
     standardTimeMin: integer().notNull(),
     departmentId: uuid(),
   },
-  (t) => [unique().on(t.templateId, t.seq)],
+  (t) => [tenantFk(t), unique().on(t.templateId, t.seq)],
 );
