@@ -2,13 +2,13 @@
 
 ## 1. Contracts — `packages/contracts/src`
 
-- [ ] 1.1 Add `enums/tenancy.ts` — `TenantKind` (`CUSTOMER | DEMO_TEMPLATE | DEMO_SANDBOX`), `TenantStatus` (`ACTIVE | READ_ONLY | SUSPENDED | PURGING`), `DomainResolutionMode` (`TENANT | DEMO_POOL`) as const objects + types, exported from the enums barrel
-- [ ] 1.2 Add `dto/platform.ts` — zod schemas: `PlatformLoginBody`, `PlatformTokenPair`, `TenantCreate` (`{ name, slug, domain? }` — **no** `tenant_id` field anywhere in any DTO), `TenantListItem` (`{ id, name, slug, kind, status, created_at }`), `TenantStatusUpdate` (`{ status, reason }`), `SupportSessionCreate` (`{ tenant_id, reason, minutes }` — control-plane only, the one surface where a tenant id is legitimately an argument), `SupportSessionRow`, `PlatformAuditQuery`/`PlatformAuditRow`
-- [ ] 1.3 Build `platformContract = c.router({...}, { pathPrefix: API_PREFIX })` — `POST /platform/auth/login`, `GET /platform/tenants`, `POST /platform/tenants`, `POST /platform/tenants/:id/status`, `POST /platform/support-sessions`, `POST /platform/support-sessions/:id/revoke`, `GET /platform/audit`; every route via `withErrors(...)`, lists via `paginationQuery` + `paginated(item)`
-- [ ] 1.4 Add the public pre-login DTO — `TenantContextResponse` (`{ tenant_name, slug, branding }`) and a `GET /public/tenant-context` route (public, host-resolved) on the root contract
-- [ ] 1.5 Extend `dto/iam.ts` `MeResponse` with `tenant: { id, name, slug }`; audit every existing DTO to confirm none accepts a `tenant_id` input field (spec: tenant never from request input)
-- [ ] 1.6 Register `platform: platformContract` on the root `contract` in `dto/index.ts`; export the new enums/DTO types from the package barrel
-- [ ] 1.7 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 1.1 Add `enums/tenancy.ts` — `TenantKind` (`CUSTOMER | DEMO_TEMPLATE | DEMO_SANDBOX`), `TenantStatus` (`ACTIVE | READ_ONLY | SUSPENDED | PURGING`), `DomainResolutionMode` (`TENANT | DEMO_POOL`) as const objects + types, exported from the enums barrel
+- [x] 1.2 Add `dto/platform.ts` — zod schemas: `PlatformLoginBody`, `PlatformTokenPair`, `TenantCreate` (`{ name, slug, domain? }` — **no** `tenant_id` field anywhere in any DTO), `TenantListItem` (`{ id, name, slug, kind, status, created_at }`), `TenantStatusUpdate` (`{ status, reason }`), `SupportSessionCreate` (`{ tenant_id, reason, minutes }` — control-plane only, the one surface where a tenant id is legitimately an argument), `SupportSessionRow`, `PlatformAuditQuery`/`PlatformAuditRow`
+- [x] 1.3 Build `platformContract = c.router({...}, { pathPrefix: API_PREFIX })` — `POST /platform/auth/login`, `GET /platform/tenants`, `POST /platform/tenants`, `POST /platform/tenants/:id/status`, `POST /platform/support-sessions`, `POST /platform/support-sessions/:id/revoke`, `GET /platform/audit`; every route via `withErrors(...)`, lists via `paginationQuery` + `paginated(item)`
+- [x] 1.4 Add the public pre-login DTO — `TenantContextResponse` (`{ tenant_name, slug, branding }`) and a `GET /public/tenant-context` route (public, host-resolved) on the root contract
+- [x] 1.5 Extend `dto/iam.ts` `MeResponse` with `tenant: { id, name, slug }`; audit every existing DTO to confirm none accepts a `tenant_id` input field (spec: tenant never from request input)
+- [x] 1.6 Register `platform: platformContract` on the root `contract` in `dto/index.ts`; export the new enums/DTO types from the package barrel
+- [x] 1.7 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 2. DB schema — `packages/db/src`
 
