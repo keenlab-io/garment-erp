@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { PERSONAS, personaStatePath } from "../fixtures/personas.js";
 
 /**
- * HR module — TC-HR-01, 03..05, 08..10, 13..15 of docs/testing/test-cases/04-hr.md.
+ * HR module — TC-HR-01, 03..05, 08..10, 13..16 of docs/testing/test-cases/04-hr.md.
  * TC-HR-02/06/07/11/12 are covered end to end by the J2 journey in hr.spec.ts.
  *
  * The masking cases are the point of this file: `hrOfficer` is seeded deliberately WITHOUT
@@ -12,6 +12,37 @@ const RUN = Date.now().toString().slice(-6);
 
 async function heading(page: Page, name: RegExp | string) {
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+}
+
+/**
+ * Creates an employee from the register and returns the server-issued EXT code. The seed ships
+ * no employees (see the persona note in docs/testing/test-cases/04-hr.md), so the reporting
+ * pass has to make its own pair.
+ */
+async function createEmployee(page: Page, first: string, last: string): Promise<string> {
+  await page.goto("/hr/employees");
+  await heading(page, "Employees");
+  await page.getByRole("button", { name: "Create employee" }).click();
+  const drawer = page.getByRole("dialog");
+  await drawer.getByLabel("First name").fill(first);
+  await drawer.getByLabel("Last name").fill(last);
+  await drawer.getByLabel("Hire date").fill(new Date().toISOString().slice(0, 10));
+  await drawer.getByRole("button", { name: "Create employee" }).click();
+
+  const row = page.getByRole("row").filter({ hasText: last });
+  await expect(row).toBeVisible();
+  // DataTable renders role="grid", so its cells are `gridcell` — not `cell`.
+  return (await row.getByRole("gridcell").first().innerText()).trim();
+}
+
+/** Opens an employee's detail page from the register via the row action menu. */
+async function openEmployee(page: Page, last: string) {
+  await page.goto("/hr/employees");
+  await heading(page, "Employees");
+  const row = page.getByRole("row").filter({ hasText: last });
+  await row.getByRole("button", { name: "Row actions" }).click();
+  await page.getByRole("button", { name: "View details" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(last);
 }
 
 test.describe("hr — screens (TC-HR)", () => {
@@ -111,6 +142,59 @@ test.describe("hr — screens (TC-HR)", () => {
     await departmentDeleteDialog.getByRole("button", { name: "Delete" }).click();
     expect((await departmentDeleted).status()).toBeLessThan(400);
     await expect(page.getByText(`Production ${RUN} Renamed`)).toHaveCount(0);
+  });
+
+  test("TC-HR-16 the reporting tab assigns, reads back, and clears a manager", async ({ page }) => {
+    // The tab is the only surface for `GET`/`PUT /employees/:id/reporting-line`, and the pair
+    // has to be read from BOTH ends: the report's manager field and the manager's direct-reports
+    // list are the two sides of one `reporting_line` row.
+    const managerLast = `Boss${RUN}`;
+    const reportLast = `Staff${RUN}`;
+    await createEmployee(page, "Mana", managerLast);
+    const reportCode = await createEmployee(page, "Rep", reportLast);
+
+    // ---- a fresh employee has neither a manager nor reports ----
+    await openEmployee(page, reportLast);
+    await page.getByRole("tab", { name: "Reporting" }).click();
+    await expect(page.getByText("No manager")).toBeVisible();
+    await expect(page.getByText("No direct reports.")).toBeVisible();
+
+    // ---- assign the manager ----
+    await page.getByRole("button", { name: "Change manager" }).click();
+    await page.getByRole("combobox", { name: "Manager" }).click();
+    await page.getByRole("option", { name: `Mana ${managerLast}` }).click();
+    const assigned = page.waitForResponse(
+      (r) => /\/reporting-line$/.test(r.url()) && r.request().method() === "PUT",
+    );
+    await page.getByRole("button", { name: "Save" }).click();
+    expect((await assigned).status()).toBeLessThan(400);
+    await expect(page.getByText("Manager updated.")).toBeVisible();
+    await expect(page.getByText(`Mana ${managerLast}`)).toBeVisible();
+
+    // ---- the reverse side: the manager now lists the report, by name and code ----
+    await openEmployee(page, managerLast);
+    await page.getByRole("tab", { name: "Reporting" }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: `Rep ${reportLast}` })).toContainText(
+      reportCode,
+    );
+
+    // ---- clear it: the "No manager" sentinel writes manager_employee_id: null ----
+    await openEmployee(page, reportLast);
+    await page.getByRole("tab", { name: "Reporting" }).click();
+    await page.getByRole("button", { name: "Change manager" }).click();
+    await page.getByRole("combobox", { name: "Manager" }).click();
+    await page.getByRole("option", { name: "No manager" }).click();
+    const cleared = page.waitForResponse(
+      (r) => /\/reporting-line$/.test(r.url()) && r.request().method() === "PUT",
+    );
+    await page.getByRole("button", { name: "Save" }).click();
+    expect((await cleared).status()).toBeLessThan(400);
+    await expect(page.getByText("No manager")).toBeVisible();
+
+    // ...and the manager's direct-reports list empties again.
+    await openEmployee(page, managerLast);
+    await page.getByRole("tab", { name: "Reporting" }).click();
+    await expect(page.getByText("No direct reports.")).toBeVisible();
   });
 
   test("TC-HR-10 the attendance month grid renders", async ({ page }) => {

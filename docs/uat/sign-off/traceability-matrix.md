@@ -39,6 +39,13 @@ through the UI.
 | 2.8-c | User lacking `hr.salary.view` gets monetary fields omitted | UAT-HR-03, UAT-HR-10 | UI |
 | 2.8-d | Approving a payroll run twice ⇒ second call 409 | UAT-HR-09, UAT-J2-05 | UI-proxy (already-approved refusal; 409 code is backend) |
 | 2.8-e | Payslip PDF link is a signed URL that expires; opening requires the configured password | UAT-HR-10 (in-app breakdown only) | Backend — signed-URL expiry + PDF password are not UI-observable |
+| 2.8-f | Org structure update: rename, re-parent a department, move a position; employees on a moved position keep it | UAT-HR-12 | UI |
+| 2.8-g | Re-parenting a department into its own subtree (incl. self) ⇒ 422 BUSINESS_RULE, nothing changed | UAT-HR-12 (step 2) | UI-proxy — the refusal is visible only if the picker lets you attempt it; the guard itself is service-layer (`assertNoDepartmentCycle`) and owned by integration |
+| 2.8-h | Delete is soft, never cascades, and is refused 409 while live children/positions/holders reference the target | UAT-HR-12 (steps 4-6) | UI-proxy (refusal + inline reason are UI; the 409 code and the `deleted_at` stamp are backend) |
+| 2.8-i | Every org update/delete appends an audit_log row with before/after, atomically | — | Backend — the HR module writes no user-visible audit view for org rows (see §Gaps) |
+| 2.8-j | Reporting line read returns manager + direct reports, identity fields only (no salary/PII) | UAT-HR-13 (steps 1-3, 5) | UI-proxy (the rendered fields are UI; "the payload omits salary/national_id" is backend) |
+| 2.8-k | Reporting line write upserts one row keyed on employee; `null` clears it | UAT-HR-13 (steps 2-4) | UI |
+| 2.8-l | A managerial cycle (direct or transitive) ⇒ 422 BUSINESS_RULE, stored line unchanged | UAT-HR-13 (step 6) | UI-proxy — same caveat as 2.8-g; a transitive cycle is not reachable from the picker |
 
 ## M3 — Inventory & Costing (§3.8)
 
@@ -89,7 +96,7 @@ schedules-CRUD, provisioning). They trace to the verified module map / UX Accept
 bulk of the golden-path acceptance evidence:
 
 UAT-J1-01/03/06/07, UAT-J2-01/02, UAT-J3-01/03, UAT-INV-01/03/05, UAT-PROD-01/03/04/07,
-UAT-SALES-01/03/06/07/09/10, UAT-HR-01/02/04/06/07/11, UAT-RPT-01/06/08/09,
+UAT-SALES-01/03/06/07/09/10, UAT-HR-01/02/04/06/07/11/12/13, UAT-RPT-01/06/08/09,
 UAT-ADMIN-01/02/03/04/05/06/10.
 
 ## Gaps & not-UAT-testable-via-UI (explicit — no silent omissions)
@@ -98,6 +105,9 @@ UAT-ADMIN-01/02/03/04/05/06/10.
 |---|---|---|
 | HR advance→payroll | Auto-deduction of an outstanding advance into payroll (2.8-b) | Cash-advance **disburse has no UI**; net-exact math is still checked in UAT-HR-08. Integration test owns the deduction. |
 | HR payslip PDF | Signed-URL expiry + password-protected PDF open (2.8-e) | Integration/PDF layer; UAT checks the in-app breakdown (UAT-HR-10). |
+| HR org audit trail | That an org update/delete wrote an `audit_log` row with before/after (2.8-i) | No screen surfaces audit rows for `department`/`position`/`reporting_line`. Owned by `hr.int.spec.ts`; UAT proves the mutation's visible outcome only. |
+| HR org cycle guards | Transitive cycles — a department re-parented under its own grandchild, a manager chain closing at depth > 1 (2.8-g, 2.8-l) | The pickers make most cycles unreachable by construction, so UAT cannot stage them. Owned by `hr.int.spec.ts` (422 cases); UAT records only what the UI permits attempting. |
+| HR manager picker | That the intended manager is findable on a large register | The picker loads ~the first 100 employees with no server-side search — a scale limit, not a defect to fail. Flagged inline in UAT-HR-13. |
 | Inventory costing | Moving-average precision (3.8-b), ledger-replay equality (3.8-d), backflush postings (3.8-c) | Integration; UAT checks stock-card/valuation consistency (UAT-INV-07). |
 | Production routing | Template-edit isolation from existing WOs (4.7-d) | No template-editor screen in the app. Flag for product if a UI is expected. |
 | Sales guards | Over-invoice 422 (5.8-d), duplicate-free numbering (5.8-f) | Integration; UAT checks lifecycle + void guard by UI. |

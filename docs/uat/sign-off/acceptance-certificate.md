@@ -29,11 +29,11 @@ files (with their ☐ Pass/Fail/Blocked marks) and any screenshots from `debuggi
 | **01 — Inventory & Costing** | UAT-INV-01 … 07 (7) | | | | ☐ Accept ☐ Reject | |
 | **02 — Production Tracking** | UAT-PROD-01 … 07 (7) | | | | ☐ Accept ☐ Reject | |
 | **03 — Sales** | UAT-SALES-01 … 11 (11) | | | | ☐ Accept ☐ Reject | |
-| **04 — HR & Payroll** | UAT-HR-01 … 11 (11) | | | | ☐ Accept ☐ Reject | |
+| **04 — HR & Payroll** | UAT-HR-01 … 13 (13) | | | | ☐ Accept ☐ Reject | |
 | **05 — Reports & Analytics** | UAT-RPT-01 … 09 (9) | | | | ☐ Accept ☐ Reject | |
 | **06 — Admin & Access** | UAT-ADMIN-01 … 11 (11) | | | | ☐ Accept ☐ Reject | |
 
-**Scenario totals**: 17 journey + 56 module = **73 scenarios**.
+**Scenario totals**: 17 journey + 58 module = **75 scenarios**.
 
 ## 3. Open defects at sign-off
 
