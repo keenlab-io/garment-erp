@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { index, pgTable, text, uuid } from "drizzle-orm/pg-core";
-import { money, qty } from "../../base-columns.js";
+import { money, qty, tenantColumn } from "../../base-columns.js";
+import { tenantFk } from "../platform/tenant.js";
 
 // A polymorphic document line shared by quotations and invoices (spec §5.2). `parent_type` +
 // `parent_id` point at the owning `quotation`/`invoice` row — no FK is possible across two
@@ -14,6 +15,7 @@ export const docLine = pgTable(
     id: uuid()
       .primaryKey()
       .default(sql`gen_random_uuid()`),
+    ...tenantColumn,
     parentType: text().$type<"QUOTATION" | "INVOICE">().notNull(),
     parentId: uuid().notNull(),
     itemId: uuid(),
@@ -23,5 +25,5 @@ export const docLine = pgTable(
     discount: money().notNull().default("0"),
     lineTotal: money().notNull(),
   },
-  (t) => [index().on(t.parentType, t.parentId)],
+  (t) => [tenantFk(t), index().on(t.parentType, t.parentId)],
 );

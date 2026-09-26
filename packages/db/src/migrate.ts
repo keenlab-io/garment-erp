@@ -8,8 +8,10 @@ import { createDb } from "./client.js";
 const migrationsFolder = fileURLToPath(new URL("../../../tooling/drizzle", import.meta.url));
 
 async function main() {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is required to run migrations");
+  // Migrations run as the object owner (`erp_owner`), never the RLS-bound runtime role
+  // (`erp_app`). Falls back to DATABASE_URL where there is only one role (M7 D2).
+  const url = process.env.DATABASE_OWNER_URL ?? process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_OWNER_URL or DATABASE_URL is required to run migrations");
 
   const { db, queryClient } = createDb(url, { max: 1 });
   try {

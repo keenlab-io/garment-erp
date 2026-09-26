@@ -1,5 +1,7 @@
 import { sql } from "drizzle-orm";
 import { pgTable, primaryKey, text, uuid } from "drizzle-orm/pg-core";
+import { tenantColumn } from "../../base-columns.js";
+import { tenantFk } from "../platform/tenant.js";
 import { role } from "./roles.js";
 
 // Persisted mirror of the `@erp/contracts` PERMISSIONS catalog (M1 design D8). Seeded
@@ -19,6 +21,7 @@ export const permission = pgTable("permission", {
 export const rolePermission = pgTable(
   "role_permission",
   {
+    ...tenantColumn,
     roleId: uuid()
       .notNull()
       .references(() => role.id, { onDelete: "cascade" }),
@@ -26,5 +29,5 @@ export const rolePermission = pgTable(
       .notNull()
       .references(() => permission.id, { onDelete: "cascade" }),
   },
-  (t) => [primaryKey({ columns: [t.roleId, t.permissionId] })],
+  (t) => [tenantFk(t), primaryKey({ columns: [t.roleId, t.permissionId] })],
 );

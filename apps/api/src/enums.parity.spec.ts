@@ -4,6 +4,7 @@ import type {
   AuditAction as ContractAuditAction,
   CashAdvanceStatus as ContractCashAdvanceStatus,
   CostingMethod as ContractCostingMethod,
+  DomainResolutionMode as ContractDomainResolutionMode,
   EmployeeDocumentType as ContractEmployeeDocumentType,
   EmployeeStatus as ContractEmployeeStatus,
   EmploymentType as ContractEmploymentType,
@@ -29,6 +30,8 @@ import type {
   StockAdjustmentStatus as ContractStockAdjustmentStatus,
   StockCountStatus as ContractStockCountStatus,
   SubcontractStatus as ContractSubcontractStatus,
+  TenantKind as ContractTenantKind,
+  TenantStatus as ContractTenantStatus,
   UserStatus as ContractUserStatus,
   VatApplicability as ContractVatApplicability,
   VatMode as ContractVatMode,
@@ -40,6 +43,7 @@ import type {
   AuditAction as DbAuditAction,
   CashAdvanceStatus as DbCashAdvanceStatus,
   CostingMethod as DbCostingMethod,
+  DomainResolutionMode as DbDomainResolutionMode,
   EmployeeDocumentType as DbEmployeeDocumentType,
   EmployeeStatus as DbEmployeeStatus,
   EmploymentType as DbEmploymentType,
@@ -65,6 +69,8 @@ import type {
   StockAdjustmentStatus as DbStockAdjustmentStatus,
   StockCountStatus as DbStockCountStatus,
   SubcontractStatus as DbSubcontractStatus,
+  TenantKind as DbTenantKind,
+  TenantStatus as DbTenantStatus,
   UserStatus as DbUserStatus,
   VatApplicability as DbVatApplicability,
   VatMode as DbVatMode,
@@ -210,5 +216,17 @@ describe("enum parity: @erp/contracts <-> @erp/db", () => {
 
   it("ReportGroup unions are identical", () => {
     expectTypeOf<ContractReportGroup>().toEqualTypeOf<DbReportGroup>();
+  });
+
+  it("TenantKind unions are identical", () => {
+    expectTypeOf<ContractTenantKind>().toEqualTypeOf<DbTenantKind>();
+  });
+
+  it("TenantStatus unions are identical", () => {
+    expectTypeOf<ContractTenantStatus>().toEqualTypeOf<DbTenantStatus>();
+  });
+
+  it("DomainResolutionMode unions are identical", () => {
+    expectTypeOf<ContractDomainResolutionMode>().toEqualTypeOf<DbDomainResolutionMode>();
   });
 });

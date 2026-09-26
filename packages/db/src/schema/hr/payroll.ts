@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { jsonb, pgTable, text, unique, uuid } from "drizzle-orm/pg-core";
-import { money, versionColumn } from "../../base-columns.js";
+import { money, tenantColumn, versionColumn } from "../../base-columns.js";
+import { tenantFk } from "../platform/tenant.js";
 import type { PayrollRunStatus } from "../enums.js";
 import { user } from "../platform/users.js";
 import { employee } from "./employee.js";
@@ -11,15 +12,23 @@ import { employee } from "./employee.js";
 // Payroll run header. `period` is a `YYYY-MM` label and is UNIQUE (one run per month).
 // Lifecycle DRAFT → CALCULATED → APPROVED → PAID → CLOSED (no backward transitions);
 // `approved_by` FKs the approving `user`. Carries the optimistic-concurrency version column.
-export const payrollRun = pgTable("payroll_run", {
-  id: uuid()
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  period: text().notNull().unique(),
-  status: text().$type<PayrollRunStatus>().notNull().default("DRAFT"),
-  approvedBy: uuid().references(() => user.id),
-  ...versionColumn,
-});
+export const payrollRun = pgTable(
+  "payroll_run",
+  {
+    id: uuid()
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    ...tenantColumn,
+    period: text().notNull(),
+    status: text().$type<PayrollRunStatus>().notNull().default("DRAFT"),
+    approvedBy: uuid().references(() => user.id),
+    ...versionColumn,
+  },
+  (t) => [
+    tenantFk(t),
+    unique("payroll_run_tenant_period_uq").on(t.tenantId, t.period),
+  ],
+);
 
 // Payslip (spec §2.2). One per `(run_id, employee_id)` — the UNIQUE makes the calculate
 // worker idempotent (upsert on re-enqueue). `breakdown` jsonb is the immutable snapshot
@@ -32,6 +41,7 @@ export const payslip = pgTable(
     id: uuid()
       .primaryKey()
       .default(sql`gen_random_uuid()`),
+    ...tenantColumn,
     runId: uuid()
       .notNull()
       .references(() => payrollRun.id),
@@ -43,5 +53,5 @@ export const payslip = pgTable(
     net: money().notNull(),
     pdfKey: text(),
   },
-  (t) => [unique("payslip_run_employee_uq").on(t.runId, t.employeeId)],
+  (t) => [tenantFk(t), unique("payslip_run_employee_uq").on(t.runId, t.employeeId)],
 );

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
-import { index, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { money, qty } from "../../base-columns.js";
+import { index, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { money, qty, tenantColumn } from "../../base-columns.js";
+import { tenantFk } from "../platform/tenant.js";
 import type { MovementDirection, MovementRefType } from "../enums.js";
 import { item, sku, warehouse } from "./catalog.js";
 
@@ -10,20 +11,28 @@ import { item, sku, warehouse } from "./catalog.js";
 // A received lot of an item. `qty_remaining` (in base_uom) is decremented oldest-first by
 // FIFO issues; `unit_cost` is the landed unit cost captured at receipt posting. `barcode`
 // is unique when set. `supplier_id` has no FK yet (the M6 supplier table adds it).
-export const stockLot = pgTable("stock_lot", {
-  id: uuid()
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  itemId: uuid()
-    .notNull()
-    .references(() => item.id),
-  lotNo: text().notNull(),
-  barcode: text().unique(),
-  supplierId: uuid(),
-  qtyRemaining: qty().notNull(),
-  unitCost: money().notNull(),
-  receivedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-});
+export const stockLot = pgTable(
+  "stock_lot",
+  {
+    id: uuid()
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    ...tenantColumn,
+    itemId: uuid()
+      .notNull()
+      .references(() => item.id),
+    lotNo: text().notNull(),
+    barcode: text(),
+    supplierId: uuid(),
+    qtyRemaining: qty().notNull(),
+    unitCost: money().notNull(),
+    receivedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    tenantFk(t),
+    unique("stock_lot_tenant_barcode_uq").on(t.tenantId, t.barcode),
+  ],
+);
 
 // THE STOCK LEDGER — append-only: rows are never UPDATEd or DELETEd, and that immutability
 // is enforced at the DB level by a BEFORE UPDATE OR DELETE trigger (custom migration
@@ -39,6 +48,7 @@ export const stockMovement = pgTable(
     id: uuid()
       .primaryKey()
       .default(sql`gen_random_uuid()`),
+    ...tenantColumn,
     itemId: uuid()
       .notNull()
       .references(() => item.id),
@@ -54,7 +64,7 @@ export const stockMovement = pgTable(
     refId: uuid().notNull(),
     at: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index().on(t.itemId, t.warehouseId, t.at)],
+  (t) => [tenantFk(t), index().on(t.itemId, t.warehouseId, t.at)],
 );
 
 // Derived performance cache (invariant §3.5): every ledger insert updates the matching
@@ -64,10 +74,11 @@ export const stockMovement = pgTable(
 export const stockBalance = pgTable(
   "stock_balance",
   {
+    ...tenantColumn,
     itemId: uuid().notNull(),
     warehouseId: uuid().notNull(),
     qtyOnHand: qty().notNull().default("0"),
     avgCost: money().notNull().default("0"),
   },
-  (t) => [primaryKey({ columns: [t.itemId, t.warehouseId] })],
+  (t) => [tenantFk(t), primaryKey({ columns: [t.itemId, t.warehouseId] })],
 );

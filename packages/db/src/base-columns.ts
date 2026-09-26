@@ -17,6 +17,19 @@ export const auditColumns = {
   deletedAt: timestamp({ withTimezone: true }),
 };
 
+// Tenant scope (M7). Every business table spreads this; the default reads the
+// transaction-local `app.tenant_id` GUC that UnitOfWork sets, so inserts inherit the
+// ambient tenant without naming it (no tenant in scope → NULL → NOT NULL rejects the
+// write, failing closed). The FK to `tenant.id` is declared PER-TABLE via `tenantFk`
+// (`schema/platform/tenant.ts`), not here — same cycle-avoidance rule as `created_by`.
+// Every natural-key unique on a tenant table is composite `(tenant_id, …)`: "unique" in the
+// table comments means unique within one tenant.
+export const tenantColumn = {
+  tenantId: uuid()
+    .notNull()
+    .default(sql`current_setting('app.tenant_id', true)::uuid`),
+};
+
 // Optimistic-concurrency version counter.
 export const versionColumn = { version: integer().notNull().default(0) };
 

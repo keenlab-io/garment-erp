@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, date, pgTable, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { money } from "../../base-columns.js";
+import { money, tenantColumn } from "../../base-columns.js";
+import { tenantFk } from "../platform/tenant.js";
 import type { PayComponentType } from "../enums.js";
 import { user } from "../platform/users.js";
 import { employee } from "./employee.js";
@@ -10,36 +11,47 @@ import { employee } from "./employee.js";
 
 // Salary record — append-only history. The employee's current salary is the row with the
 // latest `effective_date <= today`. `created_by` records who set it (FK to `user`).
-export const salaryRecord = pgTable("salary_record", {
-  id: uuid()
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  employeeId: uuid()
-    .notNull()
-    .references(() => employee.id),
-  baseSalary: money().notNull(),
-  effectiveDate: date().notNull(),
-  createdBy: uuid().references(() => user.id),
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-});
+export const salaryRecord = pgTable(
+  "salary_record",
+  {
+    id: uuid()
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    ...tenantColumn,
+    employeeId: uuid()
+      .notNull()
+      .references(() => employee.id),
+    baseSalary: money().notNull(),
+    effectiveDate: date().notNull(),
+    createdBy: uuid().references(() => user.id),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [tenantFk(t)],
+);
 
 // Pay component catalog (spec §2.2). `type` is ALLOWANCE (adds to gross) or DEDUCTION
 // (subtracts from net); `recurring` marks components applied every period by default.
-export const payComponent = pgTable("pay_component", {
-  id: uuid()
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  type: text().$type<PayComponentType>().notNull(),
-  name: text().notNull(),
-  defaultAmount: money().notNull().default("0"),
-  recurring: boolean().notNull().default(true),
-});
+export const payComponent = pgTable(
+  "pay_component",
+  {
+    id: uuid()
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    ...tenantColumn,
+    type: text().$type<PayComponentType>().notNull(),
+    name: text().notNull(),
+    defaultAmount: money().notNull().default("0"),
+    recurring: boolean().notNull().default(true),
+  },
+  (t) => [tenantFk(t)],
+);
 
 // Per-employee pay-component override (spec §2.2). Composite PK `(employee_id,
 // pay_component_id)`; `amount` overrides the component's `default_amount` for that employee.
 export const employeePayComponent = pgTable(
   "employee_pay_component",
   {
+    ...tenantColumn,
     employeeId: uuid()
       .notNull()
       .references(() => employee.id),
@@ -48,5 +60,5 @@ export const employeePayComponent = pgTable(
       .references(() => payComponent.id),
     amount: money().notNull(),
   },
-  (t) => [primaryKey({ columns: [t.employeeId, t.payComponentId] })],
+  (t) => [tenantFk(t), primaryKey({ columns: [t.employeeId, t.payComponentId] })],
 );
