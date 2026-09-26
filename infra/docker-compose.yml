@@ -38,7 +38,7 @@ services:
 
   # S3-compatible object storage (storage module). Console on :9001.
   minio:
-    image: minio/minio
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z  # community fork; minio/minio was removed from Docker Hub
     container_name: erp-minio
     command: server /data --console-address ":9001"
     environment:

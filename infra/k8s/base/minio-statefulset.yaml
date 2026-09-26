@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: minio
-          image: minio/minio
+          image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z  # community fork; minio/minio was removed from Docker Hub
           args: ["server", "/data"]
           ports:
             - containerPort: 9000
