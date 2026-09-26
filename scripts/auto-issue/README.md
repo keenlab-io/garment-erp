@@ -1,6 +1,6 @@
 # auto-issue — autonomous GitHub-issue → PR pipeline
 
-Drives a headless Claude Code agent (Opus 4.8, **subscription** auth) through the open issue backlog
+Drives a headless Claude Code agent (**subscription** auth; Sonnet or Opus per issue — see [Model routing](#model-routing-cost-control)) through the open issue backlog
 of this repo. For each open issue (ascending number, skipping the tracking issue **#32**) it runs the
 full lifecycle in an **isolated git worktree**:
 
@@ -73,6 +73,11 @@ issues run on Opus.
 No **Fable**: the design/thinking work already lives in the OpenSpec proposals, so there's nothing to
 draft. `--dry-run` prints the decision for every queued issue before you commit to a run. Routing is
 by issue label/title (`route_issue`); `--model M` forces one model and disables routing entirely.
+The aliases always resolve to the newest model of each tier in the installed `claude` CLI (today:
+Opus 5.5 / Sonnet 5) — set `IMPL_MODEL_HARD=claude-opus-5-5` etc. to pin an exact version.
+
+Every PR description the agent writes has a technical **Summary** plus an **In plain English**
+section for non-developer readers (see playbook Step 6).
 
 ### Environment knobs
 

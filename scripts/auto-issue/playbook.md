@@ -88,31 +88,55 @@ found" error, run `pnpm install --frozen-lockfile` once and retry before assumin
 
 - Stage your changes. Use a **conventional-commit** subject, scoped, e.g.
   `feat(web): M1 IAM routes, i18n & nav wiring (#<N>)`.
-- End the commit message body with the trailer (exactly):
+- End the commit message body with a `Co-Authored-By` trailer naming **the model you are actually
+  running as** (the orchestrator routes between Sonnet and Opus, so never copy a fixed name), e.g.:
   ```
-  Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
   ```
 - Push: `git push -u --force-with-lease origin auto/issue-<N>`. (`--force-with-lease` is safe here and
   lets a re-run of this same issue — e.g. an orchestrator model escalation — update the branch cleanly.)
 
 ## Step 6 — Open PR + auto-merge, then watch checks
 
-1. Create the PR against `main`, closing the issue on merge — **or update the existing one**. This
+1. Write the PR description to `/tmp/pr-body-<N>.md` (use the Write tool, not a shell heredoc)
+   with **both** sections below, every `<…>` placeholder filled:
+   ```markdown
+   Implements the tasks in #<N>.
+
+   ## Summary
+
+   <one-paragraph technical summary: what changed, where, and any notable decisions>
+
+   ## In plain English
+
+   <2–4 short sentences for a non-developer reader (e.g. a factory owner or project manager):
+   what problem this solves and what someone using the ERP can now do, or what now works better.
+   No jargon, file names, or code terms — say "HR staff can now rename a department" rather
+   than "adds PUT /departments/:id". Do not just restate the Summary.>
+
+   Closes #<N>
+
+   🤖 Generated with [Claude Code](https://claude.com/claude-code)
+   ```
+2. Create the PR against `main`, closing the issue on merge — **or update the existing one**. This
    issue may be re-run (the orchestrator escalates a failed attempt to a stronger model), so a PR for
    `auto/issue-<N>` may already exist. Check first and don't error:
    ```
    pr="$(gh pr list --head auto/issue-<N> --state open --json number -q '.[0].number')"
    if [ -z "$pr" ]; then
      gh pr create --base main --head auto/issue-<N> \
-       --title "<same conventional-commit subject>" \
-       --body "$(printf 'Implements the tasks in #%s.\n\n<one-paragraph summary>\n\nCloses #%s\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)' <N> <N>)"
+       --title "<same conventional-commit subject>" --body-file /tmp/pr-body-<N>.md
+   else
+     gh pr edit "$pr" --body-file /tmp/pr-body-<N>.md
    fi
    ```
-   (When the PR already exists, your force-pushed commits from Step 5 have already updated it.)
-2. Enable auto-merge (squash): `gh pr merge <pr> --squash --auto`.
+   (When the PR already exists, your force-pushed commits from Step 5 have already updated its code;
+   `gh pr edit` refreshes the description to match.)
+3. Enable auto-merge (squash): `gh pr merge <pr> --squash --auto`.
    - If the repo has auto-merge **disabled** (command errors), fall back to poll-then-merge: watch
      checks (below) and, once green, run `gh pr merge <pr> --squash`.
-3. Watch the checks to completion: `gh pr checks <pr> --watch --interval 30`.
+4. Watch the checks to completion: `gh pr checks <pr> --watch --interval 30`.
    - Required check contexts are **`verify`** and **`integration`**.
    - On failure: inspect with `gh run view --log-failed` (or `gh pr checks <pr>` for the run URL),
      reproduce and fix locally, re-run the Step 4 commands, commit the fix, `git push`, and
