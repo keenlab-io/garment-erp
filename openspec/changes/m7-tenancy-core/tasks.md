@@ -128,12 +128,12 @@
 
 ## 15. Tests — the three verification layers + acceptance
 
-- [ ] 15.1 `apps/api/src/tenancy.parity.spec.ts` (task 4.7) green with the final `TENANT_EXEMPT` list; prove it fails by locally adding a tenant-less dummy table, then remove it
-- [ ] 15.2 `apps/api/test/integration/tenancy-rls.int.spec.ts` — connect as `erp_app`; assert per non-exempt table: `relrowsecurity`, `relforcerowsecurity`, a `tenant_isolation` policy with `USING` + `WITH CHECK` in `pg_policies`; assert `erp_app` has `NOBYPASSRLS`, no `mv_*` SELECT grant, and that with no GUC set every business table reads empty and inserts fail
-- [ ] 15.3 Integration: two-tenant CRUD matrix — same username created in both tenants; invoices numbered `…-0001` in both; idempotency key replay isolated per tenant; audit rows land with the right `tenantId`; support-session request dual-writes both audit logs
-- [ ] 15.4 `e2e/tests/tenancy.spec.ts` (TC-TEN-01..n) — provision tenants A and B; as B: every module's list endpoint returns only B rows; direct GET of A's document ids → 404; presign of A's object keys → error; `join` of `t:{A}:wo:{id}` and `t:{A}:timeline` → `{ ok: false }`; login with A's username on B's host → 401
-- [ ] 15.5 Integration: sweeps — with tenants A(ACTIVE) + B(SUSPENDED), a scheduler tick enqueues jobs for A only; a hand-enqueued job without `tenantId` fails; `withTenantJob` sets the GUC (job writes carry the right tenant)
-- [ ] 15.6 Integration: MV path — event in tenant A dirties `(A, view)` debounce key only; `v_sales_daily` as tenant B excludes A's rows; direct `SELECT * FROM mv_sales_daily` as `erp_app` is denied
-- [ ] 15.7 Self-hosted mode boot test — `DEPLOYMENT_MODE=self-hosted`: exactly one tenant exists after boot, `/platform/*` routes are absent (404), any-host login resolves the default tenant
-- [ ] 15.8 Cross-tenant concurrency regression — stale `If-Match` against a foreign-tenant id → 404 NOT_FOUND (never 409); replaying tenant A's pagination cursor as tenant B yields only B rows
+- [x] 15.1 `apps/api/src/tenancy.parity.spec.ts` (task 4.7) green with the final `TENANT_EXEMPT` list; prove it fails by locally adding a tenant-less dummy table, then remove it
+- [x] 15.2 `apps/api/test/integration/tenancy-rls.int.spec.ts` — connect as `erp_app`; assert per non-exempt table: `relrowsecurity`, `relforcerowsecurity`, a `tenant_isolation` policy with `USING` + `WITH CHECK` in `pg_policies`; assert `erp_app` has `NOBYPASSRLS`, no `mv_*` SELECT grant, and that with no GUC set every business table reads empty and inserts fail
+- [x] 15.3 Integration: two-tenant CRUD matrix — same username created in both tenants; invoices numbered `…-0001` in both; idempotency key replay isolated per tenant; audit rows land with the right `tenantId`; support-session request dual-writes both audit logs
+- [x] 15.4 `e2e/tests/tenancy.spec.ts` (TC-TEN-01..n) — provision tenants A and B; as B: every module's list endpoint returns only B rows; direct GET of A's document ids → 404; presign of A's object keys → error; `join` of `t:{A}:wo:{id}` and `t:{A}:timeline` → `{ ok: false }`; login with A's username on B's host → 401
+- [x] 15.5 Integration: sweeps — with tenants A(ACTIVE) + B(SUSPENDED), a scheduler tick enqueues jobs for A only; a hand-enqueued job without `tenantId` fails; `withTenantJob` sets the GUC (job writes carry the right tenant)
+- [x] 15.6 Integration: MV path — event in tenant A dirties `(A, view)` debounce key only; `v_sales_daily` as tenant B excludes A's rows; direct `SELECT * FROM mv_sales_daily` as `erp_app` is denied
+- [x] 15.7 Self-hosted mode boot test — `DEPLOYMENT_MODE=self-hosted`: exactly one tenant exists after boot, `/platform/*` routes are absent (404), any-host login resolves the default tenant
+- [x] 15.8 Cross-tenant concurrency regression — stale `If-Match` against a foreign-tenant id → 404 NOT_FOUND (never 409); replaying tenant A's pagination cursor as tenant B yields only B rows
 - [ ] 15.9 Verify: `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green from the repo root; apply 0012 to a fresh DB (`pnpm db:migrate && pnpm db:seed`) and re-run `pnpm db:generate` confirming an empty diff
