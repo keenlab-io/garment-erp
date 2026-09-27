@@ -84,6 +84,24 @@ describe.skipIf(!url || !appUrl)("tenancy row-level security (integration)", () 
     expect(grants).toEqual({ sales: false, valuation: false, cogs: false, view: true });
   });
 
+  // Task 8.2 / migration 0014 — the global permission catalog is readable, never writable, by
+  // the runtime role (only the owner-run seed mirrors PERMISSION_CODES into it).
+  it("grants erp_app read-only access to the global permission catalog", async () => {
+    const [grants] = await admin.db.execute<Record<string, boolean>>(sql`
+      SELECT has_table_privilege('erp_app', 'permission', 'SELECT') AS "select",
+             has_table_privilege('erp_app', 'permission', 'INSERT') AS "insert",
+             has_table_privilege('erp_app', 'permission', 'UPDATE') AS "update",
+             has_table_privilege('erp_app', 'permission', 'DELETE') AS "delete",
+             has_table_privilege('erp_app', 'permission', 'TRUNCATE') AS "truncate"`);
+    expect(grants).toEqual({
+      select: true,
+      insert: false,
+      update: false,
+      delete: false,
+      truncate: false,
+    });
+  });
+
   it("with no tenant GUC, erp_app reads no rows and cannot insert", async () => {
     const visible = await app.db.select().from(uom).where(eq(uom.code, code));
     expect(visible).toEqual([]);

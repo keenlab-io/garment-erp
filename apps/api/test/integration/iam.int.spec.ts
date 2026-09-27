@@ -1,4 +1,5 @@
-import { count, eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { and, count, eq } from "drizzle-orm";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { JwtService } from "@nestjs/jwt";
 import type { ConfigService } from "@nestjs/config";
@@ -14,6 +15,7 @@ import {
   rolePermission,
   roleTemplate,
   session,
+  tenant,
   user,
   userRole,
 } from "@erp/db";
@@ -56,6 +58,7 @@ describe.skipIf(!url)("IAM services (integration)", () => {
 
   const ADMIN_PASSWORD = "admin-password";
   let admin: AuthUser;
+  let tenantB: string;
 
   const config = {
     getOrThrow: (key: string) =>
@@ -72,11 +75,13 @@ describe.skipIf(!url)("IAM services (integration)", () => {
     password: string;
     status?: "PENDING" | "ACTIVE" | "DISABLED";
     isSuperAdmin?: boolean;
+    tenantId?: string;
   }): Promise<string> {
     const passwordHash = await passwords.hash(opts.password);
     const [row] = await conn.db
       .insert(user)
       .values({
+        ...(opts.tenantId ? { tenantId: opts.tenantId } : {}),
         username: opts.username,
         email: `${opts.username}@test.local`,
         passwordHash,
@@ -134,6 +139,13 @@ describe.skipIf(!url)("IAM services (integration)", () => {
       .insert(permission)
       .values(PERMISSION_CODES.map((code) => ({ code })))
       .onConflictDoNothing();
+
+    // A second tenant for the per-tenant role-name cases (M7 §8).
+    const [other] = await conn.db
+      .insert(tenant)
+      .values({ slug: `iam-b-${randomUUID().slice(0, 8)}`, name: "IAM tenant B", kind: "CUSTOMER" })
+      .returning({ id: tenant.id });
+    tenantB = (other as { id: string }).id;
   });
 
   afterAll(async () => {
@@ -348,5 +360,75 @@ describe.skipIf(!url)("IAM services (integration)", () => {
     expect(grants.map((g) => g.code).sort()).toEqual(
       ["iam.audit.view", "iam.user.manage"].sort(),
     );
+  });
+
+  /** The grant codes of the role named `name` in `tenantId` (read as the superuser). */
+  async function grantsOf(tenantId: string, name: string): Promise<string[]> {
+    const rows = await conn.db
+      .select({ code: permission.code })
+      .from(role)
+      .innerJoin(rolePermission, eq(rolePermission.roleId, role.id))
+      .innerJoin(permission, eq(permission.id, rolePermission.permissionId))
+      .where(and(eq(role.tenantId, tenantId), eq(role.name, name)));
+    return rows.map((r) => r.code).sort();
+  }
+
+  // M7 task 8.1 — role names are unique per tenant: `(tenant_id, name)`.
+  it("allows the same role name in two tenants but not twice in one", async () => {
+    await roleService.create({ name: "Shared", permission_codes: [] }, admin);
+    const inB = await runWithTenant(tenantB, "jwt", () =>
+      roleService.create({ name: "Shared", permission_codes: [] }, admin),
+    );
+    expect(inB.name).toBe("Shared");
+
+    await expect(
+      roleService.create({ name: "Shared", permission_codes: [] }, admin),
+    ).rejects.toMatchObject({ cause: { code: "23505" } }); // → 409 via AllExceptionsFilter
+  });
+
+  // M7 task 8.2 — the import upserts roles under the caller's tenant only; a same-named role in
+  // another tenant is neither matched nor touched. The harness connects as the superuser (RLS
+  // bypassed), so this pins the service's own tenant predicate.
+  it("imports roles under the caller's tenant only when two tenants share a role name", async () => {
+    await roleService.create(
+      { name: "Shared", permission_codes: ["iam.audit.view"] },
+      admin,
+    );
+    const defaultUser = await createUser({ username: "shared-a", password: "pw" });
+    const [sharedA] = await conn.db
+      .select({ id: role.id })
+      .from(role)
+      .where(and(eq(role.tenantId, DEFAULT_TENANT_ID), eq(role.name, "Shared")));
+    await userService.setRoles(defaultUser, { role_ids: [(sharedA as { id: string }).id] }, admin);
+    const versionA = await version(defaultUser);
+
+    const bAdminId = await createUser({
+      username: "superadmin-b",
+      password: "pw",
+      isSuperAdmin: true,
+      tenantId: tenantB,
+    });
+    const bAdmin: AuthUser = { ...admin, id: bAdminId, tenantId: tenantB };
+    const file = await xlsx([
+      ["role_name", "permission_codes"],
+      ["Shared", "iam.user.manage"],
+    ]);
+
+    // Twice: the second run must update B's role in place, not create a third "Shared".
+    for (let run = 0; run < 2; run += 1) {
+      const result = await runWithTenant(tenantB, "jwt", () => importService.import(file, bAdmin));
+      expect(result.imported).toBe(1);
+    }
+
+    const shared = await conn.db
+      .select({ tenantId: role.tenantId })
+      .from(role)
+      .where(eq(role.name, "Shared"));
+    expect(shared.map((r) => r.tenantId).sort()).toEqual([DEFAULT_TENANT_ID, tenantB].sort());
+
+    expect(await grantsOf(tenantB, "Shared")).toEqual(["iam.user.manage"]);
+    // Tenant A's role keeps its grants and its bound user's tokens stay valid.
+    expect(await grantsOf(DEFAULT_TENANT_ID, "Shared")).toEqual(["iam.audit.view"]);
+    expect(await version(defaultUser)).toBe(versionA);
   });
 });

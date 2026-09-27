@@ -85,9 +85,9 @@
 
 ## 8. Business-module sweep — `apps/api/src/iam`
 
-- [ ] 8.1 Confirm `RolePermissionResolver.resolve` runs inside the guard's tenant transaction (task 5.2) so role joins are tenant-filtered; role/user services rely on RLS + the composite `(tenant_id, name)`/`(tenant_id, username)` uniques (duplicate-name errors now per-tenant)
-- [ ] 8.2 Permission catalog stays global (`permission` in `TENANT_EXEMPT`, read-only grant to `erp_app`); `GET /permissions` unaffected; Excel import upserts roles under the caller's tenant only — add an import test with two tenants sharing a role name
-- [ ] 8.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 8.1 Confirm `RolePermissionResolver.resolve` runs inside the guard's tenant transaction (task 5.2) so role joins are tenant-filtered; role/user services rely on RLS + the composite `(tenant_id, name)`/`(tenant_id, username)` uniques (duplicate-name errors now per-tenant) *As built:* confirmed (the guard resolves inside its auth tenant transaction); `AllExceptionsFilter` now follows the error `cause` chain — drizzle-orm 0.45 wraps the postgres.js error in `DrizzleQueryError`, so a duplicate name was a 500, not the intended 409. `iam.int.spec.ts` covers the same role name in two tenants vs. twice in one
+- [x] 8.2 Permission catalog stays global (`permission` in `TENANT_EXEMPT`, read-only grant to `erp_app`); `GET /permissions` unaffected; Excel import upserts roles under the caller's tenant only — add an import test with two tenants sharing a role name *As built:* the runtime grant was read-write (0012's blanket table grant) — `tooling/drizzle/0014_permission_catalog_readonly.sql` revokes INSERT/UPDATE/DELETE/TRUNCATE on `permission` from `erp_app` (asserted in `tenancy-rls.int.spec.ts`; shifts M8+ migration numbers by one more); `ImportService.upsertRole` adds an explicit `tenant_id` predicate (RLS alone is skipped on owner/superuser connections)
+- [x] 8.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 9. Business-module sweep — `apps/api/src/hr`
 

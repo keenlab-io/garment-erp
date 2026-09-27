@@ -126,13 +126,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
 /**
  * Postgres unique-constraint violation (SQLSTATE 23505). postgres.js surfaces the
- * SQLSTATE on the error's `code` property.
+ * SQLSTATE on the error's `code` property; drizzle-orm wraps it in a `DrizzleQueryError`
+ * whose `cause` is the postgres.js error, so the cause chain is followed too.
  */
 function isUniqueViolation(exception: unknown): boolean {
-  return (
-    typeof exception === "object" &&
-    exception !== null &&
-    "code" in exception &&
-    (exception as { code?: unknown }).code === "23505"
-  );
+  for (let e = exception, depth = 0; depth < 5; depth += 1) {
+    if (typeof e !== "object" || e === null) return false;
+    if ((e as { code?: unknown }).code === "23505") return true;
+    e = (e as { cause?: unknown }).cause;
+  }
+  return false;
 }
