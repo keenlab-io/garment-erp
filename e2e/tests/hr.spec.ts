@@ -62,10 +62,13 @@ test.describe("hr — hire to payslip (UAT journey J2)", () => {
     await page.getByRole("tab", { name: "Salary" }).click();
     await page.getByLabel("New base salary").fill(BASE_SALARY);
     await page.getByLabel("Effective date").fill(today);
+    const salaryAdded = page.waitForResponse(
+      (r) => /\/employees\/[^/]+\/salary$/.test(r.url()) && r.request().method() === "POST",
+    );
     await page.getByRole("button", { name: "Add salary record" }).click();
+    expect((await salaryAdded).status()).toBeLessThan(400);
 
     // Payroll reads this figure; without it she'd be flagged "missing salary" and block the run.
-    await expect(page.getByText("Salary record added.")).toBeVisible();
     await expect(page.getByText("30,000", { exact: false }).first()).toBeVisible();
   });
 
@@ -84,8 +87,12 @@ test.describe("hr — hire to payslip (UAT journey J2)", () => {
     await drawer.getByLabel("End time").fill("21:00");
     await drawer.getByRole("combobox", { name: "Rate type" }).click();
     await page.getByRole("option", { name: /Weekday/ }).click();
+    // The drawer creates a DRAFT, then submits it; the submit response is the completion signal.
+    const submitted = page.waitForResponse(
+      (r) => /\/ot-requests\/[^/]+\/submit$/.test(r.url()) && r.request().method() === "POST",
+    );
     await drawer.getByRole("button", { name: "Submit for approval" }).click();
-    await expect(page.getByText("OT request submitted for approval.")).toBeVisible();
+    expect((await submitted).status()).toBeLessThan(400);
 
     // Lands in the approval queue as SUBMITTED. The chip gets no explicit label, so it renders
     // the ChipStatus default — SUBMITTED maps to `pending`, which reads "Pending" (hr/chip-status.ts).

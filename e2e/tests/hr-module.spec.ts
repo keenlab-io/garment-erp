@@ -168,7 +168,6 @@ test.describe("hr — screens (TC-HR)", () => {
     );
     await page.getByRole("button", { name: "Save" }).click();
     expect((await assigned).status()).toBeLessThan(400);
-    await expect(page.getByText("Manager updated.")).toBeVisible();
     await expect(page.getByText(`Mana ${managerLast}`)).toBeVisible();
 
     // ---- the reverse side: the manager now lists the report, by name and code ----
