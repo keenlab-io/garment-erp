@@ -64,8 +64,10 @@ export class ReportScheduleService {
       : null;
     const filters = [
       notDeleted(reportSchedule.deletedAt),
+      // `createdAt` travels as Postgres text: microsecond-exact, unlike a JS Date (and the
+      // driver rejects a bare `Date` bound into this row-comparison's tuple position).
       decoded
-        ? sql`(${reportSchedule.createdAt}, ${reportSchedule.id}) < (${new Date(decoded.createdAt)}, ${decoded.id})`
+        ? sql`(${reportSchedule.createdAt}, ${reportSchedule.id}) < (${decoded.createdAt}::timestamptz, ${decoded.id}::uuid)`
         : undefined,
     ].filter(Boolean);
 
