@@ -18,6 +18,10 @@ import { currentExecutor } from "../db/tx-context.js";
  * configured `PROMPTPAY_ID` and the invoice's net transfer amount (`grand − wht`) via
  * `promptpay-qr`, then renders it to a PNG (`qrcode`). `GET /invoices/{id}/promptpay-qr`
  * returns `{ payload, png_base64 }`; a missing `PROMPTPAY_ID` is a 422.
+ *
+ * TODO(m8-tenant-control-plane): `PROMPTPAY_ID` is still one deployment-wide env value in M7 —
+ * every tenant's QR pays the same account. Move it to per-tenant settings with that change
+ * (M7 §12.2).
  */
 @Injectable()
 export class PromptPayService {

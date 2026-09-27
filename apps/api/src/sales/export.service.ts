@@ -34,6 +34,11 @@ const EXT: Record<ExportFormat, string> = { pdf: "pdf", excel: "xlsx", jpg: "jpg
  * which render the artifact (PDF/JPG via the shared Chromium, Excel via `exceljs`) and land it
  * in object storage through `StorageService`. Non-authoritative dev layout — the
  * `document_template` logo/signature/stamp wiring is deferred to the frontend milestone.
+ *
+ * Tenancy (M7 §12.2): the worker runs inside the job's tenant scope (`withTenantJob`), and the
+ * returned keys are relative — `StorageService` stores them under `tenants/{tid}/`, so two
+ * tenants' `INV…0001.pdf` never collide. `document_template` rows are per tenant (provisioned by
+ * `seedTenantDefaults`).
  */
 @Injectable()
 export class ExportService {

@@ -109,9 +109,9 @@
 
 ## 12. Business-module sweep — `apps/api/src/sales`
 
-- [ ] 12.1 Audit quotation/invoice/payment/receipt/WHT paths; all `doc_no`/`cert_no` uniques per-tenant; overdue sweep per-tenant (task 7.4); document templates now per-tenant rows (provisioned by `seedTenantDefaults`)
-- [ ] 12.2 PDF renders store under the tenant prefix; PromptPay QR unchanged in M7 (per-tenant `PROMPTPAY_ID` moves to tenant settings in m8 — leave a TODO referencing that change)
-- [ ] 12.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 12.1 Audit quotation/invoice/payment/receipt/WHT paths; all `doc_no`/`cert_no` uniques per-tenant; overdue sweep per-tenant (task 7.4); document templates now per-tenant rows (provisioned by `seedTenantDefaults`) *As built:* the composite uniques already landed with the schema sweep; by-id reads/writes rely on RLS; the overdue sweep's candidate select, the customer search and the aging report add an explicit `tenant_id` predicate via `inCallerTenant` (RLS is skipped on an owner/superuser connection, where one tenant's sweep job otherwise flipped every tenant's past-due invoices). `overdue-monitor.worker.spec.ts` pins fan-out vs. per-tenant sweep; `sales.int.spec.ts` covers the same `doc_no` in two tenants vs. twice in one, per-tenant sweeps, search and aging
+- [x] 12.2 PDF renders store under the tenant prefix; PromptPay QR unchanged in M7 (per-tenant `PROMPTPAY_ID` moves to tenant settings in m8 — leave a TODO referencing that change) *As built:* export/WHT-certificate/e-Tax keys stay relative and `StorageService` (task 7.2) resolves them under `tenants/{tid}/` inside the job's tenant scope — `export.service.spec.ts` asserts the stored keys; `TODO(m8-tenant-control-plane)` on `PromptPayService`
+- [x] 12.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 13. Business-module sweep — `apps/api/src/reporting`
 

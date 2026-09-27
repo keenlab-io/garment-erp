@@ -11,6 +11,7 @@ import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
 import { BaseWorker } from "../queue/base.worker.js";
 import { QUEUES } from "../queue/queue.constants.js";
+import { inCallerTenant } from "../tenancy/in-caller-tenant.js";
 import { currentTenantId } from "../tenancy/tenant-context.js";
 import { fanOutPerTenant } from "../tenancy/tenant-fan-out.js";
 import { SALES_EVENTS, type InvoiceOverduePayload } from "./sales.events.js";
@@ -28,7 +29,10 @@ const SALES_OVERDUE_SCHEDULER_ID = "sales-overdue-monitor";
  * replicas don't stack duplicate schedulers.
  *
  * Tenancy (M7 design D11): the repeatable tick is a platform job that fans out one
- * `{ tenantId }` job per ACTIVE tenant; each runs the sweep scoped to its tenant.
+ * `{ tenantId }` job per ACTIVE tenant; each runs the sweep scoped to its tenant. The candidate
+ * select carries an explicit `tenant_id` predicate (`inCallerTenant`, M7 §12.1) on top of RLS: on
+ * an owner/superuser connection RLS is skipped, and one tenant's job would otherwise flip (and
+ * emit `InvoiceOverdue` for) every tenant's past-due invoices.
  */
 @Processor(QUEUES.default)
 export class OverdueMonitorWorker
@@ -75,9 +79,12 @@ export class OverdueMonitorWorker
       .select()
       .from(invoice)
       .where(
-        and(
-          inArray(invoice.status, ["ISSUED", "PARTIALLY_PAID"]),
-          lt(invoice.dueDate, isoDate(now)),
+        inCallerTenant(
+          invoice.tenantId,
+          and(
+            inArray(invoice.status, ["ISSUED", "PARTIALLY_PAID"]),
+            lt(invoice.dueDate, isoDate(now)),
+          ),
         ),
       );
 
