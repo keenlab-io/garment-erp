@@ -4,7 +4,11 @@ import { SALES_EVENTS } from "../sales/sales.events.js";
 /** `mv-refresh`-queue job name. */
 export const MV_REFRESH_JOB = "reporting.mv-refresh";
 
-/** The three M6 materialized views (design D2). */
+/**
+ * The three M6 materialized views (design D2). They hold every tenant's rows and are revoked
+ * from the runtime role (M7 design D8): reads go through `REPORTING_VIEW`, refreshes through
+ * the `reporting.refresh_mv` SECURITY DEFINER function.
+ */
 export const MV = {
   stockValuation: "mv_stock_valuation",
   salesDaily: "mv_sales_daily",
@@ -12,6 +16,24 @@ export const MV = {
 } as const;
 
 export type MvName = (typeof MV)[keyof typeof MV];
+
+/**
+ * The tenant-filtered `security_barrier` view over each MV (M7 design D8) — the only relation
+ * reporting queries may read.
+ */
+export const REPORTING_VIEW = {
+  stockValuation: "v_stock_valuation",
+  salesDaily: "v_sales_daily",
+  cogsMonthly: "v_cogs_monthly",
+} as const;
+
+/**
+ * The debounce job id of a targeted refresh — one pending job per `(tenant, view)`. Dot-joined:
+ * BullMQ rejects custom ids with a `:` (outside its own repeat-key shape).
+ */
+export function mvRefreshJobId(tenantId: string, view: MvName): string {
+  return `${MV_REFRESH_JOB}.${tenantId}.${view}`;
+}
 
 /** All view names — the allowlist a refresh is validated against and the fallback refreshes. */
 export const ALL_VIEWS: MvName[] = Object.values(MV);

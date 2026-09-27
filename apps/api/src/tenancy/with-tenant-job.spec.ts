@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BusinessRuleError } from "../common/errors/app-exception.js";
-import { currentTenant } from "./tenant-context.js";
-import { withTenantJob } from "./with-tenant-job.js";
+import { currentTenant, runWithTenant } from "./tenant-context.js";
+import { tenantJobData, withTenantJob } from "./with-tenant-job.js";
 
 const TENANT = "00000000-0000-4000-8000-00000000000a";
 
@@ -33,5 +33,16 @@ describe("withTenantJob", () => {
       currentTenant(),
     );
     expect(store).toBeUndefined();
+  });
+});
+
+describe("tenantJobData", () => {
+  it("stamps the payload with the ambient tenant", () => {
+    const data = runWithTenant(TENANT, "jwt", () => tenantJobData({ payslip_id: "p1" }));
+    expect(data).toEqual({ payslip_id: "p1", tenantId: TENANT });
+  });
+
+  it("refuses to build a tenant job outside a tenant scope", () => {
+    expect(() => tenantJobData({ payslip_id: "p1" })).toThrow(BusinessRuleError);
   });
 });

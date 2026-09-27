@@ -1,16 +1,22 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { eq } from "drizzle-orm";
+import { and, eq, type SQL } from "drizzle-orm";
 import { documentSequence, type Db } from "@erp/db";
 import { NotFoundError } from "../common/errors/app-exception.js";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
 import { UnitOfWork } from "../db/unit-of-work.service.js";
+import { currentTenantId } from "../tenancy/tenant-context.js";
 
 /**
  * Race-safe document numbering (design D9). `next(key)` runs inside a transaction,
  * locks the single `document_sequence` row with `SELECT … FOR UPDATE`, applies the
  * yearly reset if configured, increments, and renders the format template — so
  * concurrent callers never produce a duplicate number.
+ *
+ * Tenancy (M7 design D9): sequences are per tenant — PK `(tenant_id, key)` — so the lock and
+ * the update target only the caller-tenant's row and every tenant numbers from 1. RLS scopes
+ * the scan; the explicit `tenant_id` predicate lets the PK index serve it. Outside any tenant
+ * scope the predicate is omitted and RLS alone decides (no GUC → no rows → NotFound).
  */
 @Injectable()
 export class SequenceService {
@@ -22,10 +28,11 @@ export class SequenceService {
   async next(key: string): Promise<string> {
     return this.uow.withTransaction(async () => {
       const executor = currentExecutor(this.db);
+      const scope = sequenceScope(key);
       const rows = await executor
         .select()
         .from(documentSequence)
-        .where(eq(documentSequence.key, key))
+        .where(scope)
         .for("update");
       const row = rows[0];
       if (!row) throw new NotFoundError(`Unknown document sequence: ${key}`);
@@ -43,7 +50,7 @@ export class SequenceService {
       await executor
         .update(documentSequence)
         .set({ currentValue: nextValue, yearScope })
-        .where(eq(documentSequence.key, key));
+        .where(scope);
 
       return renderSequenceFormat(row.format, {
         prefix: row.prefix,
@@ -53,6 +60,13 @@ export class SequenceService {
       });
     });
   }
+}
+
+/** `(tenant_id, key)` for the caller's tenant — the `document_sequence` primary key. */
+function sequenceScope(key: string): SQL | undefined {
+  const tenantId = currentTenantId();
+  const byKey = eq(documentSequence.key, key);
+  return tenantId === null ? byKey : and(eq(documentSequence.tenantId, tenantId), byKey);
 }
 
 export interface SequenceFormatContext {

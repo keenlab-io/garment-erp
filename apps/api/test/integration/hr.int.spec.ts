@@ -41,6 +41,7 @@ import {
   StateConflictError,
 } from "../../src/common/errors/app-exception.js";
 import { UnitOfWork } from "../../src/db/unit-of-work.service.js";
+import { DefaultTenantUnitOfWork } from "./tenant-harness.js";
 import { EventBusService } from "../../src/events/event-bus.service.js";
 import type { PdfService } from "../../src/pdf/pdf.service.js";
 import type { SequenceService } from "../../src/sequence/sequence.service.js";
@@ -115,7 +116,7 @@ describe.skipIf(!url)("HR & payroll services (integration)", () => {
 
   beforeAll(async () => {
     conn = createDb(url as string, { max: 1 });
-    uow = new UnitOfWork(conn.db);
+    uow = new DefaultTenantUnitOfWork(conn.db);
     const events = new EventBusService(new EventEmitter2());
     const config = new PayrollConfigService(conn.db);
     comp = new CompensationService(conn.db);
@@ -463,7 +464,7 @@ describe.skipIf(!url)("HR org structure & reporting line (integration)", () => {
 
   beforeAll(() => {
     conn = createDb(url as string, { max: 1 });
-    uow = new UnitOfWork(conn.db);
+    uow = new DefaultTenantUnitOfWork(conn.db);
     employees = new EmployeeService(
       conn.db,
       {} as SequenceService,

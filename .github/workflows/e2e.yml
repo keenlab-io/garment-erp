@@ -36,7 +36,12 @@ jobs:
     # that file is the outside-the-container topology (the devcontainer reaches the same
     # services by service name instead).
     env:
-      DATABASE_URL: postgres://erp:erp@localhost:5432/erp
+      # The api runs as the RLS-bound runtime role erp_app (created with a dev password by
+      # infra/postgres/init); migrate + seed run as the superuser via DATABASE_OWNER_URL.
+      # Self-hosted: every host resolves to the single default tenant (no tenant_domain rows).
+      DATABASE_URL: postgres://erp_app:erp_app@localhost:5432/erp
+      DATABASE_OWNER_URL: postgres://erp:erp@localhost:5432/erp
+      DEPLOYMENT_MODE: self-hosted
       REDIS_URL: redis://localhost:6379
       S3_ENDPOINT: http://localhost:9000
       S3_REGION: us-east-1

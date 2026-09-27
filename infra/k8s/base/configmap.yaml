@@ -8,6 +8,10 @@ metadata:
   namespace: erp
 data:
   NODE_ENV: "production"
+  # One factory per deployment today: every hostname resolves to the default tenant and the
+  # platform control plane is off. Login no longer falls back to the default tenant for an
+  # unmapped host (M7 task 7.9), so switch to "cloud" only after adding `tenant_domain` rows.
+  DEPLOYMENT_MODE: "self-hosted"
   S3_ENDPOINT: "http://erp-minio:9000"
   S3_BUCKET: "erp"
   S3_FORCE_PATH_STYLE: "true"

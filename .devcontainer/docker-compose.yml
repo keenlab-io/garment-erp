@@ -24,7 +24,12 @@ services:
     environment:
       # Connection settings for every runtime dependency, validated by env.schema.ts
       # at API boot. Secrets here are dev-only placeholders.
-      DATABASE_URL: postgres://erp:erp@postgres:5432/erp
+      # The API runs as the RLS-bound role erp_app (M7 design D2) so local work exercises the
+      # tenant policies; migrations/seed run as the superuser (DATABASE_OWNER_URL). One tenant
+      # for every host (self-hosted) — no tenant_domain rows are needed for localhost.
+      DATABASE_URL: postgres://erp_app:erp_app@postgres:5432/erp
+      DATABASE_OWNER_URL: postgres://erp:erp@postgres:5432/erp
+      DEPLOYMENT_MODE: self-hosted
       POSTGRES_HOST: postgres
       REDIS_URL: redis://redis:6379
       S3_ENDPOINT: http://minio:9000
@@ -55,6 +60,8 @@ services:
       POSTGRES_DB: erp
     volumes:
       - erp-pgdata:/var/lib/postgresql/data
+      # Creates the M7 tenancy roles (erp_owner / erp_app, with dev passwords) on a fresh volume.
+      - ../infra/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U erp"]
       interval: 5s

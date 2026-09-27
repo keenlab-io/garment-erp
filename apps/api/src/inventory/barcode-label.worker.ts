@@ -6,6 +6,7 @@ import * as bwipjs from "bwip-js/node";
 import { sku, stockLot, type Db } from "@erp/db";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
+import { UnitOfWork } from "../db/unit-of-work.service.js";
 import { PdfService } from "../pdf/pdf.service.js";
 import { StorageService } from "../storage/storage.service.js";
 import { BaseWorker } from "../queue/base.worker.js";
@@ -28,6 +29,7 @@ interface Label {
 export class BarcodeLabelWorker extends BaseWorker<BarcodeLabelJob, { key: string } | null> {
   constructor(
     @Inject(DB) private readonly db: Db,
+    private readonly uow: UnitOfWork,
     private readonly pdf: PdfService,
     private readonly storage: StorageService,
   ) {
@@ -37,7 +39,8 @@ export class BarcodeLabelWorker extends BaseWorker<BarcodeLabelJob, { key: strin
   async handle(job: Job<BarcodeLabelJob>): Promise<{ key: string } | null> {
     if (job.name !== BARCODE_LABEL_JOB) return null;
 
-    const labels = await this.collectLabels(job.data);
+    // A tenant transaction, so the lookups run under the job tenant's RLS scope (M7 D11).
+    const labels = await this.uow.withTransaction(() => this.collectLabels(job.data));
     const cells = await Promise.all(
       labels.map(async (label) => {
         const png = await bwipjs.toBuffer({

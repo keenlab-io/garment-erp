@@ -13,11 +13,17 @@ import { ALL_VIEWS, MV_REFRESH_JOB, type MvName } from "./mv-refresh.js";
 const MV_REFRESH_FALLBACK_ID = "reporting-mv-refresh-fallback";
 
 /**
- * Runs the targeted `REFRESH MATERIALIZED VIEW CONCURRENTLY` a debounced job asks for (task 4.6,
- * design D10). `CONCURRENTLY` must run **outside** a transaction, so it executes on the pool
- * (never `uow.withTransaction`) — each MV's unique index makes the concurrent refresh possible.
- * On init it also registers a repeatable fallback that refreshes every view, bounding staleness
- * when event-driven refreshes are quiet. A refresh failure (e.g. a view absent before the M6
+ * Runs the targeted refresh a debounced job asks for (task 4.6, design D10). The runtime role
+ * neither owns the MVs nor may read their sources across tenants, so the refresh goes through
+ * `reporting.refresh_mv(view)` (M7 design D8) — a SECURITY DEFINER function owned by
+ * `erp_owner` that runs `REFRESH MATERIALIZED VIEW CONCURRENTLY` over **all** tenants' rows for
+ * an allowlisted view. It executes on the pool (never `uow.withTransaction`) — each MV's unique
+ * index makes the concurrent refresh possible. A targeted job is tenant-scoped (its debounce
+ * key); the refresh itself is global either way.
+ *
+ * On init it also registers a repeatable fallback that refreshes every view once — a platform
+ * job with no tenant, since one refresh covers every tenant's rows — bounding staleness when
+ * event-driven refreshes are quiet. A refresh failure (e.g. a view absent before the M6
  * migration applies) is logged, not thrown, so the queue never dead-letters on a dormant env.
  */
 @Processor(QUEUES.mvRefresh)
@@ -65,7 +71,7 @@ export class MvRefreshWorker
     }
     const ex = currentExecutor(this.db);
     try {
-      await ex.execute(sql.raw(`REFRESH MATERIALIZED VIEW CONCURRENTLY "${view}"`));
+      await ex.execute(sql`SELECT reporting.refresh_mv(${view})`);
     } catch (err) {
       this.logger.warn(`REFRESH ${view} failed: ${String(err)}`);
     }

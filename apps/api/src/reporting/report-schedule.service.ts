@@ -17,6 +17,7 @@ import { buildPage } from "../common/pagination/cursor.js";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor, onCommit } from "../db/tx-context.js";
 import { QUEUES } from "../queue/queue.constants.js";
+import { tenantJobData } from "../tenancy/with-tenant-job.js";
 import { scheduleSchedulerId, toScheduleDto } from "./schedule.util.js";
 
 /** `report`-queue job name for a digest render (repeatable cron + `run-now` one-off). */
@@ -148,19 +149,21 @@ export class ReportScheduleService {
       .where(and(eq(reportSchedule.id, id), notDeleted(reportSchedule.deletedAt)))
       .limit(1);
     if (!row) throw new NotFoundError(`Report schedule not found: ${id}`);
-    const job = await this.queue.add(REPORT_DIGEST_JOB, { schedule_id: id });
+    const job = await this.queue.add(REPORT_DIGEST_JOB, tenantJobData({ schedule_id: id }));
     return { job_id: String(job.id ?? "") };
   }
 
   /** Upsert the repeatable job when active, else remove it — after the write commits. */
   private reconcileScheduler(id: string, cron: string, isActive: boolean): void {
     if (isActive) {
+      // Every tick of the repeatable job carries the owning tenant (M7 design D11).
+      const data = tenantJobData({ schedule_id: id });
       onCommit(async () => {
         try {
           await this.queue.upsertJobScheduler(
             scheduleSchedulerId(id),
             { pattern: cron },
-            { name: REPORT_DIGEST_JOB, data: { schedule_id: id } },
+            { name: REPORT_DIGEST_JOB, data },
           );
         } catch (err) {
           this.logger.warn(`Could not upsert schedule ${id}: ${String(err)}`);

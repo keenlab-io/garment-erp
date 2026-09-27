@@ -35,6 +35,7 @@ import { ImportService } from "../../src/iam/import.service.js";
 import { RolePermissionResolver } from "../../src/iam/role-permission.resolver.js";
 import { RoleService } from "../../src/iam/role.service.js";
 import { UserService } from "../../src/iam/user.service.js";
+import { runWithTenant } from "../../src/tenancy/tenant-context.js";
 
 const url = process.env.DATABASE_URL_TEST;
 
@@ -260,12 +261,25 @@ describe.skipIf(!url)("IAM services (integration)", () => {
     expect(rows[0]?.at).toBeInstanceOf(Date);
   });
 
+  /** Log in the way a request on the default tenant's host does (tenant resolved pre-login). */
+  const hostLogin = (username: string, password: string) =>
+    runWithTenant(DEFAULT_TENANT_ID, "host", () => authService.login(username, password));
+
+  // M7 task 7.9 — no default-tenant fallback: a host that resolves to no tenant cannot log in.
+  it("refuses a login when the host resolves to no tenant", async () => {
+    await createUser({ username: "hostless", password: "correct-pw" });
+    await expect(authService.login("hostless", "correct-pw")).rejects.toBeInstanceOf(
+      UnauthenticatedError,
+    );
+    await expect(hostLogin("hostless", "correct-pw")).resolves.toHaveProperty("access_token");
+  });
+
   // 4.5
   it("locks the account after repeated bad logins; success resets the counter", async () => {
     await createUser({ username: "victim", password: "correct-pw" });
 
     for (let i = 0; i < 5; i++) {
-      await expect(authService.login("victim", "wrong")).rejects.toBeInstanceOf(
+      await expect(hostLogin("victim", "wrong")).rejects.toBeInstanceOf(
         UnauthenticatedError,
       );
     }
@@ -280,7 +294,7 @@ describe.skipIf(!url)("IAM services (integration)", () => {
 
     // Correct password while locked ⇒ still refused.
     await expect(
-      authService.login("victim", "correct-pw"),
+      hostLogin("victim", "correct-pw"),
     ).rejects.toBeInstanceOf(UnauthenticatedError);
 
     // Expire the lock, then a correct login succeeds and resets the counter.
@@ -288,7 +302,7 @@ describe.skipIf(!url)("IAM services (integration)", () => {
       .update(user)
       .set({ lockedUntil: new Date(Date.now() - 1000) })
       .where(eq(user.username, "victim"));
-    const pair = await authService.login("victim", "correct-pw");
+    const pair = await hostLogin("victim", "correct-pw");
     expect(pair.access_token).toBeTruthy();
 
     const [after] = await conn.db

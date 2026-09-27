@@ -9,6 +9,7 @@ import { currentExecutor } from "../db/tx-context.js";
 import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
 import { QUEUES } from "../queue/queue.constants.js";
+import { fanOutPerTenant } from "../tenancy/tenant-fan-out.js";
 import { HR_EVENTS, type ProbationEndingPayload } from "./hr.events.js";
 import { today } from "./hr.util.js";
 
@@ -48,6 +49,14 @@ export class ProbationService implements OnModuleInit {
       // Never block boot on the scheduler (e.g. Redis briefly unavailable in dev).
       this.logger.warn(`Could not register the probation scan job: ${String(err)}`);
     }
+  }
+
+  /**
+   * One scheduler tick (M7 design D11): enqueue a `{ tenantId }` scan per ACTIVE tenant, so each
+   * tenant's probationers are scanned under its own RLS scope. Returns the tenant count.
+   */
+  fanOut(tick: number): Promise<number> {
+    return fanOutPerTenant(this.db, this.queue, PROBATION_SCAN_JOB, tick);
   }
 
   /** Emit `ProbationEnding` for probationers ending within the alert window. */

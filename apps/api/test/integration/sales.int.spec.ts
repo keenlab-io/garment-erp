@@ -17,6 +17,7 @@ import {
   StateConflictError,
 } from "../../src/common/errors/app-exception.js";
 import { UnitOfWork } from "../../src/db/unit-of-work.service.js";
+import { DefaultTenantUnitOfWork } from "./tenant-harness.js";
 import { EventBusService } from "../../src/events/event-bus.service.js";
 import { SequenceService } from "../../src/sequence/sequence.service.js";
 import { CustomerService } from "../../src/sales/customer.service.js";
@@ -65,7 +66,7 @@ describe.skipIf(!url)("Sales services (integration)", () => {
     conn = createDb(url as string, { max: 25 });
     const emitter = new EventEmitter2();
     const events = new EventBusService(emitter);
-    uow = new UnitOfWork(conn.db);
+    uow = new DefaultTenantUnitOfWork(conn.db);
     const sequences = new SequenceService(conn.db, uow);
     const totals = new TotalsService();
     const audit = new AuditService(conn.db);

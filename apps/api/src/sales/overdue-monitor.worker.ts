@@ -11,6 +11,8 @@ import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
 import { BaseWorker } from "../queue/base.worker.js";
 import { QUEUES } from "../queue/queue.constants.js";
+import { currentTenantId } from "../tenancy/tenant-context.js";
+import { fanOutPerTenant } from "../tenancy/tenant-fan-out.js";
 import { SALES_EVENTS, type InvoiceOverduePayload } from "./sales.events.js";
 import { isoDate } from "./sales.util.js";
 
@@ -24,6 +26,9 @@ const SALES_OVERDUE_SCHEDULER_ID = "sales-overdue-monitor";
  * transaction, it flips ISSUED / PARTIALLY_PAID invoices whose `due_date` is past to
  * **OVERDUE** and emits `InvoiceOverdue`. The upserted scheduler (single job key) means API
  * replicas don't stack duplicate schedulers.
+ *
+ * Tenancy (M7 design D11): the repeatable tick is a platform job that fans out one
+ * `{ tenantId }` job per ACTIVE tenant; each runs the sweep scoped to its tenant.
  */
 @Processor(QUEUES.default)
 export class OverdueMonitorWorker
@@ -54,7 +59,10 @@ export class OverdueMonitorWorker
   }
 
   async handle(job: Job): Promise<{ ok: true }> {
-    if (job.name === SALES_OVERDUE_JOB) {
+    if (job.name !== SALES_OVERDUE_JOB) return { ok: true };
+    if (currentTenantId() === null) {
+      await fanOutPerTenant(this.db, this.queue, SALES_OVERDUE_JOB, job.timestamp);
+    } else {
       await this.uow.withTransaction(() => this.sweep(new Date()));
     }
     return { ok: true };

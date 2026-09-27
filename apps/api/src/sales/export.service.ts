@@ -13,15 +13,16 @@ import { PdfService } from "../pdf/pdf.service.js";
 import { QUEUES } from "../queue/queue.constants.js";
 import { StorageService } from "../storage/storage.service.js";
 import { loadLines } from "./doc-lines.js";
+import { tenantJobData, type TenantJobData } from "../tenancy/with-tenant-job.js";
 
 export const SALES_EXPORT_JOB = "sales.export";
 export const SALES_WHT_CERT_JOB = "sales.wht-certificate";
 
-export interface SalesExportJob {
+export interface SalesExportJob extends TenantJobData {
   invoice_id: string;
   format: ExportFormat;
 }
-export interface SalesWhtCertJob {
+export interface SalesWhtCertJob extends TenantJobData {
   invoice_id: string;
 }
 
@@ -46,19 +47,20 @@ export class ExportService {
   /** Enqueue an invoice export; returns the job id for the 202 poll. */
   async enqueueExport(invoiceId: string, format: ExportFormat): Promise<{ job_id: string }> {
     await this.assertInvoice(invoiceId);
-    const job = await this.queue.add(SALES_EXPORT_JOB, {
-      invoice_id: invoiceId,
-      format,
-    } satisfies SalesExportJob);
+    const job = await this.queue.add(
+      SALES_EXPORT_JOB,
+      tenantJobData({ invoice_id: invoiceId, format }) satisfies SalesExportJob,
+    );
     return { job_id: String(job.id ?? "") };
   }
 
   /** Enqueue a WHT certificate render; returns the job id for the 202 poll. */
   async enqueueWhtCertificate(invoiceId: string): Promise<{ job_id: string }> {
     await this.assertInvoice(invoiceId);
-    const job = await this.queue.add(SALES_WHT_CERT_JOB, {
-      invoice_id: invoiceId,
-    } satisfies SalesWhtCertJob);
+    const job = await this.queue.add(
+      SALES_WHT_CERT_JOB,
+      tenantJobData({ invoice_id: invoiceId }) satisfies SalesWhtCertJob,
+    );
     return { job_id: String(job.id ?? "") };
   }
 

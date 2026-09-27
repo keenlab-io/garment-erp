@@ -17,12 +17,13 @@ import { StorageService } from "../storage/storage.service.js";
 import { REPORTING_EVENTS, type ReportGeneratedPayload } from "./reporting.events.js";
 import { ReportService } from "./report.service.js";
 import { mapJobState, toCsv, toHtml, toReportQuery } from "./reporting.util.js";
+import { tenantJobData, type TenantJobData } from "../tenancy/with-tenant-job.js";
 
 /** `report`-queue job names (design D7). */
 export const REPORT_EXPORT_JOB = "reporting.export";
 
 /** Payload of an export job — a report key, output format, and its query params. */
-export interface ReportExportJob {
+export interface ReportExportJob extends TenantJobData {
   report_key: string;
   format: ReportExportFormatT;
   params: Record<string, unknown>;
@@ -69,11 +70,10 @@ export class ExportService {
     format: ReportExportFormatT,
     params: Record<string, unknown>,
   ): Promise<{ job_id: string }> {
-    const job = await this.queue.add(REPORT_EXPORT_JOB, {
-      report_key: reportKey,
-      format,
-      params,
-    } satisfies ReportExportJob);
+    const job = await this.queue.add(
+      REPORT_EXPORT_JOB,
+      tenantJobData({ report_key: reportKey, format, params }) satisfies ReportExportJob,
+    );
     return { job_id: String(job.id ?? "") };
   }
 

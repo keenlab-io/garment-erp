@@ -1,5 +1,5 @@
 import { BusinessRuleError } from "../common/errors/app-exception.js";
-import { isTenantId, runWithTenant } from "./tenant-context.js";
+import { currentTenantId, isTenantId, runWithTenant } from "./tenant-context.js";
 
 /**
  * Jobs allowed to run with no tenant: the repeatable sweep *schedulers* (M7 design D11), whose
@@ -40,4 +40,22 @@ export async function withTenantJob<T>(job: TenantJob, fn: () => Promise<T>): Pr
     throw new BusinessRuleError(`Job "${job.name}" carries a malformed tenantId`);
   }
   return runWithTenant(tenantId, "job", fn);
+}
+
+/** The tenant field every tenant-scoped job payload carries (M7 design D11). */
+export interface TenantJobData {
+  tenantId: string;
+}
+
+/**
+ * Stamp a job payload with the ambient tenant at enqueue time — the producer half of
+ * `withTenantJob`. Throws outside a tenant scope, so a tenant job can never be enqueued
+ * unscoped (only the allowlisted `PLATFORM_JOBS` schedulers are, and they build their own data).
+ */
+export function tenantJobData<T extends object>(data: T): T & TenantJobData {
+  const tenantId = currentTenantId();
+  if (tenantId === null) {
+    throw new BusinessRuleError("Cannot enqueue a tenant job outside a tenant scope");
+  }
+  return { ...data, tenantId };
 }

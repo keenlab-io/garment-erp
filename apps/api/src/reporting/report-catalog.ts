@@ -76,13 +76,13 @@ const stockValuation: Builder = async (ex) => {
   const rows = await run(
     ex,
     sql`SELECT item_id, warehouse_id, qty_on_hand, avg_cost, value
-        FROM mv_stock_valuation
+        FROM v_stock_valuation
         ORDER BY item_id, warehouse_id`,
   );
   return { columns, rows, totals: sumColumns(rows, ["value"]) };
 };
 
-/** Sales per day/customer over the window — the sales dashboard's spine (mv_sales_daily). */
+/** Sales per day/customer over the window — the sales dashboard's spine (v_sales_daily). */
 const salesDaily = (byCustomer: boolean): Builder =>
   async (ex, w) => {
     const columns = byCustomer
@@ -90,21 +90,21 @@ const salesDaily = (byCustomer: boolean): Builder =>
       : [col("d", "Date"), col("sales", "Sales"), col("vat", "VAT")];
     const select = byCustomer
       ? sql`SELECT customer_id, sum(sales) AS sales, sum(vat) AS vat
-            FROM mv_sales_daily${windowClause("d", w)}
+            FROM v_sales_daily${windowClause("d", w)}
             GROUP BY customer_id ORDER BY sales DESC`
       : sql`SELECT d, sum(sales) AS sales, sum(vat) AS vat
-            FROM mv_sales_daily${windowClause("d", w)}
+            FROM v_sales_daily${windowClause("d", w)}
             GROUP BY d ORDER BY d`;
     const rows = await run(ex, select);
     return { columns, rows, totals: sumColumns(rows, ["sales", "vat"]) };
   };
 
-/** Monthly COGS from goods-issue/backflush OUT movements (mv_cogs_monthly). */
+/** Monthly COGS from goods-issue/backflush OUT movements (v_cogs_monthly). */
 const cogsMonthly: Builder = async (ex, w) => {
   const columns = [col("m", "Month"), col("cogs", "COGS")];
   const rows = await run(
     ex,
-    sql`SELECT m, sum(cogs) AS cogs FROM mv_cogs_monthly${windowClause("m", w)}
+    sql`SELECT m, sum(cogs) AS cogs FROM v_cogs_monthly${windowClause("m", w)}
         GROUP BY m ORDER BY m`,
   );
   return { columns, rows, totals: sumColumns(rows, ["cogs"]) };
@@ -116,7 +116,7 @@ const taxPp30: Builder = async (ex, w) => {
   const rows = await run(
     ex,
     sql`SELECT d, sum(sales) AS base, sum(vat) AS vat
-        FROM mv_sales_daily${windowClause("d", w)} GROUP BY d ORDER BY d`,
+        FROM v_sales_daily${windowClause("d", w)} GROUP BY d ORDER BY d`,
   );
   return { columns, rows, totals: sumColumns(rows, ["base", "vat"]) };
 };

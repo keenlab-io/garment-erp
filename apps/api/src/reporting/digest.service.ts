@@ -10,6 +10,7 @@ import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
 import { QUEUES } from "../queue/queue.constants.js";
 import { StorageService } from "../storage/storage.service.js";
+import { tenantJobData } from "../tenancy/with-tenant-job.js";
 import { ExportService } from "./export.service.js";
 import { REPORT_EMAIL_JOB, type ReportEmailJob } from "./mail.worker.js";
 import {
@@ -57,19 +58,22 @@ export class DigestService {
       recipients: row.recipients,
       reason: "",
     };
-    await this.emailQueue.add(REPORT_EMAIL_JOB, {
-      to: row.recipients,
-      subject: `Report digest: ${row.name}`,
-      text: `Scheduled report "${row.reportKey}" is attached.`,
-      attachments: [
-        {
-          filename: artifact.filename,
-          storage_key: storageKey,
-          content_type: artifact.contentType,
-        },
-      ],
-      alert,
-    } satisfies ReportEmailJob);
+    await this.emailQueue.add(
+      REPORT_EMAIL_JOB,
+      tenantJobData({
+        to: row.recipients,
+        subject: `Report digest: ${row.name}`,
+        text: `Scheduled report "${row.reportKey}" is attached.`,
+        attachments: [
+          {
+            filename: artifact.filename,
+            storage_key: storageKey,
+            content_type: artifact.contentType,
+          },
+        ],
+        alert,
+      }) satisfies ReportEmailJob,
+    );
 
     this.events.publishAfterCommit(
       makeEvent<ScheduledReportSentPayload>({

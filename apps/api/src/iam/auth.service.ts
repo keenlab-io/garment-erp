@@ -3,7 +3,6 @@ import { Inject, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { and, eq, isNull } from "drizzle-orm";
 import {
-  DEFAULT_TENANT_ID,
   role,
   session,
   tenant,
@@ -64,13 +63,14 @@ export class AuthService {
    * A successful login resets the counter and creates a session.
    */
   async login(username: string, password: string): Promise<TokenPair> {
+    // The tenant comes from the host the browser connected to (TenantResolutionMiddleware,
+    // design D5) — never from the request body. An unresolved host has no tenant to log into:
+    // refuse, with the same error as a bad password so hostnames cannot be probed. Self-hosted
+    // deployments resolve every host to their single tenant, so they never reach this.
     const scope = currentTenant();
-    // TODO(M7 task 7.9): drop the default-tenant fallback with the other transitional defaults
-    // (design D17) — an unresolved host must then refuse login. Until then no deployment maps
-    // its hostnames in `tenant_domain`, and every existing user lives in the default tenant.
-    const tenantId = scope?.tenantId ?? DEFAULT_TENANT_ID;
-    return runWithTenant(tenantId, scope?.source ?? "host", () =>
-      this.loginInTenant(tenantId, username, password),
+    if (!scope) throw new UnauthenticatedError("Invalid credentials");
+    return runWithTenant(scope.tenantId, scope.source, () =>
+      this.loginInTenant(scope.tenantId, username, password),
     );
   }
 
