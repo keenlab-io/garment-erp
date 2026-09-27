@@ -11,6 +11,11 @@ import { resolveWindow, type ReportWindow } from "./report-window.js";
  * The read-only report engine (task 4.1, design D4). Resolves a `report_key` to its catalog
  * builder and runs it against the M6 materialized views on the primary connection (design D1).
  * An unknown key is a 404. All access is authorized in the controller before this runs.
+ *
+ * Tenancy (M7 §13.1): builders read the `v_*` security-barrier views, which filter on the
+ * transaction's `app.tenant_id` — so a report is per tenant exactly when it runs inside the
+ * tenant transaction (the request's `TenantTransactionInterceptor`, or a job's `withTransaction`
+ * under `withTenantJob`). Outside one the views return no rows (fail-closed).
  */
 @Injectable()
 export class ReportService {

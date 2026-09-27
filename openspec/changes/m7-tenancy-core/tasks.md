@@ -115,9 +115,9 @@
 
 ## 13. Business-module sweep — `apps/api/src/reporting`
 
-- [ ] 13.1 Switch all dashboard/report repositories from `mv_*` to the `v_*` security-barrier views; report exports + schedules are per-tenant rows; scheduled digests enqueue with `tenantId`
-- [ ] 13.2 Reconciliation check (valuation vs stock cards) now runs per tenant inside the tenant transaction — extend its test to two tenants
-- [ ] 13.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 13.1 Switch all dashboard/report repositories from `mv_*` to the `v_*` security-barrier views; report exports + schedules are per-tenant rows; scheduled digests enqueue with `tenantId`
+- [x] 13.2 Reconciliation check (valuation vs stock cards) now runs per tenant inside the tenant transaction — extend its test to two tenants
+- [x] 13.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 14. Web — `apps/web/src`
 

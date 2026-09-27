@@ -122,7 +122,9 @@ const taxPp30: Builder = async (ex, w) => {
 };
 
 /**
- * The full report catalog (design D4). MV-backed reports query the M6 materialized views;
+ * The full report catalog (design D4). MV-backed reports read the M6 materialized views only
+ * through their tenant-filtered `security_barrier` wrappers (`v_*`, M7 design D8 / §13.1) — the
+ * `mv_*` relations hold every tenant's rows and are revoked from the runtime role;
  * catalogued reports whose detailed read model is not built yet resolve as empty (still gated,
  * still shaped). An unknown key is absent here → the caller 404s.
  */

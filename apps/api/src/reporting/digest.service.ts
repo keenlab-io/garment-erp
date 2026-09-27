@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { reportSchedule, type Db } from "@erp/db";
 import { NotFoundError } from "../common/errors/app-exception.js";
 import { DB } from "../db/db.tokens.js";
@@ -10,6 +10,7 @@ import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
 import { QUEUES } from "../queue/queue.constants.js";
 import { StorageService } from "../storage/storage.service.js";
+import { inCallerTenant } from "../tenancy/in-caller-tenant.js";
 import { tenantJobData } from "../tenancy/with-tenant-job.js";
 import { ExportService } from "./export.service.js";
 import { REPORT_EMAIL_JOB, type ReportEmailJob } from "./mail.worker.js";
@@ -25,7 +26,8 @@ import {
  * and enqueues an `email` job carrying the artifact and the failure-alert context, then emits
  * `ScheduledReportSent`. The actual send (with retry + exhaustion alert) is the `EmailWorker`'s
  * job, so a digest render and its delivery fail independently. Idempotent on the schedule id +
- * job id (design D12).
+ * job id (design D12). Tenancy (M7 §13.1): the job runs in its payload tenant's transaction, the
+ * schedule is looked up within that tenant only, and the email job is stamped with it.
  */
 @Injectable()
 export class DigestService {
@@ -43,7 +45,7 @@ export class DigestService {
     const [row] = await ex
       .select()
       .from(reportSchedule)
-      .where(and(eq(reportSchedule.id, scheduleId)))
+      .where(inCallerTenant(reportSchedule.tenantId, eq(reportSchedule.id, scheduleId)))
       .limit(1);
     if (!row) throw new NotFoundError(`Report schedule not found: ${scheduleId}`);
 
