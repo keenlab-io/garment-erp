@@ -10,6 +10,7 @@ import { NotFoundError } from "../common/errors/app-exception.js";
 import { buildPage } from "../common/pagination/cursor.js";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
+import { inCallerTenant } from "../tenancy/in-caller-tenant.js";
 
 /**
  * Routing templates and their ordered steps (task 4.1, spec §4.2). A template is the reusable
@@ -81,7 +82,9 @@ export class RoutingService {
     const rows = await ex
       .select()
       .from(routingTemplate)
-      .where(after ? gt(routingTemplate.id, after.id) : undefined)
+      .where(
+        inCallerTenant(routingTemplate.tenantId, after ? gt(routingTemplate.id, after.id) : undefined),
+      )
       .orderBy(asc(routingTemplate.id))
       .limit(query.limit + 1);
 

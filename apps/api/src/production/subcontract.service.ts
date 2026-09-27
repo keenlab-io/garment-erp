@@ -14,6 +14,7 @@ import { buildPage } from "../common/pagination/cursor.js";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
 import { EventBusService } from "../events/event-bus.service.js";
+import { inCallerTenant } from "../tenancy/in-caller-tenant.js";
 import { makeEvent } from "../events/domain-event.js";
 import { PRODUCTION_EVENTS } from "./production.events.js";
 import { toSubcontractDto } from "./production.util.js";
@@ -128,9 +129,12 @@ export class SubcontractService {
       .innerJoin(workOrderStep, eq(subcontract.woStepId, workOrderStep.id))
       .innerJoin(workOrder, eq(workOrderStep.woId, workOrder.id))
       .where(
-        and(
-          query.status ? eq(subcontract.status, query.status) : undefined,
-          after ? gt(subcontract.id, after.id) : undefined,
+        inCallerTenant(
+          subcontract.tenantId,
+          and(
+            query.status ? eq(subcontract.status, query.status) : undefined,
+            after ? gt(subcontract.id, after.id) : undefined,
+          ),
         ),
       )
       .orderBy(asc(subcontract.id))

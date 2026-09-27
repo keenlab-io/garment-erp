@@ -40,6 +40,10 @@ type WorkOrderStepRow = typeof workOrderStep.$inferSelect;
  * FINISH completes it and triggers completion. Re-scanning FINISH on a COMPLETED step → 409.
  * Every transition broadcasts `StepStarted`/`StepFinished` to the `wo:{id}` and `timeline`
  * realtime rooms.
+ *
+ * Tenancy (M7 §11.2): the scan-station kiosk has no token of its own — it signs in like any
+ * session, so its access token carries `tid` and `user.tenantId` is that verified claim. Every
+ * broadcast goes to `tenantRoom(user.tenantId, …)`, never a bare room.
  */
 @Injectable()
 export class ScanService {

@@ -22,6 +22,7 @@ import { currentExecutor } from "../db/tx-context.js";
 import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
 import { SequenceService } from "../sequence/sequence.service.js";
+import { inCallerTenant } from "../tenancy/in-caller-tenant.js";
 import { PRODUCTION_EVENTS } from "./production.events.js";
 import { toDefectDto, toStepDto, toWorkOrderDto } from "./production.util.js";
 
@@ -30,6 +31,11 @@ import { toDefectDto, toStepDto, toWorkOrderDto } from "./production.util.js";
  * sequence and **materializes** a `work_order_step` snapshot from the routing template's steps
  * (design D1) — copying `seq`/`name`/`standard_time_min` so a later template edit never mutates
  * a live WO. Detail and the timeline/Gantt feed compute `is_delayed` on read (design D4/D9).
+ *
+ * Tenancy (M7 §11.1): `wo_no` comes from the caller tenant's `WORK_ORDER` sequence and is unique
+ * per `(tenant_id, wo_no)`, so two tenants each mint their own `…0001`. By-id reads rely on RLS;
+ * the timeline list adds an explicit `tenant_id` predicate (RLS is skipped on owner/superuser
+ * connections).
  */
 @Injectable()
 export class WorkOrderService {
@@ -137,7 +143,12 @@ export class WorkOrderService {
     const wos = await ex
       .select()
       .from(workOrder)
-      .where(query.status ? eq(workOrder.status, query.status) : undefined)
+      .where(
+        inCallerTenant(
+          workOrder.tenantId,
+          query.status ? eq(workOrder.status, query.status) : undefined,
+        ),
+      )
       .orderBy(asc(workOrder.woNo));
     if (wos.length === 0) return [];
 
