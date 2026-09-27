@@ -1,14 +1,16 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { eq } from "drizzle-orm";
-import { session, user, type Db } from "@erp/db";
+import { platformAdmin, session, supportSession, user, type Db } from "@erp/db";
 import type { Permission } from "@erp/contracts";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
 import type {
   AuthSessionRecord,
+  AuthSupportSessionRecord,
   AuthUserRecord,
   PermissionResolver,
   SessionLookup,
+  SupportSessionLookup,
   UserLookup,
 } from "./auth.tokens.js";
 
@@ -53,6 +55,36 @@ export class DefaultSessionLookup implements SessionLookup {
       .where(eq(session.tokenId, tokenId))
       .limit(1);
     return rows[0] ?? null;
+  }
+}
+
+/**
+ * Default `SUPPORT_SESSION_LOOKUP` — reads the control-plane `support_session` table (exempt
+ * from tenancy/RLS) joined to its `platform_admin` for the admin's status.
+ */
+@Injectable()
+export class DefaultSupportSessionLookup implements SupportSessionLookup {
+  constructor(@Inject(DB) private readonly db: Db) {}
+
+  async byId(id: string): Promise<AuthSupportSessionRecord | null> {
+    const rows = await currentExecutor(this.db)
+      .select({
+        id: supportSession.id,
+        platformAdminId: supportSession.platformAdminId,
+        tenantId: supportSession.tenantId,
+        tokenId: supportSession.tokenId,
+        expiresAt: supportSession.expiresAt,
+        revokedAt: supportSession.revokedAt,
+        adminStatus: platformAdmin.status,
+      })
+      .from(supportSession)
+      .innerJoin(platformAdmin, eq(platformAdmin.id, supportSession.platformAdminId))
+      .where(eq(supportSession.id, id))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+    const { adminStatus, ...rest } = row;
+    return { ...rest, adminActive: adminStatus === "ACTIVE" };
   }
 }
 

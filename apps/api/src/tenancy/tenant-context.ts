@@ -6,10 +6,21 @@ import { AsyncLocalStorage } from "node:async_hooks";
  */
 export type TenantSource = "jwt" | "host" | "job" | "system";
 
+/**
+ * A platform support session acting inside the tenant (M7 design D6) — carried alongside the
+ * tenant so the audit path can dual-write into `platform_audit_log` without request access.
+ */
+export interface SupportScope {
+  supportSessionId: string;
+  platformAdminId: string;
+}
+
 /** The tenant acting in the current async call tree. */
 export interface TenantStore {
   tenantId: string;
   source: TenantSource;
+  /** Set when the request authenticated with a support-session token (`sup` claim). */
+  support?: SupportScope;
 }
 
 /**
@@ -48,6 +59,9 @@ export const currentTenantId = (): string | null => currentTenant()?.tenantId ??
 export const currentTenant = (): TenantStore | undefined =>
   tenantContext.getStore() ?? tenantSlot.getStore()?.store;
 
+/** The support session acting in the current tenant scope, or `undefined` for ordinary users. */
+export const currentSupportScope = (): SupportScope | undefined => currentTenant()?.support;
+
 /** Run `fn` (the rest of an HTTP request) with an empty tenant slot open for `enterTenant`. */
 export function openTenantSlot<T>(fn: () => T): T {
   return tenantSlot.run({}, fn);
@@ -58,11 +72,15 @@ export function openTenantSlot<T>(fn: () => T): T {
  * `runWithTenant` for an entry point that cannot wrap its continuation (`JwtGuard`). Fills the
  * request slot when one is open; otherwise falls back to `tenantContext.enterWith`.
  */
-export function enterTenant(tenantId: string, source: TenantSource): void {
+export function enterTenant(
+  tenantId: string,
+  source: TenantSource,
+  support?: SupportScope,
+): void {
   if (!isTenantId(tenantId)) {
     throw new Error(`Refusing to enter tenant context: "${tenantId}" is not a uuid`);
   }
-  const store: TenantStore = { tenantId, source };
+  const store: TenantStore = support ? { tenantId, source, support } : { tenantId, source };
   const slot = tenantSlot.getStore();
   if (slot) slot.store = store;
   else tenantContext.enterWith(store);

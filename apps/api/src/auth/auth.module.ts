@@ -3,11 +3,13 @@ import { JwtModule } from "@nestjs/jwt";
 import {
   DefaultPermissionResolver,
   DefaultSessionLookup,
+  DefaultSupportSessionLookup,
   DefaultUserLookup,
 } from "./auth.defaults.js";
 import {
   PERMISSION_RESOLVER,
   SESSION_LOOKUP,
+  SUPPORT_SESSION_LOOKUP,
   USER_LOOKUP,
 } from "./auth.tokens.js";
 import { JwtGuard } from "./jwt.guard.js";
@@ -33,6 +35,7 @@ import { TokenService } from "./token.service.js";
     { provide: USER_LOOKUP, useClass: DefaultUserLookup },
     { provide: SESSION_LOOKUP, useClass: DefaultSessionLookup },
     { provide: PERMISSION_RESOLVER, useClass: DefaultPermissionResolver },
+    { provide: SUPPORT_SESSION_LOOKUP, useClass: DefaultSupportSessionLookup },
   ],
   exports: [
     PasswordService,
@@ -44,6 +47,7 @@ import { TokenService } from "./token.service.js";
     USER_LOOKUP,
     SESSION_LOOKUP,
     PERMISSION_RESOLVER,
+    SUPPORT_SESSION_LOOKUP,
   ],
 })
 export class AuthModule {}

@@ -39,6 +39,11 @@ export const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(1),
   JWT_ACCESS_TTL: z.string().min(1).default("15m"),
   JWT_REFRESH_TTL: z.string().min(1).default("7d"),
+  // Platform-admin tokens (M7 design D6) — own secret and audience, so a platform token never
+  // passes the tenant `JwtGuard` and a tenant token never passes the platform guard. Optional:
+  // unset, platform tokens are signed with JWT_ACCESS_SECRET and kept apart by audience alone.
+  JWT_PLATFORM_SECRET: z.string().min(1).optional(),
+  JWT_PLATFORM_TTL: z.string().min(1).default("30m"),
 
   // PII encryption (M2). A 32-byte AES-256-GCM key as 64 hex characters. Validated
   // fail-fast at boot (like the JWT secrets) — the crypto helper refuses to start without
