@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { EventEmitter2 } from "@nestjs/event-emitter";
+import ExcelJS from "exceljs";
 import type { Queue } from "bullmq";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -21,6 +22,7 @@ import {
   salaryRecord,
   ssoConfig,
   taxBracket,
+  tenant,
   user,
 } from "@erp/db";
 import {
@@ -46,7 +48,10 @@ import { EventBusService } from "../../src/events/event-bus.service.js";
 import type { PdfService } from "../../src/pdf/pdf.service.js";
 import type { SequenceService } from "../../src/sequence/sequence.service.js";
 import type { StorageService } from "../../src/storage/storage.service.js";
+import { runWithTenant } from "../../src/tenancy/tenant-context.js";
+import { AttendanceService } from "../../src/hr/attendance.service.js";
 import { CashAdvanceService } from "../../src/hr/cash-advance.service.js";
+import { ExportService } from "../../src/hr/export.service.js";
 import { CompensationService } from "../../src/hr/compensation.service.js";
 import { EmployeeService } from "../../src/hr/employee.service.js";
 import { OtService } from "../../src/hr/ot.service.js";
@@ -716,5 +721,121 @@ describe.skipIf(!url)("HR org structure & reporting line (integration)", () => {
     expect(deleteRow).toBeDefined();
     expect(deleteRow?.before).not.toBeNull();
     expect(deleteRow?.after).toBeNull();
+  });
+});
+
+// M7 task 9.1 — `emp_code` and `payroll_run.period` are unique per tenant (`(tenant_id, …)`), so
+// HR lookups by them resolve within the caller's tenant. The harness connects as the superuser
+// (RLS bypassed), so these pin the services' own tenant predicates.
+describe.skipIf(!url)("HR natural keys are per-tenant (integration)", () => {
+  let conn: ReturnType<typeof createDb>;
+  let uow: UnitOfWork;
+  let tenantB: string;
+  const PERIOD = "2031-02";
+  const empCode = `TEN-${randomUUID().slice(0, 6)}`;
+  const employeeIds: Record<string, string> = {};
+
+  beforeAll(async () => {
+    conn = createDb(url as string, { max: 1 });
+    uow = new DefaultTenantUnitOfWork(conn.db);
+    const [other] = await conn.db
+      .insert(tenant)
+      .values({ slug: `hr-b-${randomUUID().slice(0, 8)}`, name: "HR tenant B", kind: "CUSTOMER" })
+      .returning({ id: tenant.id });
+    tenantB = (other as { id: string }).id;
+
+    // The same emp_code in both tenants.
+    for (const tenantId of [DEFAULT_TENANT_ID, tenantB]) {
+      const [emp] = await conn.db
+        .insert(employee)
+        .values({
+          tenantId,
+          empCode,
+          firstName: "Same",
+          lastName: "Code",
+          employmentType: "MONTHLY",
+          status: "ACTIVE",
+          hireDate: "2024-01-01",
+        })
+        .returning({ id: employee.id });
+      employeeIds[tenantId] = (emp as { id: string }).id;
+    }
+  });
+
+  afterAll(async () => {
+    const ids = Object.values(employeeIds);
+    await conn.db.delete(payslip).where(inArray(payslip.employeeId, ids));
+    await conn.db.delete(payrollRun).where(eq(payrollRun.period, PERIOD));
+    await conn.db.delete(attendance).where(inArray(attendance.employeeId, ids));
+    await conn.db.delete(employee).where(inArray(employee.id, ids));
+    await conn.queryClient.end();
+  });
+
+  it("imports attendance against the caller-tenant's employee when two tenants share an emp_code", async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("attendance");
+    ws.addRow(["emp_code", "work_date", "clock_in", "clock_out"]);
+    ws.addRow([empCode, "2031-02-03", "2031-02-03T01:00:00Z", "2031-02-03T10:00:00Z"]);
+    const file = Buffer.from(await wb.xlsx.writeBuffer());
+
+    const service = new AttendanceService(conn.db);
+    const result = await runWithTenant(tenantB, "jwt", () =>
+      uow.withTransaction(() => service.import(file)),
+    );
+    expect(result.rows_imported).toBe(1);
+
+    const rows = await conn.db
+      .select({ employeeId: attendance.employeeId })
+      .from(attendance)
+      .where(inArray(attendance.employeeId, Object.values(employeeIds)));
+    expect(rows).toEqual([{ employeeId: employeeIds[tenantB] }]);
+  });
+
+  it("allows the same payroll period in two tenants but not twice in one, and exports the caller's run", async () => {
+    const [runA] = await conn.db
+      .insert(payrollRun)
+      .values({ tenantId: DEFAULT_TENANT_ID, period: PERIOD })
+      .returning({ id: payrollRun.id });
+    const [runB] = await conn.db
+      .insert(payrollRun)
+      .values({ tenantId: tenantB, period: PERIOD })
+      .returning({ id: payrollRun.id });
+    await expect(
+      conn.db.insert(payrollRun).values({ tenantId: tenantB, period: PERIOD }),
+    ).rejects.toMatchObject({ cause: { code: "23505" } }); // → 409 via AllExceptionsFilter
+
+    const breakdown = { base: "0", ot: "0", allowances: [], sso: "0", tax: "0", advance: "0", deductions: [] };
+    await conn.db.insert(payslip).values([
+      {
+        tenantId: DEFAULT_TENANT_ID,
+        runId: (runA as { id: string }).id,
+        employeeId: employeeIds[DEFAULT_TENANT_ID] as string,
+        breakdown,
+        gross: "111.0000",
+        net: "111.0000",
+      },
+      {
+        tenantId: tenantB,
+        runId: (runB as { id: string }).id,
+        employeeId: employeeIds[tenantB] as string,
+        breakdown,
+        gross: "222.0000",
+        net: "222.0000",
+      },
+    ]);
+
+    let csv = "";
+    const storage = {
+      put: (_key: string, body: string) => {
+        csv = body;
+        return Promise.resolve();
+      },
+    } as unknown as StorageService;
+    const exports = new ExportService(conn.db, {} as Queue, storage);
+    await runWithTenant(tenantB, "job", () =>
+      uow.withTransaction(() => exports.run("sso", PERIOD)),
+    );
+    expect(csv).toContain("222.0000");
+    expect(csv).not.toContain("111.0000");
   });
 });

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, between, eq } from "drizzle-orm";
+import { and, between, eq, inArray } from "drizzle-orm";
 import ExcelJS from "exceljs";
 import { attendance, employee, type Db } from "@erp/db";
 import type { AttendanceImportResult, AttendanceQuery, AttendanceRecord } from "@erp/contracts";
@@ -7,7 +7,7 @@ import { ValidationError } from "../common/errors/app-exception.js";
 import { loadWorkbook } from "../common/workbook.js";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
-import { periodBounds } from "./hr.util.js";
+import { inCallerTenant, periodBounds } from "./hr.util.js";
 
 /** One parsed attendance row (emp_code + day + optional clock window). */
 export interface AttendanceRow {
@@ -58,9 +58,11 @@ export class AttendanceService {
 
     const ex = currentExecutor(this.db);
     const codes = [...new Set(rows.map((r) => r.empCode))];
+    // `emp_code` is unique per tenant only — resolve codes within the caller's tenant.
     const employees = await ex
       .select({ id: employee.id, empCode: employee.empCode })
-      .from(employee);
+      .from(employee)
+      .where(inCallerTenant(employee.tenantId, inArray(employee.empCode, codes)));
     const idByCode = new Map(employees.map((e) => [e.empCode, e.id]));
 
     const unknown = codes.filter((c) => !idByCode.has(c));

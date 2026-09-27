@@ -104,7 +104,9 @@ export class PayrollService {
 
   async create(input: CreatePayrollRunRequest): Promise<PayrollRun> {
     const ex = currentExecutor(this.db);
-    // A duplicate `period` hits the UNIQUE constraint → the exception filter maps 23505 → 409.
+    // `tenant_id` comes from the column default. A duplicate `period` *within the tenant* hits
+    // the `(tenant_id, period)` unique → the exception filter maps 23505 → 409; another tenant
+    // may run the same period.
     const [row] = await ex
       .insert(payrollRun)
       .values({ period: input.period })

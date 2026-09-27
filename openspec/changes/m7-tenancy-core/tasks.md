@@ -91,9 +91,9 @@
 
 ## 9. Business-module sweep — `apps/api/src/hr`
 
-- [ ] 9.1 Audit insert paths (employee, ot_request, cash_advance, payroll run/payslips, salary records) — no explicit `tenantId` needed (column default); remove/adjust any query assuming `emp_code` or `payroll_run.period` global uniqueness
-- [ ] 9.2 Probation scan worker consumes the per-tenant job from task 7.4; e-payslip PDFs store under the tenant prefix via task 7.2 automatically — assert the key shape in a test
-- [ ] 9.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 9.1 Audit insert paths (employee, ot_request, cash_advance, payroll run/payslips, salary records) — no explicit `tenantId` needed (column default); remove/adjust any query assuming `emp_code` or `payroll_run.period` global uniqueness *As built:* no insert path sets `tenantId`; the two natural-key lookups — attendance import (`emp_code` → employee, which also read the whole `employee` table) and the statutory export (`period` → run) — now go through `inCallerTenant` (`hr/hr.util.ts`), an explicit `tenant_id` predicate like task 8.2's (RLS alone is skipped on owner/superuser connections); `hr.int.spec.ts` covers a shared emp_code and period across two tenants
+- [x] 9.2 Probation scan worker consumes the per-tenant job from task 7.4; e-payslip PDFs store under the tenant prefix via task 7.2 automatically — assert the key shape in a test *As built:* the worker wiring already landed with task 7.4; `payroll.worker.spec.ts` pins fan-out (unscoped tick) vs. scan (per-tenant job), and `payslip.service.spec.ts` drives `PayslipPdfWorker` with a tenant job and asserts `pdf_key` stays `payslips/{run}/{slip}.pdf` while the S3 key is `tenants/{tid}/payslips/{run}/{slip}.pdf`
+- [x] 9.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 10. Business-module sweep — `apps/api/src/inventory`
 
