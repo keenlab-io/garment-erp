@@ -134,7 +134,12 @@ describe.skipIf(!url)("Reporting services (integration)", () => {
     // M3 stock ledger at refresh time), not just this test's two items. Sum the exact
     // (unrounded) per-row products first and round once at the end, matching how the MV's
     // `value` column (qty*cost, unrounded) is aggregated by the report's `sumMoney(...)`.
-    const allCards = await conn.db.select().from(stockBalance);
+    // The report is tenant-scoped, so reconcile against the caller (default) tenant's cards
+    // only — other specs stage stock in other tenants on this superuser connection.
+    const allCards = await conn.db
+      .select()
+      .from(stockBalance)
+      .where(eq(stockBalance.tenantId, DEFAULT_TENANT_ID));
     const expectedTotal = formatMoney(
       allCards.reduce(
         (acc, c) => acc.plus(toDecimal(c.qtyOnHand).times(c.avgCost)),
