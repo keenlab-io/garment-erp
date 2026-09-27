@@ -4,8 +4,14 @@ import { OnEvent } from "@nestjs/event-emitter";
 import { ConfigService } from "@nestjs/config";
 import { Queue } from "bullmq";
 import { QUEUES } from "../queue/queue.constants.js";
+import { tenantJobData } from "../tenancy/with-tenant-job.js";
 import type { DomainEvent } from "../events/domain-event.js";
-import { MV_REFRESH_JOB, MV_REFRESH_TRIGGERS, viewsForEvent } from "./mv-refresh.js";
+import {
+  MV_REFRESH_JOB,
+  MV_REFRESH_TRIGGERS,
+  mvRefreshJobId,
+  viewsForEvent,
+} from "./mv-refresh.js";
 
 /**
  * Event-driven MV refresh (task 4.6, design D10). Listens for the M3 stock and M5 sales domain
@@ -13,6 +19,9 @@ import { MV_REFRESH_JOB, MV_REFRESH_TRIGGERS, viewsForEvent } from "./mv-refresh
  * enqueues a **debounced** targeted refresh for only the affected view(s). Debounce is a delayed
  * job keyed by view name: while one is pending, further events for that view coalesce onto it
  * (BullMQ dedups by `jobId`), so an event burst collapses into a single `REFRESH`.
+ *
+ * Tenancy (M7 design D8): the debounce key is `(tenantId, view)`, so one tenant's invoice burst
+ * never coalesces away (or starves) another tenant's refresh.
  */
 @Injectable()
 export class MvRefreshSubscriber {
@@ -30,17 +39,14 @@ export class MvRefreshSubscriber {
   async onDomainEvent(event: DomainEvent): Promise<void> {
     for (const view of viewsForEvent(event.event)) {
       try {
-        await this.queue.add(
-          MV_REFRESH_JOB,
-          { view },
-          {
-            // One pending job per view — the debounce window coalesces bursts.
-            jobId: `${MV_REFRESH_JOB}:${view}`,
-            delay: this.debounceMs,
-            removeOnComplete: true,
-            removeOnFail: true,
-          },
-        );
+        const data = tenantJobData({ view });
+        await this.queue.add(MV_REFRESH_JOB, data, {
+          // One pending job per (tenant, view) — the debounce window coalesces bursts.
+          jobId: mvRefreshJobId(data.tenantId, view),
+          delay: this.debounceMs,
+          removeOnComplete: true,
+          removeOnFail: true,
+        });
       } catch (err) {
         this.logger.warn(`Could not enqueue refresh for ${view}: ${String(err)}`);
       }

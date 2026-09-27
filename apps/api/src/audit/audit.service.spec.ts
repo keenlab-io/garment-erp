@@ -31,6 +31,13 @@ describe("AuditService support-session dual-write", () => {
     expect(inserts).toHaveLength(1);
     expect(inserts[0]?.table).toBe(auditLog);
     expect(inserts[0]?.values.actorRole).toBeNull();
+    expect(inserts[0]?.values.tenantId).toBe(TENANT);
+  });
+
+  it("leaves tenant_id to the column default outside any tenant scope", async () => {
+    const { db, inserts } = fakeDb();
+    await new AuditService(db).record({ action: "UPDATE", entityType: "item" });
+    expect(inserts[0]?.values).not.toHaveProperty("tenantId");
   });
 
   it("dual-writes into platform_audit_log under a support session", async () => {
@@ -45,7 +52,11 @@ describe("AuditService support-session dual-write", () => {
       });
     });
     expect(inserts.map((i) => i.table)).toEqual([auditLog, platformAuditLog]);
-    expect(inserts[0]?.values).toMatchObject({ actorRole: SUPPORT_ACTOR_ROLE, reason: "customer asked" });
+    expect(inserts[0]?.values).toMatchObject({
+      actorRole: SUPPORT_ACTOR_ROLE,
+      reason: "customer asked",
+      tenantId: TENANT,
+    });
     expect(inserts[1]?.values).toMatchObject({
       platformAdminId: ADMIN,
       tenantId: TENANT,

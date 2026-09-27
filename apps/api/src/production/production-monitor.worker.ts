@@ -11,7 +11,9 @@ import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
 import { BaseWorker } from "../queue/base.worker.js";
 import { QUEUES } from "../queue/queue.constants.js";
-import { RealtimeGateway } from "../realtime/realtime.gateway.js";
+import { RealtimeGateway, tenantRoom } from "../realtime/realtime.gateway.js";
+import { fanOutPerTenant } from "../tenancy/tenant-fan-out.js";
+import { currentTenantId } from "../tenancy/tenant-context.js";
 import {
   PRODUCTION_EVENTS,
   REALTIME_EVENTS,
@@ -38,6 +40,10 @@ const PRODUCTION_MONITOR_SCHEDULER_ID = "production-monitor";
  *
  * Idempotency (the persisted flag + upserted scheduler) means a redelivered job or a fast
  * cadence never double-alerts.
+ *
+ * Tenancy (M7 design D11): the repeatable tick carries no tenant — it is a platform job that
+ * fans out one `{ tenantId }` job per ACTIVE tenant; each of those runs the sweep scoped to its
+ * tenant (RLS), and broadcasts to that tenant's rooms.
  */
 @Processor(QUEUES.default)
 export class ProductionMonitorWorker
@@ -71,7 +77,10 @@ export class ProductionMonitorWorker
   }
 
   async handle(job: Job): Promise<{ ok: true }> {
-    if (job.name === PRODUCTION_MONITOR_JOB) {
+    if (job.name !== PRODUCTION_MONITOR_JOB) return { ok: true };
+    if (currentTenantId() === null) {
+      await fanOutPerTenant(this.db, this.queue, PRODUCTION_MONITOR_JOB, job.timestamp);
+    } else {
       await this.uow.withTransaction(() => this.sweep(new Date()));
     }
     return { ok: true };
@@ -99,6 +108,7 @@ export class ProductionMonitorWorker
         ),
       );
 
+    const tenantId = currentTenantId();
     let flagged = 0;
     for (const step of candidates) {
       if (!isStepDelayed(step, now)) continue;
@@ -114,8 +124,12 @@ export class ProductionMonitorWorker
         name: step.name,
         status: step.status,
       };
-      this.realtime.emitToRoom(woRoom(step.woId), REALTIME_EVENTS.stepDelayed, payload);
-      this.realtime.emitToRoom(TIMELINE_ROOM, REALTIME_EVENTS.stepDelayed, payload);
+      if (tenantId !== null) {
+        const rooms = [woRoom(step.woId), TIMELINE_ROOM].map((r) => tenantRoom(tenantId, r));
+        for (const room of rooms) {
+          this.realtime.emitToRoom(room, REALTIME_EVENTS.stepDelayed, payload);
+        }
+      }
       this.events.publishAfterCommit(
         makeEvent({ event: PRODUCTION_EVENTS.stepDelayed, payload }),
       );

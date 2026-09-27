@@ -20,7 +20,7 @@ import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
 import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
-import { RealtimeGateway } from "../realtime/realtime.gateway.js";
+import { RealtimeGateway, tenantRoom } from "../realtime/realtime.gateway.js";
 import { CompletionService } from "./completion.service.js";
 import {
   PRODUCTION_EVENTS,
@@ -224,8 +224,9 @@ export class ScanService {
       name: step.name,
       status: step.status,
     };
-    this.realtime.emitToRoom(woRoom(step.wo_id), realtimeEvent, payload);
-    this.realtime.emitToRoom(TIMELINE_ROOM, realtimeEvent, payload);
+    for (const room of [woRoom(step.wo_id), TIMELINE_ROOM]) {
+      this.realtime.emitToRoom(tenantRoom(user.tenantId, room), realtimeEvent, payload);
+    }
     this.events.publishAfterCommit(
       makeEvent({ event: domainEvent, actorUserId: user.id, payload }),
     );

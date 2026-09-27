@@ -40,6 +40,7 @@ export class AuditService {
 
   async record(entry: AuditEntry): Promise<void> {
     const support = currentSupportScope();
+    const tenantId = currentTenantId();
     const row = {
       action: entry.action,
       entityType: entry.entityType,
@@ -53,12 +54,12 @@ export class AuditService {
       userAgent: entry.userAgent ?? null,
     };
     const ex = currentExecutor(this.db);
-    await ex.insert(auditLog).values(row);
+    await ex.insert(auditLog).values(tenantId === null ? row : { ...row, tenantId });
     if (support) {
       await ex.insert(platformAuditLog).values({
         ...row,
         platformAdminId: support.platformAdminId,
-        tenantId: currentTenantId(),
+        tenantId,
       });
     }
   }

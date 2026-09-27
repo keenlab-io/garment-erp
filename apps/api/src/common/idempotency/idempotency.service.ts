@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
-import { and, eq } from "drizzle-orm";
+import { and, eq, type SQL } from "drizzle-orm";
 import { idempotencyKey, type Db } from "@erp/db";
 import { DB } from "../../db/db.tokens.js";
 import { currentExecutor } from "../../db/tx-context.js";
+import { currentTenantId } from "../../tenancy/tenant-context.js";
 import { StateConflictError } from "../errors/app-exception.js";
 
 /** A response captured for at-most-once replay. */
@@ -20,6 +21,10 @@ const TTL_MS = 24 * 60 * 60 * 1000;
  * `(key, userId)`: an exact replay returns the stored response, a key reused with a
  * different request hash is a 409 conflict, and an expired record is discarded so
  * the request runs as first use.
+ *
+ * Tenancy (M7 §7.5): rows are keyed `(tenant_id, key, user_id)` — the same key from two
+ * tenants never collides or replays across them. RLS enforces the isolation; the explicit
+ * tenant predicate lets the primary-key index serve the lookup.
  */
 @Injectable()
 export class IdempotencyService {
@@ -46,17 +51,13 @@ export class IdempotencyService {
     const rows = await executor
       .select()
       .from(idempotencyKey)
-      .where(and(eq(idempotencyKey.key, key), eq(idempotencyKey.userId, userId)))
+      .where(recordScope(key, userId))
       .limit(1);
     const row = rows[0];
     if (!row) return null;
 
     if (row.expiresAt.getTime() <= Date.now()) {
-      await executor
-        .delete(idempotencyKey)
-        .where(
-          and(eq(idempotencyKey.key, key), eq(idempotencyKey.userId, userId)),
-        );
+      await executor.delete(idempotencyKey).where(recordScope(key, userId));
       return null;
     }
 
@@ -70,7 +71,7 @@ export class IdempotencyService {
     return { status: row.responseStatus, body: row.responseBody };
   }
 
-  /** Persist the response for `(key, userId)` with a fresh expiry. */
+  /** Persist the response for `(tenant, key, userId)` with a fresh expiry. */
   async store(
     key: string,
     userId: string,
@@ -89,7 +90,7 @@ export class IdempotencyService {
         expiresAt,
       })
       .onConflictDoUpdate({
-        target: [idempotencyKey.key, idempotencyKey.userId],
+        target: [idempotencyKey.tenantId, idempotencyKey.key, idempotencyKey.userId],
         set: {
           requestHash,
           responseStatus: response.status,
@@ -98,4 +99,14 @@ export class IdempotencyService {
         },
       });
   }
+}
+
+/**
+ * `(tenant_id, key, user_id)` for the caller's tenant. Outside any tenant scope the tenant
+ * predicate is omitted and RLS alone decides (fail-closed).
+ */
+function recordScope(key: string, userId: string): SQL | undefined {
+  const tenantId = currentTenantId();
+  const byKey = and(eq(idempotencyKey.key, key), eq(idempotencyKey.userId, userId));
+  return tenantId === null ? byKey : and(eq(idempotencyKey.tenantId, tenantId), byKey);
 }

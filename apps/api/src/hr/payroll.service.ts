@@ -38,10 +38,11 @@ import {
   type PayslipBreakdown,
 } from "./payroll-math.js";
 import { m, periodBounds } from "./hr.util.js";
+import { tenantJobData, type TenantJobData } from "../tenancy/with-tenant-job.js";
 
 /** The job the calculate worker consumes off the `payroll` queue. */
 export const PAYROLL_CALCULATE_JOB = "payroll.calculate";
-export interface PayrollCalculateJob {
+export interface PayrollCalculateJob extends TenantJobData {
   run_id: string;
   actor_user_id: string;
   /** Employees deselected in the wizard's Inputs step; omitted means "the whole scope". */
@@ -122,11 +123,14 @@ export class PayrollService {
     if (run.status !== "DRAFT" && run.status !== "CALCULATED") {
       throw new StateConflictError(`Cannot recalculate a ${run.status} run`);
     }
-    const job = await this.queue.add(PAYROLL_CALCULATE_JOB, {
-      run_id: id,
-      actor_user_id: actor.id,
-      excluded_employee_ids: excludedEmployeeIds,
-    } satisfies PayrollCalculateJob);
+    const job = await this.queue.add(
+      PAYROLL_CALCULATE_JOB,
+      tenantJobData({
+        run_id: id,
+        actor_user_id: actor.id,
+        excluded_employee_ids: excludedEmployeeIds,
+      }) satisfies PayrollCalculateJob,
+    );
     return { job_id: String(job.id ?? "") };
   }
 

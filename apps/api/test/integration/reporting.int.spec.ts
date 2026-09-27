@@ -10,6 +10,7 @@ import type { AuthUser } from "../../src/auth/auth-user.js";
 import { assertPermissions } from "../../src/auth/authz.js";
 import { ForbiddenError } from "../../src/common/errors/app-exception.js";
 import { UnitOfWork } from "../../src/db/unit-of-work.service.js";
+import { DefaultTenantUnitOfWork } from "./tenant-harness.js";
 import { EventBusService } from "../../src/events/event-bus.service.js";
 import { SequenceService } from "../../src/sequence/sequence.service.js";
 import { CostingService } from "../../src/inventory/costing.service.js";
@@ -50,7 +51,7 @@ describe.skipIf(!url)("Reporting services (integration)", () => {
     conn = createDb(url as string, { max: 5 });
     const emitter = new EventEmitter2();
     const events = new EventBusService(emitter);
-    uow = new UnitOfWork(conn.db);
+    uow = new DefaultTenantUnitOfWork(conn.db);
     const sequences = new SequenceService(conn.db, uow);
     const costing = new CostingService(conn.db);
     const ledger = new LedgerService(conn.db, events);
@@ -168,7 +169,8 @@ describe.skipIf(!url)("Reporting services (integration)", () => {
     expect(stubQueue.upsertJobScheduler).toHaveBeenCalledWith(
       scheduleSchedulerId(created.id),
       { pattern: "0 8 * * 1" },
-      { name: REPORT_DIGEST_JOB, data: { schedule_id: created.id } },
+      // The repeatable job carries the owning tenant (M7 design D11).
+      { name: REPORT_DIGEST_JOB, data: { schedule_id: created.id, tenantId: DEFAULT_TENANT_ID } },
     );
 
     // Deactivating removes the repeatable job so a Monday-08:00 send never fires again.

@@ -191,33 +191,10 @@ describe.skipIf(!url)("tenant-scoped auth (integration)", () => {
 
   // Task 5.5 — `isSuperAdmin` is a tenant super-admin: the permission bypass never reaches
   // another tenant's rows. The fence is Row-Level Security under the request's tenant
-  // transaction; the `tenant_isolation` policies land with task 7.9, so this test installs an
-  // equivalent policy on `user` for its duration and runs the service as the non-owner,
-  // NOBYPASSRLS runtime role `erp_app` (the test connection is a superuser, which RLS skips).
+  // transaction — migration 0013's `tenant_isolation` policy on `user` — so the service runs as
+  // the non-owner, NOBYPASSRLS runtime role `erp_app` (the test connection is a superuser,
+  // which RLS skips).
   describe("tenant super-admin is fenced to its own tenant", () => {
-    const POLICY = "tenant_isolation_superadmin_regression";
-    let rlsWasEnabled = false;
-
-    beforeAll(async () => {
-      const [cls] = await conn.db.execute<{ relrowsecurity: boolean }>(
-        sql`SELECT relrowsecurity FROM pg_class WHERE oid = '"user"'::regclass`,
-      );
-      rlsWasEnabled = cls?.relrowsecurity === true;
-      await conn.db.execute(sql.raw(`ALTER TABLE "user" ENABLE ROW LEVEL SECURITY`));
-      await conn.db.execute(
-        sql.raw(
-          `CREATE POLICY ${POLICY} ON "user" USING (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid)`,
-        ),
-      );
-    });
-
-    afterAll(async () => {
-      await conn.db.execute(sql.raw(`DROP POLICY IF EXISTS ${POLICY} ON "user"`));
-      if (!rlsWasEnabled) {
-        await conn.db.execute(sql.raw(`ALTER TABLE "user" DISABLE ROW LEVEL SECURITY`));
-      }
-    });
-
     /** Run `fn` as tenant `tenantId`'s request would: tenant tx, runtime role. */
     const asTenant = <T>(tenantId: string, fn: () => Promise<T>) =>
       runWithTenant(tenantId, "jwt", () =>

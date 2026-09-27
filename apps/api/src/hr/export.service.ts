@@ -9,11 +9,12 @@ import { currentExecutor } from "../db/tx-context.js";
 import { StorageService } from "../storage/storage.service.js";
 import { QUEUES } from "../queue/queue.constants.js";
 import type { PayslipBreakdown } from "./payroll-math.js";
+import { tenantJobData, type TenantJobData } from "../tenancy/with-tenant-job.js";
 
 /** Kind of statutory export and the job the payroll worker consumes. */
 export type ExportKind = "pnd1" | "sso";
 export const PAYROLL_EXPORT_JOB = "payroll.export";
-export interface PayrollExportJob {
+export interface PayrollExportJob extends TenantJobData {
   kind: ExportKind;
   period: string;
 }
@@ -33,10 +34,10 @@ export class ExportService {
 
   /** Enqueue an export job; returns the job id for the 202-poll. */
   async enqueue(kind: ExportKind, period: string): Promise<{ job_id: string }> {
-    const job = await this.queue.add(PAYROLL_EXPORT_JOB, {
-      kind,
-      period,
-    } satisfies PayrollExportJob);
+    const job = await this.queue.add(
+      PAYROLL_EXPORT_JOB,
+      tenantJobData({ kind, period }) satisfies PayrollExportJob,
+    );
     return { job_id: String(job.id ?? "") };
   }
 

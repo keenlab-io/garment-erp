@@ -3,6 +3,7 @@ import type { Job } from "bullmq";
 import { BaseWorker } from "../queue/base.worker.js";
 import { QUEUES } from "../queue/queue.constants.js";
 import { UnitOfWork } from "../db/unit-of-work.service.js";
+import { currentTenantId } from "../tenancy/tenant-context.js";
 import { ExportService, PAYROLL_EXPORT_JOB, type PayrollExportJob } from "./export.service.js";
 import {
   PAYROLL_CALCULATE_JOB,
@@ -43,7 +44,9 @@ export class PayrollWorker extends BaseWorker<unknown, { ok: true } | null> {
         return { ok: true };
       }
       case PROBATION_SCAN_JOB: {
-        await this.uow.withTransaction(() => this.probation.scan());
+        // The unscoped scheduler tick fans out; each per-tenant job runs the scan (M7 D11).
+        if (currentTenantId() === null) await this.probation.fanOut(job.timestamp);
+        else await this.uow.withTransaction(() => this.probation.scan());
         return { ok: true };
       }
       default:

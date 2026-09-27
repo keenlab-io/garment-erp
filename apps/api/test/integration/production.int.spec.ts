@@ -17,6 +17,7 @@ import {
 import type { AuthUser } from "../../src/auth/auth-user.js";
 import { StateConflictError } from "../../src/common/errors/app-exception.js";
 import { UnitOfWork } from "../../src/db/unit-of-work.service.js";
+import { DefaultTenantUnitOfWork } from "./tenant-harness.js";
 import { EventBusService } from "../../src/events/event-bus.service.js";
 import { SequenceService } from "../../src/sequence/sequence.service.js";
 import { CompletionService } from "../../src/production/completion.service.js";
@@ -68,7 +69,7 @@ describe.skipIf(!url)("Production services (integration)", () => {
       domainEvents.push({ name: String(name), payload }),
     );
     events = new EventBusService(emitter);
-    uow = new UnitOfWork(conn.db);
+    uow = new DefaultTenantUnitOfWork(conn.db);
     const sequences = new SequenceService(conn.db, uow);
     const completion = new CompletionService(conn.db, events);
     routing = new RoutingService(conn.db);

@@ -3,12 +3,13 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import type { BarcodePrintRequest } from "@erp/contracts";
 import { QUEUES } from "../queue/queue.constants.js";
+import { tenantJobData, type TenantJobData } from "../tenancy/with-tenant-job.js";
 
 /** The job name the label worker handles on the `pdf` queue. */
 export const BARCODE_LABEL_JOB = "barcode-label";
 
 /** Payload enqueued for a barcode-label render. */
-export interface BarcodeLabelJob {
+export interface BarcodeLabelJob extends TenantJobData {
   sku_ids: string[];
   lot_ids: string[];
 }
@@ -23,10 +24,13 @@ export class BarcodeService {
   constructor(@InjectQueue(QUEUES.pdf) private readonly queue: Queue) {}
 
   async print(input: BarcodePrintRequest): Promise<{ job_id: string }> {
-    const job = await this.queue.add(BARCODE_LABEL_JOB, {
-      sku_ids: input.sku_ids ?? [],
-      lot_ids: input.lot_ids ?? [],
-    } satisfies BarcodeLabelJob);
+    const job = await this.queue.add(
+      BARCODE_LABEL_JOB,
+      tenantJobData({
+        sku_ids: input.sku_ids ?? [],
+        lot_ids: input.lot_ids ?? [],
+      }) satisfies BarcodeLabelJob,
+    );
     return { job_id: String(job.id ?? "") };
   }
 }

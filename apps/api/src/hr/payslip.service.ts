@@ -21,10 +21,11 @@ import { QUEUES } from "../queue/queue.constants.js";
 import { HR_EVENTS, type PayslipGeneratedPayload } from "./hr.events.js";
 import { encryptPdf } from "./pdf-encrypt.js";
 import type { PayslipBreakdown } from "./payroll-math.js";
+import { tenantJobData, type TenantJobData } from "../tenancy/with-tenant-job.js";
 
 /** The job the payslip PDF worker consumes off the `pdf` queue. */
 export const PAYSLIP_PDF_JOB = "payslip.pdf";
-export interface PayslipPdfJob {
+export interface PayslipPdfJob extends TenantJobData {
   payslip_id: string;
 }
 
@@ -48,7 +49,8 @@ export class PayslipService {
 
   /** Schedule PDF generation for a payslip (fire-and-forget onto the `pdf` queue). */
   enqueueGeneration(payslipId: string): void {
-    void this.queue.add(PAYSLIP_PDF_JOB, { payslip_id: payslipId } satisfies PayslipPdfJob);
+    const data = tenantJobData({ payslip_id: payslipId }) satisfies PayslipPdfJob;
+    void this.queue.add(PAYSLIP_PDF_JOB, data);
   }
 
   /**

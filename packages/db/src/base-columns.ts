@@ -18,8 +18,7 @@ export const auditColumns = {
 };
 
 // The deterministic id of the default tenant (`slug 'default'`). Migration 0012 inserts it
-// and backfills every pre-tenancy row into it; the dev seed creates the same row. Also the
-// TRANSITIONAL fallback of `tenantColumn`'s default (below) — see M7 design D17.
+// and backfills every pre-tenancy row into it; the dev seed creates the same row.
 export const DEFAULT_TENANT_ID = "00000000-0000-4000-8000-000000000001";
 export const DEFAULT_TENANT_SLUG = "default";
 
@@ -30,19 +29,14 @@ export const DEFAULT_TENANT_SLUG = "default";
 // `created_by`. Every natural-key unique on a tenant table is composite `(tenant_id, …)`:
 // "unique" in the table comments means unique within one tenant.
 //
-// TRANSITIONAL (M7 design D17, task 7.9): until the tenancy module sets the GUC on every
-// transaction, an unset GUC falls back to DEFAULT_TENANT_ID (`nullif` because a reset GUC
-// reads as '' rather than NULL). The RLS migration (task 7.9) drops the fallback so the
-// default is `current_setting('app.tenant_id', true)::uuid` again — no tenant in scope →
-// NULL → NOT NULL rejects the write, failing closed.
+// Fail-closed (M7 design D1/D17, migration 0013): no tenant in scope → NULL → the NOT NULL
+// constraint rejects the write, and the `tenant_isolation` RLS policy's WITH CHECK agrees.
+// `nullif` because a GUC reset at the end of a pooled connection's earlier transaction reads
+// as '' rather than NULL — it must fail the same way, not as a uuid cast error.
 export const tenantColumn = {
   tenantId: uuid()
     .notNull()
-    .default(
-      sql.raw(
-        `coalesce(nullif(current_setting('app.tenant_id', true), '')::uuid, '${DEFAULT_TENANT_ID}'::uuid)`,
-      ),
-    ),
+    .default(sql.raw(`nullif(current_setting('app.tenant_id', true), '')::uuid`)),
 };
 
 // Optimistic-concurrency version counter.

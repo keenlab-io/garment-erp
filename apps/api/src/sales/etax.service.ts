@@ -8,10 +8,11 @@ import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
 import { QUEUES } from "../queue/queue.constants.js";
 import { StorageService } from "../storage/storage.service.js";
+import { tenantJobData, type TenantJobData } from "../tenancy/with-tenant-job.js";
 
 export const SALES_ETAX_JOB = "sales.etax-submit";
 
-export interface SalesEtaxJob {
+export interface SalesEtaxJob extends TenantJobData {
   invoice_id: string;
 }
 
@@ -38,9 +39,10 @@ export class EtaxService {
       .where(eq(invoice.id, invoiceId))
       .limit(1);
     if (!row) throw new NotFoundError(`Invoice not found: ${invoiceId}`);
-    const job = await this.queue.add(SALES_ETAX_JOB, {
-      invoice_id: invoiceId,
-    } satisfies SalesEtaxJob);
+    const job = await this.queue.add(
+      SALES_ETAX_JOB,
+      tenantJobData({ invoice_id: invoiceId }) satisfies SalesEtaxJob,
+    );
     return { job_id: String(job.id ?? "") };
   }
 

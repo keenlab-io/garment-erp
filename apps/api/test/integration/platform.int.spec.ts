@@ -128,8 +128,8 @@ describe.skipIf(!url)("platform module (integration)", () => {
 
   afterAll(async () => {
     // Remove the seeded defaults of every tenant provisioned here (all slugs end `-${run}`).
-    // Until the RLS migration (task 7.9) some services read config tables like `tax_bracket`
-    // unscoped, so another spec sharing this database would otherwise see these tenants' rows.
+    // The integration connection is a superuser (RLS-exempt), so specs sharing this database
+    // that read config tables like `tax_bracket` directly would otherwise see these tenants' rows.
     // The tenant rows stay: support sessions and platform audit rows reference them.
     if (conn) {
       const ids = (

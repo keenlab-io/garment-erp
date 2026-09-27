@@ -8,6 +8,7 @@ import { StorageService } from "../storage/storage.service.js";
 import { MailService } from "./mail.service.js";
 import { REPORTING_EVENTS, type ReportDigestFailedPayload } from "./reporting.events.js";
 import { isFinalAttempt } from "./reporting.util.js";
+import type { TenantJobData } from "../tenancy/with-tenant-job.js";
 
 /** `email`-queue job name (design D9) — the queue's first consumer. */
 export const REPORT_EMAIL_JOB = "reporting.email";
@@ -17,7 +18,7 @@ export const REPORT_EMAIL_JOB = "reporting.email";
  * artifacts never travel through Redis). `alert` carries the context to raise as an in-app
  * alert if the send exhausts its retries — set for scheduled digests (spec report-schedules).
  */
-export interface ReportEmailJob {
+export interface ReportEmailJob extends TenantJobData {
   to: string[];
   subject: string;
   text?: string;
