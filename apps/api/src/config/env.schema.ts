@@ -19,6 +19,17 @@ export const envSchema = z.object({
   // Postgres (postgres.js) — numeric columns return as strings.
   DATABASE_URL: z.string().url(),
   DB_POOL_MAX: z.coerce.number().int().positive().default(10),
+  // Owner-role connection (`erp_owner`, M7 design D2) — used only by migrate/seed, never by the
+  // API at runtime. Optional: unset, migrations run on `DATABASE_URL`.
+  DATABASE_OWNER_URL: z.string().url().optional(),
+
+  // Tenancy (M7 design D15). One build serves both: `cloud` resolves tenants by hostname and
+  // registers the platform control plane; `self-hosted` runs exactly one tenant
+  // (`DEFAULT_TENANT_SLUG`) that every hostname resolves to. `APP_DOMAIN` is the cloud app's
+  // base domain (tenant subdomains live under it); optional for dev and self-hosted.
+  DEPLOYMENT_MODE: z.enum(["cloud", "self-hosted"]).default("cloud"),
+  APP_DOMAIN: z.string().min(1).optional(),
+  DEFAULT_TENANT_SLUG: z.string().min(1).default("default"),
 
   // Redis (BullMQ connection).
   REDIS_URL: z.string().url(),

@@ -9,6 +9,8 @@ export const ErrorCode = {
   BUSINESS_RULE: "BUSINESS_RULE",
   REAUTH_REQUIRED: "REAUTH_REQUIRED",
   IDEMPOTENT_REPLAY: "IDEMPOTENT_REPLAY",
+  // M7: the caller's tenant is READ_ONLY — reads work, mutations are refused (403).
+  TENANT_READ_ONLY: "TENANT_READ_ONLY",
   INTERNAL: "INTERNAL",
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

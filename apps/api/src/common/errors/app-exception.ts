@@ -63,3 +63,10 @@ export class ReauthRequiredError extends AppException {
     super(ErrorCode.REAUTH_REQUIRED, message, details);
   }
 }
+
+/** The caller's tenant is `READ_ONLY` (M7): a mutating request is refused with 403. */
+export class TenantReadOnlyError extends AppException {
+  constructor(message = "Tenant is read-only", details: ErrorDetail[] = []) {
+    super(ErrorCode.TENANT_READ_ONLY, message, details);
+  }
+}

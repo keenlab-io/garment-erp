@@ -41,16 +41,16 @@
 
 ## 4. Tenancy module — `apps/api/src/tenancy`
 
-- [ ] 4.1 `tenant-context.ts` — `TenantStore { tenantId, source: "jwt" | "host" | "job" | "system" }`, `tenantContext` ALS, `currentTenantId()`, `runWithTenant(tenantId, source, fn)`
-- [ ] 4.2 Extend `db/unit-of-work.service.ts` — when opening a new transaction, validate `currentTenantId()` is a well-formed uuid and issue `SELECT set_config('app.tenant_id', $1, true)` as the first statement (parameterized, never spliced); no tenant in scope → no GUC (fail-closed under RLS)
-- [ ] 4.3 `tenant-transaction.interceptor.ts` — global `TenantTransactionInterceptor` (`APP_INTERCEPTOR` in `app.module.ts`, registered before `IdempotencyInterceptor`): request has `tenantContext` → run the handler inside `uow.withTransaction`; platform/public routes pass through; add an `@SkipTenantTransaction()` opt-out decorator for streaming routes (design OQ1)
-- [ ] 4.4 `tenant-resolution.service.ts` + `tenant-resolution.middleware.ts` — `byHostname(host)` over `tenant_domain` (system-scoped read); middleware enters `tenantContext` (`source: "host"`) for `@Public()` routes; in `DEPLOYMENT_MODE=self-hosted` short-circuit to the single tenant
-- [ ] 4.5 `with-tenant-job.ts` — `withTenantJob(job, fn)`: validate `job.data.tenantId` uuid, `runWithTenant(tenantId, "job", fn)`; throw a `BusinessRuleError` on missing tenant unless the job name is in `PLATFORM_JOBS`
-- [ ] 4.6 `tenant-status.guard.ts` — central `TenantStatus` enforcement: `SUSPENDED`/`PURGING` → 403 on everything (login included), `READ_ONLY` → 403 on mutating methods with error code `TENANT_READ_ONLY` (m8 supplies the billing policy that flips the status)
-- [ ] 4.7 `tenancy.parity.spec.ts` (in `apps/api/src`, beside `enums.parity.spec.ts`) — iterate `pgTable`s from the `@erp/db` schema barrel via `getTableConfig`; assert each is in `TENANT_EXEMPT` (`tenant`, `tenant_domain`, `platform_admin`, `platform_audit_log`, `support_session`, `permission`) or has a `tenantId` column; the failure message names the offending table
-- [ ] 4.8 `TenancyModule` (global) exporting the context helpers + resolution service; wire the middleware in `main.ts`/`app.module.ts`
-- [ ] 4.9 Extend `config/env.schema.ts` — `DEPLOYMENT_MODE` (`cloud|self-hosted`, default `cloud`), `APP_DOMAIN`, `DEFAULT_TENANT_SLUG` (default `default`), optional `DATABASE_OWNER_URL`
-- [ ] 4.10 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 4.1 `tenant-context.ts` — `TenantStore { tenantId, source: "jwt" | "host" | "job" | "system" }`, `tenantContext` ALS, `currentTenantId()`, `runWithTenant(tenantId, source, fn)`
+- [x] 4.2 Extend `db/unit-of-work.service.ts` — when opening a new transaction, validate `currentTenantId()` is a well-formed uuid and issue `SELECT set_config('app.tenant_id', $1, true)` as the first statement (parameterized, never spliced); no tenant in scope → no GUC (fail-closed under RLS)
+- [x] 4.3 `tenant-transaction.interceptor.ts` — global `TenantTransactionInterceptor` (`APP_INTERCEPTOR` in `app.module.ts`, registered before `IdempotencyInterceptor`): request has `tenantContext` → run the handler inside `uow.withTransaction`; platform/public routes pass through; add an `@SkipTenantTransaction()` opt-out decorator for streaming routes (design OQ1)
+- [x] 4.4 `tenant-resolution.service.ts` + `tenant-resolution.middleware.ts` — `byHostname(host)` over `tenant_domain` (system-scoped read); middleware enters `tenantContext` (`source: "host"`) for `@Public()` routes; in `DEPLOYMENT_MODE=self-hosted` short-circuit to the single tenant
+- [x] 4.5 `with-tenant-job.ts` — `withTenantJob(job, fn)`: validate `job.data.tenantId` uuid, `runWithTenant(tenantId, "job", fn)`; throw a `BusinessRuleError` on missing tenant unless the job name is in `PLATFORM_JOBS`
+- [x] 4.6 `tenant-status.guard.ts` — central `TenantStatus` enforcement: `SUSPENDED`/`PURGING` → 403 on everything (login included), `READ_ONLY` → 403 on mutating methods with error code `TENANT_READ_ONLY` (m8 supplies the billing policy that flips the status)
+- [x] 4.7 `tenancy.parity.spec.ts` (in `apps/api/src`, beside `enums.parity.spec.ts`) — iterate `pgTable`s from the `@erp/db` schema barrel via `getTableConfig`; assert each is in `TENANT_EXEMPT` (`tenant`, `tenant_domain`, `platform_admin`, `platform_audit_log`, `support_session`, `permission`) or has a `tenantId` column; the failure message names the offending table
+- [x] 4.8 `TenancyModule` (global) exporting the context helpers + resolution service; wire the middleware in `main.ts`/`app.module.ts`
+- [x] 4.9 Extend `config/env.schema.ts` — `DEPLOYMENT_MODE` (`cloud|self-hosted`, default `cloud`), `APP_DOMAIN`, `DEFAULT_TENANT_SLUG` (default `default`), optional `DATABASE_OWNER_URL`
+- [x] 4.10 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 5. Auth changes — `apps/api/src/auth` + `apps/api/src/iam`
 
