@@ -42,6 +42,9 @@ const PAYABLE: ReadonlySet<InvoiceStatus> = new Set<InvoiceStatus>([
  * for a non-VAT invoice — `vat_amount = 0` — a RECEIPT_TAX_INVOICE otherwise) from the RECEIPT
  * sequence, plus a `wht_certificate` when the invoice carries a `wht_rate`. Emits
  * `PaymentReceived`. Runs inside the caller's `uow.withTransaction`.
+ *
+ * Tenancy (M7 §12.1): the receipt `doc_no` (tenant's RECEIPT sequence) and the derived
+ * `cert_no` (`WHT-{invoice doc_no}`) are unique per tenant — `(tenant_id, doc_no|cert_no)`.
  */
 @Injectable()
 export class PaymentService {

@@ -31,6 +31,10 @@ import { TotalsService } from "./totals.service.js";
  * **partial-billing ceiling** — `Σ(invoice subtotals) ≤ quotation subtotal` → 422 on exceed.
  * `issue` moves DRAFT → ISSUED and emits `InvoiceIssued` (the optional M3 stock OUT, atomic
  * in-tx). Runs inside the caller's `uow.withTransaction`.
+ *
+ * Tenancy (M7 §12.1): `doc_no` comes from the caller tenant's INVOICE sequence and is unique per
+ * `(tenant_id, doc_no)`. By-id reads (and the billing-ceiling Σ, keyed by a quotation id) rely on
+ * RLS.
  */
 @Injectable()
 export class InvoiceService {

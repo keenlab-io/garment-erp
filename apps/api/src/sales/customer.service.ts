@@ -12,6 +12,7 @@ import { StateConflictError } from "../common/errors/app-exception.js";
 import { buildPage } from "../common/pagination/cursor.js";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
+import { inCallerTenant } from "../tenancy/in-caller-tenant.js";
 import { toCustomerDto } from "./sales.util.js";
 
 interface CustomerCursor {
@@ -22,6 +23,9 @@ interface CustomerCursor {
 /**
  * Customer master (task 5.1, spec §5.2). Create plus a keyset-paginated autocomplete search
  * matching `name` or `tax_id` — the client uses it to fill in the billing address/branch.
+ *
+ * Tenancy (M7 §12.1): the search adds an explicit `tenant_id` predicate on top of RLS (skipped on
+ * owner/superuser connections); `create` inherits the tenant from the column default.
  */
 @Injectable()
 export class CustomerService {
@@ -64,7 +68,7 @@ export class CustomerService {
     const rows = await ex
       .select()
       .from(customer)
-      .where(filters.length ? and(...filters) : undefined)
+      .where(inCallerTenant(customer.tenantId, filters.length ? and(...filters) : undefined))
       .orderBy(desc(customer.createdAt), desc(customer.id))
       .limit(query.limit + 1);
 

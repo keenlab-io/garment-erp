@@ -31,6 +31,9 @@ import { TotalsService } from "./totals.service.js";
  * `QuotationApproved`. **Convert** copies an APPROVED quotation's lines/prices into a new
  * invoice and flips the quotation to CONVERTED in one transaction — a re-convert is a 409
  * (the status is no longer APPROVED). Runs inside the caller's `uow.withTransaction`.
+ *
+ * Tenancy (M7 §12.1): `doc_no` comes from the caller tenant's sequence and is unique per
+ * `(tenant_id, doc_no)`, so two tenants each mint their own `QV…0001`. By-id reads rely on RLS.
  */
 @Injectable()
 export class QuotationService {

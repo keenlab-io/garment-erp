@@ -21,6 +21,8 @@ export interface SalesEtaxJob extends TenantJobData {
  * `pdf`-queue job → 202 `{ job_id }`; the worker builds a **non-authoritative** RD e-Tax XML
  * document (stub layout, mirroring M2's PND.1 treatment) and lands it in object storage. This
  * is not a real Revenue-Department filing — the confirmed XSD is pending (design OQ).
+ *
+ * Tenancy (M7 §12.2): the XML key is relative; `StorageService` lands it under `tenants/{tid}/`.
  */
 @Injectable()
 export class EtaxService {
