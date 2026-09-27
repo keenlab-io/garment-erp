@@ -17,6 +17,7 @@ import { buildPage } from "../common/pagination/cursor.js";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor, onCommit } from "../db/tx-context.js";
 import { QUEUES } from "../queue/queue.constants.js";
+import { inCallerTenant } from "../tenancy/in-caller-tenant.js";
 import { tenantJobData } from "../tenancy/with-tenant-job.js";
 import { scheduleSchedulerId, toScheduleDto } from "./schedule.util.js";
 
@@ -27,6 +28,16 @@ interface ScheduleCursor {
   createdAt: string;
   id: string;
 }
+
+/**
+ * A live schedule by id, within the caller's tenant. `report_schedule` rows are per tenant (M7
+ * §13.1): the explicit predicate rides on top of RLS, which an owner/superuser connection skips.
+ */
+const byId = (id: string) =>
+  inCallerTenant(
+    reportSchedule.tenantId,
+    and(eq(reportSchedule.id, id), notDeleted(reportSchedule.deletedAt)),
+  );
 
 /**
  * Report-schedule CRUD + repeatable-job lifecycle (task 4.4, design D8). The `report_schedule`
@@ -61,7 +72,7 @@ export class ReportScheduleService {
     const rows = await ex
       .select()
       .from(reportSchedule)
-      .where(and(...filters))
+      .where(inCallerTenant(reportSchedule.tenantId, and(...filters)))
       .orderBy(desc(reportSchedule.createdAt), desc(reportSchedule.id))
       .limit(query.limit + 1);
 
@@ -103,7 +114,7 @@ export class ReportScheduleService {
     const [row] = await ex
       .select()
       .from(reportSchedule)
-      .where(and(eq(reportSchedule.id, id), notDeleted(reportSchedule.deletedAt)))
+      .where(byId(id))
       .limit(1);
     if (!row) throw new NotFoundError(`Report schedule not found: ${id}`);
     if (expectedVersion !== null) assertVersion(row.version, expectedVersion);
@@ -122,7 +133,7 @@ export class ReportScheduleService {
         updatedAt: new Date(),
         version: row.version + 1,
       })
-      .where(eq(reportSchedule.id, id))
+      .where(inCallerTenant(reportSchedule.tenantId, eq(reportSchedule.id, id)))
       .returning();
     if (!updated) throw new StateConflictError("Report schedule could not be updated");
     this.reconcileScheduler(updated.id, updated.cron, updated.isActive);
@@ -134,7 +145,7 @@ export class ReportScheduleService {
     const [row] = await ex
       .update(reportSchedule)
       .set({ deletedAt: new Date() })
-      .where(and(eq(reportSchedule.id, id), notDeleted(reportSchedule.deletedAt)))
+      .where(byId(id))
       .returning();
     if (!row) throw new NotFoundError(`Report schedule not found: ${id}`);
     this.removeScheduler(id);
@@ -146,7 +157,7 @@ export class ReportScheduleService {
     const [row] = await ex
       .select({ id: reportSchedule.id })
       .from(reportSchedule)
-      .where(and(eq(reportSchedule.id, id), notDeleted(reportSchedule.deletedAt)))
+      .where(byId(id))
       .limit(1);
     if (!row) throw new NotFoundError(`Report schedule not found: ${id}`);
     const job = await this.queue.add(REPORT_DIGEST_JOB, tenantJobData({ schedule_id: id }));
