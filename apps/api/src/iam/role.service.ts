@@ -36,6 +36,10 @@ import { makeEvent } from "../events/domain-event.js";
  * (instant revocation, design D2), and emits a `PERMISSION_CHANGE` audit event.
  * Deleting a role additionally requires Super-Admin re-auth and is blocked while any
  * user is still bound (design D6).
+ *
+ * Tenancy (M7 task 8.1): every read/write runs in the request's tenant transaction, so RLS
+ * scopes roles to the caller's tenant and the `(tenant_id, name)` unique makes a duplicate
+ * name a per-tenant 409 — two tenants may each own a role with the same name.
  */
 @Injectable()
 export class RoleService {

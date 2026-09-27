@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import ExcelJS from "exceljs";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   permission,
   role,
@@ -18,6 +18,7 @@ import { currentExecutor } from "../db/tx-context.js";
 import { UnitOfWork } from "../db/unit-of-work.service.js";
 import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
+import { currentTenantId } from "../tenancy/tenant-context.js";
 
 /** One raw worksheet row: role name in column A, permission codes in column B. */
 export interface RawImportRow {
@@ -80,8 +81,9 @@ export function collectRows(raws: RawImportRow[]): ParsedImport {
  * All-or-nothing Excel import of a role→permission matrix (spec §1.5, design D7).
  * Every referenced code is validated against the `permission` catalog; any unknown
  * code fails the whole import with a 400 naming the offending rows and persists
- * nothing. On success, roles are upserted by name, their grants replaced, and every
- * affected bound user's `permissions_version` bumped — all in one transaction.
+ * nothing. On success, roles are upserted by name **within the caller's tenant** (the
+ * catalog itself is global and read-only — M7 task 8.2), their grants replaced, and every
+ * affected bound user's `permissions_version` bumped — all in one tenant transaction.
  */
 @Injectable()
 export class ImportService {
@@ -160,13 +162,20 @@ export class ImportService {
     });
   }
 
-  /** Find a role by name or create it; returns its id. */
+  /**
+   * Find a role by name in the caller's tenant or create it there; returns its id. Role names
+   * are unique per tenant (`role_tenant_name_uq`), so another tenant's same-named role is never
+   * matched: RLS filters it for the runtime role, and the explicit predicate keeps that true
+   * (and hits the unique index) on an owner/superuser connection that bypasses RLS.
+   */
   private async upsertRole(name: string, actor: AuthUser): Promise<string> {
     const ex = currentExecutor(this.db);
+    const tenantId = currentTenantId();
+    const byName = eq(role.name, name);
     const [existing] = await ex
       .select({ id: role.id })
       .from(role)
-      .where(eq(role.name, name))
+      .where(tenantId === null ? byName : and(eq(role.tenantId, tenantId), byName))
       .limit(1);
     if (existing) return existing.id;
 

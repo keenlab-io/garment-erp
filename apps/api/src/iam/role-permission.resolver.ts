@@ -12,6 +12,10 @@ import type { PermissionResolver } from "../auth/auth.tokens.js";
  * through `currentExecutor(db)` so it honors any ambient transaction. `IamModule`
  * binds this to the `PERMISSION_RESOLVER` token, overriding M0's empty-set default —
  * the only wiring change needed for the global `JwtGuard` to enforce real permissions.
+ *
+ * Tenancy (M7 task 8.1): `JwtGuard` calls this inside its auth tenant transaction (task 5.2),
+ * so `user_role`/`role_permission` are RLS-filtered to the token's tenant; only the global
+ * `permission` catalog (tenant-exempt, read-only to the runtime) is shared across tenants.
  */
 @Injectable()
 export class RolePermissionResolver implements PermissionResolver {

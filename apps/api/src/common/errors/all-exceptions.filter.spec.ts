@@ -86,6 +86,15 @@ describe("AllExceptionsFilter", () => {
     expect(body?.message).toBe("Resource already exists");
   });
 
+  it("maps a drizzle-wrapped unique violation (cause.code 23505) to 409", () => {
+    const wrapped = new Error("Failed query: insert into \"role\" …", {
+      cause: { code: "23505" },
+    });
+    const { status, body } = run(wrapped);
+    expect(status).toBe(409);
+    expect(body?.code).toBe("STATE_CONFLICT");
+  });
+
   it("maps a framework HttpException by its status", () => {
     const { status, body } = run(new NotFoundException("missing"));
     expect(status).toBe(404);

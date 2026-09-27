@@ -35,6 +35,10 @@ interface UserCursor {
  * `permissions_version` (instant revocation, design D2); `forceLogout` additionally
  * revokes every live session. Each mutation emits an audit event —
  * `PERMISSION_CHANGE` for role/status edits, `FORCE_LOGOUT` for force-logout.
+ *
+ * Tenancy (M7 task 8.1): RLS under the request's tenant transaction scopes users and the
+ * roles `setRoles` may bind (another tenant's role id reads as absent → 404); usernames are
+ * unique per tenant via `(tenant_id, username)`.
  */
 @Injectable()
 export class UserService {

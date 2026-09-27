@@ -99,6 +99,13 @@
       "when": 1790477937194,
       "tag": "0013_tenancy_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790500000000,
+      "tag": "0014_permission_catalog_readonly",
+      "breakpoints": true
     }
   ]
 }
