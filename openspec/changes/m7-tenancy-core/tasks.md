@@ -97,9 +97,9 @@
 
 ## 10. Business-module sweep — `apps/api/src/inventory`
 
-- [ ] 10.1 Audit GR/GI/count/adjustment/BOM paths; SKU auto-issue (`sku_code`) and barcode checks now per-tenant — update any "code exists" precheck to rely on the composite unique's conflict error
-- [ ] 10.2 Stock ledger (`stock_movement` append-only, `stock_balance` upserts) inherit tenant via default + RLS; extend the negative-stock and balance tests to a two-tenant fixture proving balances never mix
-- [ ] 10.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 10.1 Audit GR/GI/count/adjustment/BOM paths; SKU auto-issue (`sku_code`) and barcode checks now per-tenant — update any "code exists" precheck to rely on the composite unique's conflict error
+- [x] 10.2 Stock ledger (`stock_movement` append-only, `stock_balance` upserts) inherit tenant via default + RLS; extend the negative-stock and balance tests to a two-tenant fixture proving balances never mix
+- [x] 10.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 11. Business-module sweep — `apps/api/src/production`
 

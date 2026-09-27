@@ -1,8 +1,5 @@
 import { asMoney, asQty, type Money, type Qty } from "@erp/contracts";
 import { tryDecodeCursor } from "@erp/utils";
-import { and, eq, type SQL } from "drizzle-orm";
-import type { AnyPgColumn } from "drizzle-orm/pg-core";
-import { currentTenantId } from "../tenancy/tenant-context.js";
 
 /**
  * Boundary casts that tag an already-formatted decimal string with the branded wire type
@@ -40,16 +37,4 @@ export function periodBounds(period: string): { start: string; end: string } {
   const lastDay = new Date(Date.UTC(y, mo, 0)).getUTCDate();
   const end = `${period}-${String(lastDay).padStart(2, "0")}`;
   return { start, end };
-}
-
-/**
- * Scope a natural-key lookup (`emp_code`, `payroll_run.period`) to the caller's tenant (M7 §9.1).
- * Those keys are unique per tenant only (`(tenant_id, …)` composite uniques), so a lookup by one
- * must never match another tenant's row: RLS filters it for the runtime role, and this explicit
- * predicate keeps that true (and hits the composite index) on an owner/superuser connection that
- * bypasses RLS. Outside a tenant scope the predicate is omitted and RLS alone decides.
- */
-export function inCallerTenant(tenantIdColumn: AnyPgColumn, condition: SQL): SQL {
-  const tenantId = currentTenantId();
-  return tenantId === null ? condition : (and(eq(tenantIdColumn, tenantId), condition) as SQL);
 }

@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import type { ConfigService } from "@nestjs/config";
+import { toDecimal } from "@erp/utils";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   DEFAULT_TENANT_ID,
@@ -11,12 +12,13 @@ import {
   stockBalance,
   stockLot,
   stockMovement,
+  tenant,
   uom,
   warehouse,
 } from "@erp/db";
 import type { AuthUser } from "../../src/auth/auth-user.js";
 import { AuditService } from "../../src/audit/audit.service.js";
-import { ValidationError } from "../../src/common/errors/app-exception.js";
+import { BusinessRuleError, ValidationError } from "../../src/common/errors/app-exception.js";
 import { UnitOfWork } from "../../src/db/unit-of-work.service.js";
 import { DefaultTenantUnitOfWork } from "./tenant-harness.js";
 import { EventBusService } from "../../src/events/event-bus.service.js";
@@ -30,8 +32,10 @@ import { ItemService } from "../../src/inventory/item.service.js";
 import { LedgerService } from "../../src/inventory/ledger.service.js";
 import { StockAdjustmentService } from "../../src/inventory/stock-adjustment.service.js";
 import { StockCountService } from "../../src/inventory/stock-count.service.js";
+import { runWithTenant } from "../../src/tenancy/tenant-context.js";
 
 const url = process.env.DATABASE_URL_TEST;
+const appUrl = process.env.DATABASE_URL_TEST_APP;
 
 // Gated on DATABASE_URL_TEST (the Testcontainers globalSetup). Drives the M3 inventory
 // services end-to-end against a real Postgres, covering the spec §3.8 acceptance criteria
@@ -409,5 +413,255 @@ describe.skipIf(!url)("Inventory services (integration)", () => {
     expect(adjustment.status).toBe("DRAFT");
     expect(adjustment.lines).toHaveLength(1);
     expect(adjustment.lines[0]?.qty_delta).toBe("-2.000000");
+  });
+});
+
+// M7 tasks 10.1/10.2 — SKU codes and barcodes are unique per tenant (`(tenant_id, …)`), and the
+// stock ledger inherits `tenant_id` from the GUC default + RLS. Two tenants with their own
+// warehouse, UOM and ITEM sequence post through the same services; the harness connects as the
+// superuser (RLS bypassed), so these also pin the services' own tenant predicates.
+describe.skipIf(!url)("Inventory is per-tenant: SKU keys & stock ledger (integration)", () => {
+  let conn: ReturnType<typeof createDb>;
+  let uow: UnitOfWork;
+  let items: ItemService;
+  let receipts: GoodsReceiptService;
+  let issues: GoodsIssueService;
+  let ledger: LedgerService;
+  let tenantB: string;
+  const barcode = `BC-${randomUUID().slice(0, 8)}`;
+  const fixture: Record<string, { uomId: string; warehouseId: string; itemId?: string }> = {};
+
+  const actorFor = (tenantId: string): AuthUser => ({
+    id: randomUUID(),
+    sessionId: randomUUID(),
+    tenantId,
+    isSuperAdmin: true,
+    permissions: new Set(),
+  });
+  const inTenant = <T>(tenantId: string, fn: () => Promise<T>): Promise<T> =>
+    runWithTenant(tenantId, "jwt", () => uow.withTransaction(fn));
+
+  beforeAll(async () => {
+    conn = createDb(url as string, { max: 1 });
+    const events = new EventBusService(new EventEmitter2());
+    uow = new DefaultTenantUnitOfWork(conn.db);
+    const sequences = new SequenceService(conn.db, uow);
+    const costing = new CostingService(conn.db);
+    ledger = new LedgerService(conn.db, events);
+    items = new ItemService(conn.db, sequences);
+    receipts = new GoodsReceiptService(conn.db, items, costing, ledger, events);
+    const config = {
+      get: (key: string) => (key === "INVENTORY_ALLOW_NEGATIVE_STOCK" ? false : undefined),
+    } as unknown as ConfigService;
+    issues = new GoodsIssueService(conn.db, config, items, costing, ledger, events);
+
+    const [other] = await conn.db
+      .insert(tenant)
+      .values({ slug: `inv-b-${randomUUID().slice(0, 8)}`, name: "Inventory tenant B", kind: "CUSTOMER" })
+      .returning({ id: tenant.id });
+    tenantB = (other as { id: string }).id;
+
+    for (const tenantId of [DEFAULT_TENANT_ID, tenantB]) {
+      const uomId = randomUUID();
+      await conn.db
+        .insert(uom)
+        .values({ id: uomId, tenantId, code: `PC-${uomId.slice(0, 4)}`, name: "Piece" });
+      await conn.db
+        .insert(documentSequence)
+        .values({
+          tenantId,
+          key: "ITEM",
+          prefix: "AA",
+          includeYear: false,
+          padding: 5,
+          resetYearly: false,
+          currentValue: 0,
+          format: "{prefix}{seq:00000}",
+          yearScope: 2000,
+        })
+        .onConflictDoNothing();
+      // Tenant B gets a warehouse with the same name as the default tenant's "Main WH":
+      // the default-warehouse pick must resolve within the caller's tenant, not by name alone.
+      if (tenantId === tenantB) {
+        const [wh] = await conn.db
+          .insert(warehouse)
+          .values({ tenantId, name: "Main WH" })
+          .returning({ id: warehouse.id });
+        fixture[tenantId] = { uomId, warehouseId: (wh as { id: string }).id };
+      } else {
+        let warehouseId: string;
+        try {
+          warehouseId = await inTenant(tenantId, () => items.defaultWarehouseId());
+        } catch {
+          const [wh] = await conn.db
+            .insert(warehouse)
+            .values({ tenantId, name: "Main WH" })
+            .returning({ id: warehouse.id });
+          warehouseId = (wh as { id: string }).id;
+        }
+        fixture[tenantId] = { uomId, warehouseId };
+      }
+    }
+  });
+
+  afterAll(async () => {
+    await conn.queryClient.end();
+  });
+
+  async function makeItem(tenantId: string): Promise<string> {
+    const created = await inTenant(tenantId, () =>
+      items.create(
+        {
+          name: "Per-tenant item",
+          item_type: "RAW" as never,
+          base_uom_id: fixture[tenantId]!.uomId as never,
+          costing_method: "MAV" as never,
+          attributes: {},
+        },
+        actorFor(tenantId),
+      ),
+    );
+    return created.id;
+  }
+
+  async function receive(tenantId: string, itemId: string, qty: string, price: string) {
+    const actor = actorFor(tenantId);
+    const gr = await inTenant(tenantId, () =>
+      receipts.create(
+        {
+          supplier_id: randomUUID() as never,
+          lines: [
+            {
+              item_id: itemId as never,
+              uom_id: fixture[tenantId]!.uomId as never,
+              qty: qty as never,
+              unit_price: price as never,
+            },
+          ],
+        },
+        actor,
+      ),
+    );
+    await inTenant(tenantId, () => receipts.confirm(gr.id));
+    await inTenant(tenantId, () => receipts.post(gr.id, actor));
+  }
+
+  async function issue(tenantId: string, itemId: string, qty: string) {
+    const actor = actorFor(tenantId);
+    const gi = await inTenant(tenantId, () =>
+      issues.create(
+        {
+          purpose: "PRODUCTION" as never,
+          lines: [
+            { item_id: itemId as never, uom_id: fixture[tenantId]!.uomId as never, qty: qty as never },
+          ],
+        },
+        actor,
+      ),
+    );
+    return inTenant(tenantId, () => issues.post(gi.id, actor));
+  }
+
+  it("allows the same barcode in two tenants but not twice in one (composite unique ⇒ 23505 → 409)", async () => {
+    const itemA = await makeItem(DEFAULT_TENANT_ID);
+    const itemB = await makeItem(tenantB);
+
+    const skuA = await inTenant(DEFAULT_TENANT_ID, () =>
+      items.createSku(itemA, { variant: "Red / M", barcode } as never),
+    );
+    const skuB = await inTenant(tenantB, () =>
+      items.createSku(itemB, { variant: "Red / M", barcode } as never),
+    );
+    expect(skuA.barcode).toBe(barcode);
+    expect(skuB.barcode).toBe(barcode);
+    // Tenant B numbers from its own ITEM sequence: item AA00001, then its SKU.
+    const itemBDto = await inTenant(tenantB, () => items.get(itemB));
+    expect(itemBDto.code).toBe("AA00001");
+    expect(skuB.sku_code).toBe("SKU-AA00002");
+
+    await expect(
+      inTenant(tenantB, () => items.createSku(itemB, { variant: "Blue / L", barcode } as never)),
+    ).rejects.toMatchObject({ cause: { code: "23505" } });
+  });
+
+  it("posts each tenant's receipts to its own warehouse and balances never mix", async () => {
+    const itemA = await makeItem(DEFAULT_TENANT_ID);
+    const itemB = await makeItem(tenantB);
+    fixture[DEFAULT_TENANT_ID]!.itemId = itemA;
+    fixture[tenantB]!.itemId = itemB;
+
+    await receive(DEFAULT_TENANT_ID, itemA, "10", "100");
+    await receive(tenantB, itemB, "3", "50");
+
+    const balances = await conn.db
+      .select()
+      .from(stockBalance)
+      .where(inArray(stockBalance.itemId, [itemA, itemB]));
+    const byItem = new Map(balances.map((b) => [b.itemId, b]));
+    expect(balances).toHaveLength(2);
+    expect(byItem.get(itemA)).toMatchObject({
+      tenantId: DEFAULT_TENANT_ID,
+      warehouseId: fixture[DEFAULT_TENANT_ID]!.warehouseId,
+      qtyOnHand: "10.000000",
+    });
+    expect(byItem.get(itemB)).toMatchObject({
+      tenantId: tenantB,
+      warehouseId: fixture[tenantB]!.warehouseId,
+      qtyOnHand: "3.000000",
+    });
+
+    const movements = await conn.db
+      .select({ itemId: stockMovement.itemId, tenantId: stockMovement.tenantId })
+      .from(stockMovement)
+      .where(inArray(stockMovement.itemId, [itemA, itemB]));
+    for (const m of movements) {
+      expect(m.tenantId).toBe(m.itemId === itemA ? DEFAULT_TENANT_ID : tenantB);
+    }
+  });
+
+  it("negative stock is rejected per tenant — another tenant's on-hand never covers an issue", async () => {
+    const itemB = fixture[tenantB]!.itemId as string;
+    const itemA = fixture[DEFAULT_TENANT_ID]!.itemId as string;
+
+    await expect(issue(tenantB, itemB, "5")).rejects.toBeInstanceOf(BusinessRuleError);
+    await issue(tenantB, itemB, "2");
+
+    const rebuiltB = await inTenant(tenantB, () =>
+      ledger.rebuildBalance(itemB, fixture[tenantB]!.warehouseId),
+    );
+    const rebuiltA = await inTenant(DEFAULT_TENANT_ID, () =>
+      ledger.rebuildBalance(itemA, fixture[DEFAULT_TENANT_ID]!.warehouseId),
+    );
+    const balances = await conn.db
+      .select()
+      .from(stockBalance)
+      .where(inArray(stockBalance.itemId, [itemA, itemB]));
+    const byItem = new Map(balances.map((b) => [b.itemId, b]));
+    expect(byItem.get(itemB)?.qtyOnHand).toBe("1.000000");
+    expect(byItem.get(itemA)?.qtyOnHand).toBe("10.000000");
+    // Replaying each tenant's ledger reproduces its own cache — no cross-tenant movements.
+    expect(toDecimal(rebuiltB.qtyOnHand).equals(1)).toBe(true);
+    expect(toDecimal(rebuiltB.avgCost).equals(50)).toBe(true);
+    expect(toDecimal(rebuiltA.qtyOnHand).equals(10)).toBe(true);
+    expect(toDecimal(rebuiltA.avgCost).equals(100)).toBe(true);
+  });
+
+  it.skipIf(!appUrl)("under the RLS-bound runtime role a tenant sees only its own balances", async () => {
+    const app = createDb(appUrl as string, { max: 1 });
+    try {
+      const appUow = new DefaultTenantUnitOfWork(app.db);
+      const ids = [fixture[DEFAULT_TENANT_ID]!.itemId as string, fixture[tenantB]!.itemId as string];
+      const seen = await runWithTenant(tenantB, "jwt", () =>
+        appUow.withTransaction((tx) =>
+          tx
+            .select({ itemId: stockBalance.itemId })
+            .from(stockBalance)
+            .where(inArray(stockBalance.itemId, ids)),
+        ),
+      );
+      expect(seen).toEqual([{ itemId: fixture[tenantB]!.itemId }]);
+    } finally {
+      await app.queryClient.end();
+    }
   });
 });
