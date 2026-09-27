@@ -4,6 +4,7 @@ import { EventEmitter2 } from "@nestjs/event-emitter";
 import type { Queue } from "bullmq";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  DEFAULT_TENANT_ID,
   advancePolicy,
   attendance,
   auditLog,
@@ -102,6 +103,7 @@ describe.skipIf(!url)("HR & payroll services (integration)", () => {
   const superAdmin: AuthUser = {
     id: randomUUID(),
     sessionId: randomUUID(),
+    tenantId: DEFAULT_TENANT_ID,
     isSuperAdmin: true,
     permissions: new Set(),
   };
@@ -341,6 +343,7 @@ describe.skipIf(!url)("HR & payroll services (integration)", () => {
     const clerk: AuthUser = {
       id: randomUUID(),
       sessionId: randomUUID(),
+      tenantId: DEFAULT_TENANT_ID,
       isSuperAdmin: false,
       permissions: new Set(["hr.employee.manage"]),
     };
@@ -367,6 +370,7 @@ describe.skipIf(!url)("HR & payroll services (integration)", () => {
     const selfUser: AuthUser = {
       id: randomUUID(),
       sessionId: randomUUID(),
+      tenantId: DEFAULT_TENANT_ID,
       isSuperAdmin: false,
       permissions: new Set(),
     };
@@ -388,6 +392,7 @@ describe.skipIf(!url)("HR & payroll services (integration)", () => {
     const viewer: AuthUser = {
       id: randomUUID(),
       sessionId: randomUUID(),
+      tenantId: DEFAULT_TENANT_ID,
       isSuperAdmin: false,
       permissions: new Set(["hr.payslip.view"]),
     };
@@ -397,6 +402,7 @@ describe.skipIf(!url)("HR & payroll services (integration)", () => {
     const stranger: AuthUser = {
       id: randomUUID(),
       sessionId: randomUUID(),
+      tenantId: DEFAULT_TENANT_ID,
       isSuperAdmin: false,
       permissions: new Set(),
     };
@@ -446,6 +452,7 @@ describe.skipIf(!url)("HR org structure & reporting line (integration)", () => {
   const actor: AuthUser = {
     id: randomUUID(),
     sessionId: randomUUID(),
+    tenantId: DEFAULT_TENANT_ID,
     isSuperAdmin: true,
     permissions: new Set(),
   };

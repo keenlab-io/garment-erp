@@ -8,6 +8,8 @@ import { Reflector } from "@nestjs/core";
 import type { Request } from "express";
 import type { Permission } from "@erp/contracts";
 import { UnauthenticatedError } from "../common/errors/app-exception.js";
+import { UnitOfWork } from "../db/unit-of-work.service.js";
+import { enterTenant, isTenantId } from "../tenancy/tenant-context.js";
 import type { AuthUser } from "./auth-user.js";
 import {
   PERMISSION_RESOLVER,
@@ -26,6 +28,12 @@ import { TokenService } from "./token.service.js";
  * the user by `sub` (reject if not ACTIVE) → assert `permissionsVersion === pv`
  * (mismatch ⇒ instant revocation) → resolve permissions → attach `AuthUser`. Any
  * failed step yields 401 UNAUTHENTICATED.
+ *
+ * Tenancy (M7 design D3/D5): the verified `tid` claim is entered as the request's tenant
+ * (`source: "jwt"`) before any lookup, and the user/session/permission lookups run inside one
+ * short tenant transaction so Row-Level Security applies to authentication itself (guards run
+ * before the `TenantTransactionInterceptor`, so they cannot ride the handler's transaction). A
+ * session whose `tenantId` differs from the claim is rejected.
  */
 @Injectable()
 export class JwtGuard implements CanActivate {
@@ -35,6 +43,7 @@ export class JwtGuard implements CanActivate {
     @Inject(USER_LOOKUP) private readonly users: UserLookup,
     @Inject(SESSION_LOOKUP) private readonly sessions: SessionLookup,
     @Inject(PERMISSION_RESOLVER) private readonly resolver: PermissionResolver,
+    private readonly uow: UnitOfWork,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -55,31 +64,40 @@ export class JwtGuard implements CanActivate {
       throw new UnauthenticatedError();
     }
 
-    const session = await this.sessions.byTokenId(claims.sid);
-    if (
-      !session ||
-      session.revokedAt !== null ||
-      session.expiresAt.getTime() <= Date.now()
-    ) {
-      throw new UnauthenticatedError();
-    }
+    // A token minted before tenancy (no `tid`) or with a malformed one never authenticates.
+    if (!isTenantId(claims.tid)) throw new UnauthenticatedError();
+    enterTenant(claims.tid, "jwt");
 
-    const user = await this.users.byId(claims.sub);
-    if (!user || user.status !== "ACTIVE") throw new UnauthenticatedError();
+    const authUser = await this.uow.withTransaction(async (): Promise<AuthUser> => {
+      const session = await this.sessions.byTokenId(claims.sid);
+      if (
+        !session ||
+        session.tenantId !== claims.tid ||
+        session.revokedAt !== null ||
+        session.expiresAt.getTime() <= Date.now()
+      ) {
+        throw new UnauthenticatedError();
+      }
 
-    // Instant revocation: a permissions_version bump invalidates live tokens.
-    if (user.permissionsVersion !== claims.pv) throw new UnauthenticatedError();
+      const user = await this.users.byId(claims.sub);
+      if (!user || user.status !== "ACTIVE") throw new UnauthenticatedError();
 
-    const permissions: ReadonlySet<Permission> = user.isSuperAdmin
-      ? new Set<Permission>()
-      : await this.resolver.resolve(user.id);
+      // Instant revocation: a permissions_version bump invalidates live tokens.
+      if (user.permissionsVersion !== claims.pv) throw new UnauthenticatedError();
 
-    const authUser: AuthUser = {
-      id: user.id,
-      sessionId: session.id,
-      isSuperAdmin: user.isSuperAdmin,
-      permissions,
-    };
+      const permissions: ReadonlySet<Permission> = user.isSuperAdmin
+        ? new Set<Permission>()
+        : await this.resolver.resolve(user.id);
+
+      return {
+        id: user.id,
+        sessionId: session.id,
+        tenantId: claims.tid,
+        ...(claims.sup ? { supportSessionId: claims.sup } : {}),
+        isSuperAdmin: user.isSuperAdmin,
+        permissions,
+      };
+    });
     (request as Request & { user?: AuthUser }).user = authUser;
     return true;
   }

@@ -14,6 +14,7 @@ export interface AuthUserRecord {
 export interface AuthSessionRecord {
   id: string;
   userId: string;
+  tenantId: string;
   tokenId: string;
   permissionsVersion: number;
   expiresAt: Date;

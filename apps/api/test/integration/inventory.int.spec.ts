@@ -4,6 +4,7 @@ import { EventEmitter2 } from "@nestjs/event-emitter";
 import type { ConfigService } from "@nestjs/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  DEFAULT_TENANT_ID,
   auditLog,
   createDb,
   documentSequence,
@@ -51,6 +52,7 @@ describe.skipIf(!url)("Inventory services (integration)", () => {
   const actor: AuthUser = {
     id: randomUUID(),
     sessionId: randomUUID(),
+    tenantId: DEFAULT_TENANT_ID,
     isSuperAdmin: true,
     permissions: new Set(),
   };

@@ -3,7 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import type { Queue } from "bullmq";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { createDb, documentSequence, stockBalance, uom, warehouse } from "@erp/db";
+import { DEFAULT_TENANT_ID, createDb, documentSequence, stockBalance, uom, warehouse } from "@erp/db";
 import { formatMoney, toDecimal } from "@erp/utils";
 import type { Permission } from "@erp/contracts";
 import type { AuthUser } from "../../src/auth/auth-user.js";
@@ -41,6 +41,7 @@ describe.skipIf(!url)("Reporting services (integration)", () => {
   const actor: AuthUser = {
     id: randomUUID(),
     sessionId: randomUUID(),
+    tenantId: DEFAULT_TENANT_ID,
     isSuperAdmin: true,
     permissions: new Set(),
   };
@@ -183,6 +184,7 @@ describe.skipIf(!url)("Reporting services (integration)", () => {
     const noCostData: AuthUser = {
       id: randomUUID(),
       sessionId: randomUUID(),
+      tenantId: DEFAULT_TENANT_ID,
       isSuperAdmin: false,
       permissions: new Set<Permission>([
         "report.sales.view",
