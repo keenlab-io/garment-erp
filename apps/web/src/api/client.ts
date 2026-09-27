@@ -3,6 +3,7 @@ import { tsRestFetchApi } from "@ts-rest/core";
 import { contract, ErrorCode, isErrorCode } from "@erp/contracts";
 import { getAccessToken } from "./token-store.js";
 import { notifyUnauthorized } from "./auth-events.js";
+import { notifyTenantReadOnly } from "./tenant-status.js";
 
 // login/refresh are public and answer 401 for bad credentials/an expired refresh token — that's a
 // request failure, not "your session is dead", so the interceptor below never fires for them.
@@ -33,6 +34,15 @@ export const api = initQueryClient(contract, {
       ) {
         notifyUnauthorized(code);
       }
+    }
+    // M7 §14.3: a READ_ONLY tenant's writes are refused by the api's central `TenantStatusGuard`.
+    // That's a tenant-wide state, not a per-request failure — raise it so the shell can show a
+    // persistent banner (and a toast per refused attempt) instead of a generic error.
+    if (
+      response.status === 403 &&
+      (response.body as { code?: unknown } | undefined)?.code === ErrorCode.TENANT_READ_ONLY
+    ) {
+      notifyTenantReadOnly();
     }
     return response;
   },

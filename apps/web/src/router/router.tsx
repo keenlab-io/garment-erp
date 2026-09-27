@@ -8,6 +8,7 @@ const defaultContext: RouterContext = {
   session: {
     user: null,
     isSuperAdmin: false,
+    tenant: null,
     hasPermission: () => false,
     signIn: () => {},
     signOut: () => {},

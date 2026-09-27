@@ -11,6 +11,7 @@ function sessionFor(user: AuthUser | null): Session {
   return {
     user,
     isSuperAdmin: user?.isSuperAdmin ?? false,
+    tenant: null,
     hasPermission: (permission) => userHasPermission(user, permission),
     signIn: () => {},
     signOut: () => {},

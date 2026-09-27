@@ -9,6 +9,7 @@ function sessionFor(user: AuthUser): Session {
   return {
     user,
     isSuperAdmin: user.isSuperAdmin,
+    tenant: null,
     hasPermission: (p) => user.isSuperAdmin || user.permissions.includes(p),
     signIn: () => {},
     signOut: () => {},

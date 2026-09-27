@@ -57,6 +57,12 @@ export const shellEn = {
     continue: "Continue to app",
     noticeReauth: "Your access changed. Please sign in again.",
     noticeSessionExpired: "Your session expired. Please sign in again.",
+    tenantLogoAlt: "{{name}} logo",
+  },
+  tenant: {
+    readOnlyBanner: "This workspace is read-only. You can view records, but changes can't be saved right now.",
+    readOnlyToastTitle: "Change not saved",
+    readOnlyToastBody: "This workspace is read-only, so changes are turned off.",
   },
 } as const;
 

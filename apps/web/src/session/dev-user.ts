@@ -1,4 +1,4 @@
-import { PERMISSIONS, isPermission, type Permission } from "@erp/contracts";
+import { PERMISSIONS, isPermission, type MeTenant, type Permission } from "@erp/contracts";
 
 /**
  * The authenticated user the shell reads. Real auth (login against the M1 IAM contract, token in
@@ -12,6 +12,12 @@ export interface AuthUser {
   isSuperAdmin: boolean;
   /** Granted permission codes (empty for a super admin — the bypass covers them). */
   permissions: Permission[];
+  /**
+   * The tenant the session belongs to, from `GET /auth/me` (M7 §14.2). Display-only — the api
+   * reads tenant identity from the token's `tid` claim, never from anything the web sends. Absent
+   * on the dev stub and test fixtures.
+   */
+  tenant?: MeTenant;
 }
 
 /**

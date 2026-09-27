@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Badge, Button, FormField, Input } from "@erp/ui";
 import { useLoginMutation } from "../../session/use-login.js";
 import { useSession } from "../../session/session-context.js";
+import { useTenantContext } from "../../session/use-tenant-context.js";
 import { BrandMark } from "../../shell/BrandMark";
 
 /** The reason `/login` was reached via a forced sign-out, carried as a search param (M1 §2.2). */
@@ -32,6 +33,7 @@ export function LoginPage() {
   const { notice } = useSearch({ from: "/login" });
   const login = useLoginMutation();
   const session = useSession();
+  const tenant = useTenantContext();
 
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -59,6 +61,20 @@ export function LoginPage() {
         <div className="mb-6 flex justify-center">
           <BrandMark />
         </div>
+        {/* M7 §14.1: the factory this host belongs to. Absent (generic login) when the host
+            doesn't resolve — a 404 from an unknown host, or a self-hosted/dev api. */}
+        {tenant && (
+          <div className="mb-4 flex flex-col items-center gap-2" data-tenant-slug={tenant.slug}>
+            {tenant.logoUrl && (
+              <img
+                src={tenant.logoUrl}
+                alt={t("login.tenantLogoAlt", { name: tenant.name })}
+                className="h-12 w-auto object-contain"
+              />
+            )}
+            <p className="font-display text-h3 font-semibold text-text-primary">{tenant.name}</p>
+          </div>
+        )}
         <h1 className="font-display text-h2 font-semibold text-text-primary">{t("login.title")}</h1>
         <p className="mt-2 text-sm text-text-secondary">{t("login.subtitle")}</p>
 

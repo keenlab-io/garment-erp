@@ -1,4 +1,4 @@
-import type { AppRoute, AppRouter } from "@ts-rest/core";
+import type { AppRouter } from "@ts-rest/core";
 import { initContract } from "@ts-rest/core";
 import { API_PREFIX, withErrors } from "./_shared.js";
 import { healthContract } from "./health.js";
@@ -28,12 +28,12 @@ const c = initContract();
  * Pre-login, host-resolved tenant branding (M7 §1.4) — a bare route on the root
  * contract (not nested under a module router) since it belongs to no business module.
  */
-const publicTenantContext: AppRoute = {
+const publicTenantContext = c.query({
   method: "GET",
   path: `${API_PREFIX}/public/tenant-context`,
   responses: withErrors({ 200: TenantContextResponse }),
   summary: "Pre-login tenant branding, resolved by request hostname",
-};
+});
 
 /**
  * Explicit shape for `contract` below — the iam router grew past the size `tsc` will infer and
