@@ -9,6 +9,7 @@ import { currentExecutor } from "../db/tx-context.js";
 import { StorageService } from "../storage/storage.service.js";
 import { QUEUES } from "../queue/queue.constants.js";
 import type { PayslipBreakdown } from "./payroll-math.js";
+import { inCallerTenant } from "./hr.util.js";
 import { tenantJobData, type TenantJobData } from "../tenancy/with-tenant-job.js";
 
 /** Kind of statutory export and the job the payroll worker consumes. */
@@ -47,7 +48,8 @@ export class ExportService {
     const [run] = await ex
       .select({ id: payrollRun.id })
       .from(payrollRun)
-      .where(eq(payrollRun.period, period))
+      // `period` is unique per tenant only — never match another tenant's run.
+      .where(inCallerTenant(payrollRun.tenantId, eq(payrollRun.period, period)))
       .limit(1);
     if (!run) throw new NotFoundError(`No payroll run for period ${period}`);
 

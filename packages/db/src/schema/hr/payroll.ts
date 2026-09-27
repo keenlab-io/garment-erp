@@ -9,7 +9,7 @@ import { employee } from "./employee.js";
 // Payroll runs & payslips (spec §2.2). A run computes one payslip per active employee,
 // snapshotting every input into the immutable `breakdown`. Money is numeric(18,4).
 
-// Payroll run header. `period` is a `YYYY-MM` label and is UNIQUE (one run per month).
+// Payroll run header. `period` is a `YYYY-MM` label, UNIQUE per tenant (one run per month).
 // Lifecycle DRAFT → CALCULATED → APPROVED → PAID → CLOSED (no backward transitions);
 // `approved_by` FKs the approving `user`. Carries the optimistic-concurrency version column.
 export const payrollRun = pgTable(

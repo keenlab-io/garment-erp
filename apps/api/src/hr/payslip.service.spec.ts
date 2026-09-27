@@ -1,11 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Queue } from "bullmq";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ConfigService } from "@nestjs/config";
+import type { Job, Queue } from "bullmq";
 import type { CryptoService } from "../common/crypto/crypto.service.js";
 import type { EventBusService } from "../events/event-bus.service.js";
 import type { PdfService } from "../pdf/pdf.service.js";
-import type { StorageService } from "../storage/storage.service.js";
+import type { UnitOfWork } from "../db/unit-of-work.service.js";
+import { StorageService } from "../storage/storage.service.js";
 import { encryptPdf } from "./pdf-encrypt.js";
-import { PayslipService } from "./payslip.service.js";
+import { PayslipPdfWorker } from "./payslip-pdf.worker.js";
+import { PAYSLIP_PDF_JOB, PayslipService } from "./payslip.service.js";
 
 // Mock the native qpdf boundary — it is unavailable in the unit runner. The test asserts the
 // *password* handed to it (task 5.5): the payslip PDF is encrypted with the employee's
@@ -107,5 +110,60 @@ describe("PayslipService.generate — encryption password", () => {
 
     expect(decrypt).not.toHaveBeenCalled();
     expect(encryptPdf).toHaveBeenCalledWith(expect.any(Buffer), "EXT0002");
+  });
+});
+
+// M7 §9.2 / design D13 — the payslip keeps persisting a tenant-relative `pdf_key`, and the
+// storage seam (task 7.2) lands the object under the job's tenant prefix automatically.
+describe("PayslipPdfWorker — tenant object key", () => {
+  const TENANT = "00000000-0000-4000-8000-00000000000a";
+  let storage: StorageService | undefined;
+  afterEach(() => storage?.onModuleDestroy());
+
+  it("stores the encrypted PDF under tenants/{tenantId}/payslips/{run}/{slip}.pdf", async () => {
+    const config = {
+      getOrThrow: (key: string) => `test-${key}`,
+      get: () => undefined,
+    } as unknown as ConfigService;
+    storage = new StorageService(config);
+    const send = vi.fn().mockResolvedValue({});
+    (storage as unknown as { client: { send: typeof send } }).client.send = send;
+
+    const captured: { pdfKey?: unknown } = {};
+    const row = {
+      id: "slip-3",
+      runId: "run-7",
+      employeeId: "emp-3",
+      breakdown: { base: "0", ot: "0", allowances: [], sso: "0", tax: "0", advance: "0", deductions: [] },
+      gross: "0.0000",
+      net: "0.0000",
+      empCode: "EMP0003",
+      firstName: "Tenant",
+      lastName: "Scoped",
+      nationalIdEnc: null,
+    };
+    const payslips = new PayslipService(
+      fakeExecutor(row, captured) as never,
+      {} as Queue,
+      { renderHtml: () => Promise.resolve(Buffer.from("pdf")) } as unknown as PdfService,
+      storage,
+      { decrypt: vi.fn() } as unknown as CryptoService,
+      { publishAfterCommit: vi.fn() } as unknown as EventBusService,
+    );
+    const uow = { withTransaction: <T>(fn: () => Promise<T>) => fn() } as unknown as UnitOfWork;
+    const worker = new PayslipPdfWorker(uow, payslips);
+
+    const job = {
+      id: "1",
+      name: PAYSLIP_PDF_JOB,
+      data: { payslip_id: "slip-3", tenantId: TENANT },
+    } as unknown as Job;
+    const result = await worker.process(job);
+
+    // The row keeps the tenant-relative key; the object lands under the tenant prefix.
+    expect(result).toEqual({ key: "payslips/run-7/slip-3.pdf" });
+    expect(captured.pdfKey).toBe("payslips/run-7/slip-3.pdf");
+    const input = (send.mock.calls[0]?.[0] as { input: { Key: unknown } }).input;
+    expect(input.Key).toBe(`tenants/${TENANT}/payslips/run-7/slip-3.pdf`);
   });
 });
