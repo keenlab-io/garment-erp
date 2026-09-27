@@ -7,7 +7,8 @@ import { ValidationError } from "../common/errors/app-exception.js";
 import { loadWorkbook } from "../common/workbook.js";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
-import { inCallerTenant, periodBounds } from "./hr.util.js";
+import { inCallerTenant } from "../tenancy/in-caller-tenant.js";
+import { periodBounds } from "./hr.util.js";
 
 /** One parsed attendance row (emp_code + day + optional clock window). */
 export interface AttendanceRow {

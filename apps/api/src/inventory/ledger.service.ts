@@ -42,6 +42,10 @@ const ZERO_BALANCE: Balance = { qtyOnHand: "0", avgCost: "0" };
  * proving the balance is never authoritative. Moving-average is recomputed on every IN
  * using the running balance so a replay reproduces `avg_cost` bit-for-bit. Callers pass
  * quantities already converted to the item's base UOM (invariant §3.5).
+ *
+ * Tenancy (M7 §10.2): both tables inherit `tenant_id` from the column default (the
+ * transaction's `app.tenant_id` GUC) and are RLS-filtered; the balance key `(item, warehouse)`
+ * is two tenant-owned uuids, so one tenant's postings can never reach another's balance.
  */
 @Injectable()
 export class LedgerService {
