@@ -1,5 +1,6 @@
-import { Module } from "@nestjs/common";
+import { type MiddlewareConsumer, Module, type NestModule, RequestMethod } from "@nestjs/common";
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
+import { API_PREFIX } from "@erp/contracts";
 import { AuditModule } from "./audit/audit.module.js";
 import { AuthModule } from "./auth/auth.module.js";
 import { JwtGuard } from "./auth/jwt.guard.js";
@@ -24,17 +25,24 @@ import { ReportingModule } from "./reporting/reporting.module.js";
 import { SalesModule } from "./sales/sales.module.js";
 import { SequenceModule } from "./sequence/sequence.module.js";
 import { StorageModule } from "./storage/storage.module.js";
+import { TenancyModule } from "./tenancy/tenancy.module.js";
+import { TenantResolutionMiddleware } from "./tenancy/tenant-resolution.middleware.js";
+import { TenantStatusGuard } from "./tenancy/tenant-status.guard.js";
+import { TenantTransactionInterceptor } from "./tenancy/tenant-transaction.interceptor.js";
 
 /**
  * Root module. Imports every cross-cutting infra module (Config/Db/Events/Auth are
  * `@Global`) and registers the global providers: the uniform exception filter, the
- * two guards (JwtGuard authenticates, then PermissionsGuard authorizes — order
- * matters), and the idempotency interceptor.
+ * guards (JwtGuard authenticates, TenantStatusGuard enforces the tenant lifecycle, then
+ * PermissionsGuard authorizes — order matters), and the interceptors (the tenant transaction
+ * wraps the idempotency interceptor, so both ride one transaction). Every route except the
+ * health probe first passes the hostname `TenantResolutionMiddleware` (M7 design D5).
  */
 @Module({
   imports: [
     ConfigModule,
     DbModule,
+    TenancyModule,
     EventsModule,
     AuthModule,
     AuditModule,
@@ -67,8 +75,19 @@ import { StorageModule } from "./storage/storage.module.js";
     // so the UI showed the right modules while the API refused the calls behind them.
     { provide: PERMISSION_RESOLVER, useExisting: RolePermissionResolver },
     { provide: APP_GUARD, useClass: JwtGuard },
+    { provide: APP_GUARD, useClass: TenantStatusGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    // Registered before IdempotencyInterceptor: outermost, so replay lookups run in-tenant.
+    { provide: APP_INTERCEPTOR, useClass: TenantTransactionInterceptor },
     { provide: APP_INTERCEPTOR, useClass: IdempotencyInterceptor },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer
+      .apply(TenantResolutionMiddleware)
+      // Health is probed constantly and touches no tenant data — keep it database-free.
+      .exclude({ path: `${API_PREFIX.replace(/^\//, "")}/health`, method: RequestMethod.GET })
+      .forRoutes("*");
+  }
+}
