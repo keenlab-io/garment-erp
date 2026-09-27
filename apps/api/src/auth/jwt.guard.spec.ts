@@ -6,14 +6,21 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Permission } from "@erp/contracts";
 import { UnauthenticatedError } from "../common/errors/app-exception.js";
 import type { UnitOfWork } from "../db/unit-of-work.service.js";
-import { currentTenant, currentTenantId, openTenantSlot } from "../tenancy/tenant-context.js";
+import {
+  currentTenant,
+  currentTenantId,
+  openTenantSlot,
+  tenantContext,
+} from "../tenancy/tenant-context.js";
 import { JwtGuard } from "./jwt.guard.js";
 import { TokenService } from "./token.service.js";
 import type {
   AuthSessionRecord,
+  AuthSupportSessionRecord,
   AuthUserRecord,
   PermissionResolver,
   SessionLookup,
+  SupportSessionLookup,
   UserLookup,
 } from "./auth.tokens.js";
 
@@ -87,7 +94,10 @@ describe("JwtGuard (instant revocation)", () => {
     },
   } as unknown as UnitOfWork;
 
-  const guard = new JwtGuard(reflector, tokens, users, sessions, resolver, uow);
+  let supportRecord: AuthSupportSessionRecord | null;
+  const supportSessions: SupportSessionLookup = { byId: async () => supportRecord };
+
+  const guard = new JwtGuard(reflector, tokens, users, sessions, resolver, uow, supportSessions);
 
   /** Sign an access token snapshotting `pv` for tenant A. */
   function tokenAt(pv: number): Promise<string> {
@@ -114,6 +124,7 @@ describe("JwtGuard (instant revocation)", () => {
     resolved = new Set<Permission>(["iam.user.manage"]);
     lookupTenants = [];
     transactions = 0;
+    supportRecord = null;
   });
 
   it("admits a request whose token pv still matches the user", async () => {
@@ -198,19 +209,82 @@ describe("JwtGuard (instant revocation)", () => {
     expect(lookupTenants).toEqual([]);
   });
 
-  it("carries a support-session claim onto the AuthUser", async () => {
-    const token = await tokens.signAccess({
-      sub: USER_ID,
-      sid: TOKEN_ID,
-      pv: 1,
-      tid: TENANT_A,
-      sup: "44444444-4444-4444-4444-444444444444",
+  describe("support-session tokens (sup claim)", () => {
+    const SUP_ID = "44444444-4444-4444-4444-444444444444";
+    const ADMIN_ID = "55555555-5555-5555-5555-555555555555";
+
+    const supportToken = () =>
+      tokens.signAccess({ sub: ADMIN_ID, sid: TOKEN_ID, pv: 0, tid: TENANT_A, sup: SUP_ID });
+
+    beforeEach(() => {
+      supportRecord = {
+        id: SUP_ID,
+        platformAdminId: ADMIN_ID,
+        tenantId: TENANT_A,
+        tokenId: TOKEN_ID,
+        expiresAt: new Date(Date.now() + 60_000),
+        revokedAt: null,
+        adminActive: true,
+      };
     });
-    const { ctx, request } = contextWith(`Bearer ${token}`);
-    await openTenantSlot(() => guard.canActivate(ctx));
-    expect((request.user as { supportSessionId?: string }).supportSessionId).toBe(
-      "44444444-4444-4444-4444-444444444444",
+
+    it("admits a live support session as a tenant super-admin carrying the support scope", async () => {
+      const { ctx, request } = contextWith(`Bearer ${await supportToken()}`);
+      // `exit` drops any store an earlier slot-less test entered via `enterWith`.
+      const after = await tenantContext.exit(() =>
+        openTenantSlot(async () => {
+          await guard.canActivate(ctx);
+          return currentTenant();
+        }),
+      );
+      expect(request.user).toMatchObject({
+        id: ADMIN_ID,
+        tenantId: TENANT_A,
+        supportSessionId: SUP_ID,
+        isSuperAdmin: true,
+      });
+      expect(after).toEqual({
+        tenantId: TENANT_A,
+        source: "jwt",
+        support: { supportSessionId: SUP_ID, platformAdminId: ADMIN_ID },
+      });
+      // The tenant user/session tables are never consulted for a support token.
+      expect(lookupTenants).toEqual([]);
+    });
+
+    it.each([
+      ["revoked", () => ({ revokedAt: new Date() })],
+      ["expired", () => ({ expiresAt: new Date(Date.now() - 1) })],
+      ["for another tenant", () => ({ tenantId: TENANT_B })],
+      ["minted for another token id", () => ({ tokenId: "other" })],
+      ["of a disabled platform admin", () => ({ adminActive: false })],
+    ])("rejects a support session that is %s", async (_label, patch) => {
+      supportRecord = { ...(supportRecord as AuthSupportSessionRecord), ...patch() };
+      const { ctx, request } = contextWith(`Bearer ${await supportToken()}`);
+      await expect(openTenantSlot(() => guard.canActivate(ctx))).rejects.toBeInstanceOf(
+        UnauthenticatedError,
+      );
+      expect(request.user).toBeUndefined();
+    });
+
+    it("rejects a support token whose session row is gone", async () => {
+      supportRecord = null;
+      const { ctx } = contextWith(`Bearer ${await supportToken()}`);
+      await expect(openTenantSlot(() => guard.canActivate(ctx))).rejects.toBeInstanceOf(
+        UnauthenticatedError,
+      );
+    });
+  });
+
+  it("rejects a platform-audience token even when signed with the tenant secret", async () => {
+    const platform = await new JwtService({}).signAsync(
+      { sub: USER_ID, sid: TOKEN_ID, pv: 1, tid: TENANT_A },
+      { secret: "test-access-secret", expiresIn: "15m", audience: "erp-platform" },
     );
+    await expect(
+      openTenantSlot(() => guard.canActivate(contextWith(`Bearer ${platform}`).ctx)),
+    ).rejects.toBeInstanceOf(UnauthenticatedError);
+    expect(lookupTenants).toEqual([]);
   });
 
   it("rejects a missing or non-bearer Authorization header with 401", async () => {

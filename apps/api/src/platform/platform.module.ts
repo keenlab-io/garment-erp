@@ -1,0 +1,54 @@
+import { type DynamicModule, Module } from "@nestjs/common";
+import { JwtModule } from "@nestjs/jwt";
+import { PlatformAuditService } from "./platform-audit.service.js";
+import { PlatformAuthService } from "./platform-auth.service.js";
+import { PlatformAuthController, PlatformController } from "./platform.controller.js";
+import { PlatformGuard } from "./platform.guard.js";
+import { SelfHostedBootstrap } from "./self-hosted-bootstrap.service.js";
+import { SupportSessionService } from "./support-session.service.js";
+import { TenantProvisioningService } from "./tenant-provisioning.service.js";
+
+export type DeploymentMode = "cloud" | "self-hosted";
+
+/**
+ * The configured `DEPLOYMENT_MODE`, defaulting to `cloud`. Reads `process.env` directly for the
+ * same reason as `config/app-role.ts`: the module graph is decided at import time, before
+ * `ConfigModule` exists. The value is still validated fail-fast by `env.schema.ts`.
+ */
+export function deploymentMode(): DeploymentMode {
+  return process.env.DEPLOYMENT_MODE?.trim() === "self-hosted" ? "self-hosted" : "cloud";
+}
+
+/**
+ * The platform control plane (M7 §6, design D6/D15). `forRoot(mode)`:
+ *
+ * - `cloud` — the full surface: platform-admin auth + guard, tenant provisioning/lifecycle,
+ *   support sessions, and the platform audit log, served by `PlatformAuthController` +
+ *   `PlatformController` (`contract.platform`).
+ * - `self-hosted` — **no controllers** (no platform login surface exists to attack; `/platform/*`
+ *   is a 404); only provisioning, which `SelfHostedBootstrap` uses to ensure the single
+ *   `DEFAULT_TENANT_SLUG` tenant exists at boot.
+ */
+@Module({})
+export class PlatformModule {
+  static forRoot(mode: DeploymentMode = deploymentMode()): DynamicModule {
+    if (mode === "self-hosted") {
+      return {
+        module: PlatformModule,
+        providers: [PlatformAuditService, TenantProvisioningService, SelfHostedBootstrap],
+      };
+    }
+    return {
+      module: PlatformModule,
+      imports: [JwtModule.register({})],
+      controllers: [PlatformAuthController, PlatformController],
+      providers: [
+        PlatformAuditService,
+        PlatformAuthService,
+        PlatformGuard,
+        TenantProvisioningService,
+        SupportSessionService,
+      ],
+    };
+  }
+}

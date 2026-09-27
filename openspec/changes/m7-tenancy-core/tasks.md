@@ -63,12 +63,12 @@
 
 ## 6. Platform module — `apps/api/src/platform`
 
-- [ ] 6.1 `platform-auth.service.ts` + guard — argon2id login for `platform_admin`, separate JWT audience/secret usage so platform tokens never pass `JwtGuard` and tenant tokens never pass the platform guard; lockout mirrors the tenant policy
-- [ ] 6.2 `tenant-provisioning.service.ts` — `provision({ name, slug, domain? })`: create `tenant` + optional `tenant_domain` and call `seedTenantDefaults` inside one `uow.withTransaction` run under `runWithTenant(newId, "system", …)`; emit a platform audit row
-- [ ] 6.3 `support-session.service.ts` — create (reason required, time-boxed `expires_at`), revoke; mint the tenant-scoped access token with `tid` + `sup`; audit open/close to `platform_audit_log`; the audit subscriber dual-writes `sup`-tagged actions into the tenant's `audit_log`
-- [ ] 6.4 `platform-audit.service.ts` — append + cursor-paginated read over `platform_audit_log`
-- [ ] 6.5 ts-rest `PlatformController` for `contract.platform`; register `PlatformModule` in `app.module.ts` **only when** `DEPLOYMENT_MODE=cloud`; self-hosted boot instead ensures the single default tenant exists (idempotent, via `TenantProvisioningService`)
-- [ ] 6.6 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 6.1 `platform-auth.service.ts` + guard — argon2id login for `platform_admin`, separate JWT audience/secret usage so platform tokens never pass `JwtGuard` and tenant tokens never pass the platform guard; lockout mirrors the tenant policy
+- [x] 6.2 `tenant-provisioning.service.ts` — `provision({ name, slug, domain? })`: create `tenant` + optional `tenant_domain` and call `seedTenantDefaults` inside one `uow.withTransaction` run under `runWithTenant(newId, "system", …)`; emit a platform audit row
+- [x] 6.3 `support-session.service.ts` — create (reason required, time-boxed `expires_at`), revoke; mint the tenant-scoped access token with `tid` + `sup`; audit open/close to `platform_audit_log`; the audit subscriber dual-writes `sup`-tagged actions into the tenant's `audit_log`
+- [x] 6.4 `platform-audit.service.ts` — append + cursor-paginated read over `platform_audit_log`
+- [x] 6.5 ts-rest `PlatformController` for `contract.platform`; register `PlatformModule` in `app.module.ts` **only when** `DEPLOYMENT_MODE=cloud`; self-hosted boot instead ensures the single default tenant exists (idempotent, via `TenantProvisioningService`)
+- [x] 6.6 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 7. Infra seams — sequence / storage / realtime / queue / idempotency / audit / mv-refresh
 

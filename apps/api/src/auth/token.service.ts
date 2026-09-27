@@ -15,6 +15,13 @@ export interface AccessClaims {
   sup?: string;
 }
 
+/**
+ * The JWT audience stamped on every platform-admin token (M7 design D6). Tenant tokens carry no
+ * audience; `verifyAccess` refuses this one, so even when the platform secret falls back to the
+ * tenant access secret a platform token can never authenticate a tenant request.
+ */
+export const PLATFORM_AUDIENCE = "erp-platform";
+
 /** Refresh-token claims: user id, session id, and tenant id (no `pv`). */
 export interface RefreshClaims {
   sub: string;
@@ -34,10 +41,14 @@ export class TokenService {
     private readonly config: ConfigService,
   ) {}
 
-  signAccess(claims: AccessClaims): Promise<string> {
+  /**
+   * Sign an access token. `expiresIn` (seconds) overrides `JWT_ACCESS_TTL` — support-session
+   * tokens are time-boxed to their session's `expires_at`.
+   */
+  signAccess(claims: AccessClaims, options: { expiresIn?: number } = {}): Promise<string> {
     return this.jwt.signAsync(claims, {
       secret: this.config.getOrThrow<string>("JWT_ACCESS_SECRET"),
-      expiresIn: this.config.getOrThrow<string>("JWT_ACCESS_TTL"),
+      expiresIn: options.expiresIn ?? this.config.getOrThrow<string>("JWT_ACCESS_TTL"),
     });
   }
 
@@ -48,10 +59,15 @@ export class TokenService {
     });
   }
 
-  verifyAccess(token: string): Promise<AccessClaims> {
-    return this.jwt.verifyAsync<AccessClaims>(token, {
+  async verifyAccess(token: string): Promise<AccessClaims> {
+    const claims = await this.jwt.verifyAsync<AccessClaims & { aud?: string | string[] }>(token, {
       secret: this.config.getOrThrow<string>("JWT_ACCESS_SECRET"),
     });
+    const aud = claims.aud;
+    if (aud === PLATFORM_AUDIENCE || (Array.isArray(aud) && aud.includes(PLATFORM_AUDIENCE))) {
+      throw new Error("Platform tokens are not tenant access tokens");
+    }
+    return claims;
   }
 
   verifyRefresh(token: string): Promise<RefreshClaims> {

@@ -14,9 +14,11 @@ import type { AuthUser } from "./auth-user.js";
 import {
   PERMISSION_RESOLVER,
   SESSION_LOOKUP,
+  SUPPORT_SESSION_LOOKUP,
   USER_LOOKUP,
   type PermissionResolver,
   type SessionLookup,
+  type SupportSessionLookup,
   type UserLookup,
 } from "./auth.tokens.js";
 import { IS_PUBLIC_KEY } from "./decorators/public.decorator.js";
@@ -34,6 +36,14 @@ import { TokenService } from "./token.service.js";
  * short tenant transaction so Row-Level Security applies to authentication itself (guards run
  * before the `TenantTransactionInterceptor`, so they cannot ride the handler's transaction). A
  * session whose `tenantId` differs from the claim is rejected.
+ *
+ * Support sessions (M7 design D6): a token carrying `sup` is a platform admin acting inside the
+ * tenant. It is validated against its `support_session` row instead of `session`/`user` — the
+ * row must belong to the `tid`, match the token's `sid`, be unrevoked and unexpired, and its
+ * admin must still be ACTIVE — so revocation or expiry kills the token on the next request. The
+ * principal is a tenant super-admin for the session's lifetime (the only way support can act on
+ * a customer's data), and the support scope rides the tenant context so every audited mutation
+ * is dual-written into `platform_audit_log`.
  */
 @Injectable()
 export class JwtGuard implements CanActivate {
@@ -44,6 +54,7 @@ export class JwtGuard implements CanActivate {
     @Inject(SESSION_LOOKUP) private readonly sessions: SessionLookup,
     @Inject(PERMISSION_RESOLVER) private readonly resolver: PermissionResolver,
     private readonly uow: UnitOfWork,
+    @Inject(SUPPORT_SESSION_LOOKUP) private readonly supportSessions: SupportSessionLookup,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -66,6 +77,18 @@ export class JwtGuard implements CanActivate {
 
     // A token minted before tenancy (no `tid`) or with a malformed one never authenticates.
     if (!isTenantId(claims.tid)) throw new UnauthenticatedError();
+    if (claims.sup !== undefined) {
+      if (!isTenantId(claims.sup)) throw new UnauthenticatedError();
+      enterTenant(claims.tid, "jwt", {
+        supportSessionId: claims.sup,
+        platformAdminId: claims.sub,
+      });
+      const supportUser = await this.uow.withTransaction(() =>
+        this.authenticateSupport(claims.sup as string, claims.sid, claims.tid, claims.sub),
+      );
+      (request as Request & { user?: AuthUser }).user = supportUser;
+      return true;
+    }
     enterTenant(claims.tid, "jwt");
 
     const authUser = await this.uow.withTransaction(async (): Promise<AuthUser> => {
@@ -100,6 +123,35 @@ export class JwtGuard implements CanActivate {
     });
     (request as Request & { user?: AuthUser }).user = authUser;
     return true;
+  }
+
+  /** Validate a support-session token against its `support_session` row. */
+  private async authenticateSupport(
+    supportSessionId: string,
+    tokenId: string,
+    tenantId: string,
+    platformAdminId: string,
+  ): Promise<AuthUser> {
+    const row = await this.supportSessions.byId(supportSessionId);
+    if (
+      !row ||
+      row.tenantId !== tenantId ||
+      row.tokenId !== tokenId ||
+      row.platformAdminId !== platformAdminId ||
+      !row.adminActive ||
+      row.revokedAt !== null ||
+      row.expiresAt.getTime() <= Date.now()
+    ) {
+      throw new UnauthenticatedError();
+    }
+    return {
+      id: row.platformAdminId,
+      sessionId: row.id,
+      tenantId,
+      supportSessionId: row.id,
+      isSuperAdmin: true,
+      permissions: new Set<Permission>(),
+    };
   }
 }
 
