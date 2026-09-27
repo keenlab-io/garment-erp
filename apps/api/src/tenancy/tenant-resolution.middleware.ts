@@ -1,6 +1,6 @@
 import { Injectable, type NestMiddleware } from "@nestjs/common";
 import type { NextFunction, Request, Response } from "express";
-import { tenantContext } from "./tenant-context.js";
+import { openTenantSlot, tenantContext } from "./tenant-context.js";
 import { TenantResolutionService, type ResolvedTenant } from "./tenant-resolution.service.js";
 
 /** The request carries the host-resolved tenant for public handlers (e.g. tenant-context). */
@@ -14,12 +14,19 @@ export type RequestWithHostTenant = Request & { hostTenant?: ResolvedTenant };
  * refresh, `GET /public/tenant-context` — has its host resolved and, on a `TENANT`-mode match,
  * runs the rest of the pipeline inside `tenantContext` (`source: "host"`). An unknown host
  * enters no context (the public endpoint 404s; login is refused once it requires a tenant).
+ *
+ * Every request also runs inside an open tenant slot, which `JwtGuard` fills from the `tid`
+ * claim of a bearer request (`enterTenant`).
  */
 @Injectable()
 export class TenantResolutionMiddleware implements NestMiddleware {
   constructor(private readonly resolution: TenantResolutionService) {}
 
-  async use(req: RequestWithHostTenant, _res: Response, next: NextFunction): Promise<void> {
+  use(req: RequestWithHostTenant, _res: Response, next: NextFunction): Promise<void> {
+    return openTenantSlot(() => this.resolve(req, next));
+  }
+
+  private async resolve(req: RequestWithHostTenant, next: NextFunction): Promise<void> {
     if (hasBearer(req.headers.authorization)) return next();
 
     let resolved: ResolvedTenant | null;

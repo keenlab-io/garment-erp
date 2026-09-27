@@ -43,6 +43,7 @@ export class DefaultSessionLookup implements SessionLookup {
       .select({
         id: session.id,
         userId: session.userId,
+        tenantId: session.tenantId,
         tokenId: session.tokenId,
         permissionsVersion: session.permissionsVersion,
         expiresAt: session.expiresAt,

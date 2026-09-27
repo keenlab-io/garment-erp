@@ -5,6 +5,7 @@ import type { ConfigService } from "@nestjs/config";
 import ExcelJS from "exceljs";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  DEFAULT_TENANT_ID,
   auditLog,
   createDb,
   permission,
@@ -157,6 +158,7 @@ describe.skipIf(!url)("IAM services (integration)", () => {
     admin = {
       id: adminId,
       sessionId: "admin-session",
+      tenantId: DEFAULT_TENANT_ID,
       isSuperAdmin: true,
       permissions: new Set(),
     };

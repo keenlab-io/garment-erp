@@ -5,6 +5,7 @@ import type { ConfigService } from "@nestjs/config";
 import type { Queue } from "bullmq";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  DEFAULT_TENANT_ID,
   createDb,
   documentSequence,
   productionScan,
@@ -55,6 +56,7 @@ describe.skipIf(!url)("Production services (integration)", () => {
   const actor: AuthUser = {
     id: randomUUID(),
     sessionId: randomUUID(),
+    tenantId: DEFAULT_TENANT_ID,
     isSuperAdmin: true,
     permissions: new Set(),
   };

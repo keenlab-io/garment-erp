@@ -2,23 +2,30 @@ import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 
-/** Access-token claims: user id, session id, permissions version (design D5). */
+/**
+ * Access-token claims: user id, session id, permissions version (design D5), and the tenant
+ * id (M7 design D5) — after login `tid` is the sole source of tenant identity. Support-session
+ * tokens additionally carry `sup`, the `support_session` id (M7 design D6).
+ */
 export interface AccessClaims {
   sub: string;
   sid: string;
   pv: number;
+  tid: string;
+  sup?: string;
 }
 
-/** Refresh-token claims: user id and session id (no `pv`). */
+/** Refresh-token claims: user id, session id, and tenant id (no `pv`). */
 export interface RefreshClaims {
   sub: string;
   sid: string;
+  tid: string;
 }
 
 /**
  * Issues and verifies JWTs. Secrets and TTLs come from validated config; the
- * access token carries `{ sub, sid, pv }` and the refresh token `{ sub, sid }`
- * (M0 authentication spec).
+ * access token carries `{ sub, sid, pv, tid }` (+ `sup` for support sessions) and the
+ * refresh token `{ sub, sid, tid }` (authentication spec).
  */
 @Injectable()
 export class TokenService {

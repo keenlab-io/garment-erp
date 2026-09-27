@@ -5,6 +5,8 @@ import { JwtService } from "@nestjs/jwt";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Permission } from "@erp/contracts";
 import { UnauthenticatedError } from "../common/errors/app-exception.js";
+import type { UnitOfWork } from "../db/unit-of-work.service.js";
+import { currentTenant, currentTenantId, openTenantSlot } from "../tenancy/tenant-context.js";
 import { JwtGuard } from "./jwt.guard.js";
 import { TokenService } from "./token.service.js";
 import type {
@@ -55,20 +57,41 @@ describe("JwtGuard (instant revocation)", () => {
   const USER_ID = "11111111-1111-1111-1111-111111111111";
   const SESSION_ID = "22222222-2222-2222-2222-222222222222";
   const TOKEN_ID = "33333333-3333-3333-3333-333333333333";
+  const TENANT_A = "00000000-0000-4000-8000-00000000000a";
+  const TENANT_B = "00000000-0000-4000-8000-00000000000b";
 
   let userRecord: AuthUserRecord;
   let sessionRecord: AuthSessionRecord;
   let resolved: ReadonlySet<Permission>;
+  // The tenant in scope at each lookup, and how many auth transactions were opened.
+  let lookupTenants: (string | null)[];
+  let transactions: number;
 
-  const users: UserLookup = { byId: async () => userRecord };
-  const sessions: SessionLookup = { byTokenId: async () => sessionRecord };
+  const users: UserLookup = {
+    byId: async () => {
+      lookupTenants.push(currentTenantId());
+      return userRecord;
+    },
+  };
+  const sessions: SessionLookup = {
+    byTokenId: async () => {
+      lookupTenants.push(currentTenantId());
+      return sessionRecord;
+    },
+  };
   const resolver: PermissionResolver = { resolve: async () => resolved };
+  const uow = {
+    withTransaction: async <T>(fn: () => Promise<T>) => {
+      transactions++;
+      return fn();
+    },
+  } as unknown as UnitOfWork;
 
-  const guard = new JwtGuard(reflector, tokens, users, sessions, resolver);
+  const guard = new JwtGuard(reflector, tokens, users, sessions, resolver, uow);
 
-  /** Sign an access token snapshotting `pv`. */
+  /** Sign an access token snapshotting `pv` for tenant A. */
   function tokenAt(pv: number): Promise<string> {
-    return tokens.signAccess({ sub: USER_ID, sid: TOKEN_ID, pv });
+    return tokens.signAccess({ sub: USER_ID, sid: TOKEN_ID, pv, tid: TENANT_A });
   }
 
   beforeEach(() => {
@@ -82,12 +105,15 @@ describe("JwtGuard (instant revocation)", () => {
     sessionRecord = {
       id: SESSION_ID,
       userId: USER_ID,
+      tenantId: TENANT_A,
       tokenId: TOKEN_ID,
       permissionsVersion: 1,
       expiresAt: new Date(Date.now() + 60_000),
       revokedAt: null,
     };
     resolved = new Set<Permission>(["iam.user.manage"]);
+    lookupTenants = [];
+    transactions = 0;
   });
 
   it("admits a request whose token pv still matches the user", async () => {
@@ -133,6 +159,57 @@ describe("JwtGuard (instant revocation)", () => {
     const { ctx } = contextWith(`Bearer ${token}`);
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(
       UnauthenticatedError,
+    );
+  });
+
+  it("enters the token's tenant and runs the lookups in one tenant transaction", async () => {
+    const token = await tokenAt(1);
+    const { ctx, request } = contextWith(`Bearer ${token}`);
+
+    const after = await openTenantSlot(async () => {
+      await guard.canActivate(ctx);
+      return currentTenant();
+    });
+    expect(after).toEqual({ tenantId: TENANT_A, source: "jwt" });
+    expect(lookupTenants).toEqual([TENANT_A, TENANT_A]);
+    expect(transactions).toBe(1);
+    expect((request.user as { tenantId: string }).tenantId).toBe(TENANT_A);
+    expect(request.user).not.toHaveProperty("supportSessionId");
+  });
+
+  it("rejects with 401 when the session belongs to another tenant than the token's tid", async () => {
+    const token = await tokenAt(1);
+    sessionRecord.tenantId = TENANT_B;
+    const { ctx, request } = contextWith(`Bearer ${token}`);
+    await expect(openTenantSlot(() => guard.canActivate(ctx))).rejects.toBeInstanceOf(
+      UnauthenticatedError,
+    );
+    expect(request.user).toBeUndefined();
+  });
+
+  it("rejects a token without a well-formed tid claim before any lookup", async () => {
+    const legacy = await new JwtService({}).signAsync(
+      { sub: USER_ID, sid: TOKEN_ID, pv: 1 },
+      { secret: "test-access-secret", expiresIn: "15m" },
+    );
+    await expect(
+      openTenantSlot(() => guard.canActivate(contextWith(`Bearer ${legacy}`).ctx)),
+    ).rejects.toBeInstanceOf(UnauthenticatedError);
+    expect(lookupTenants).toEqual([]);
+  });
+
+  it("carries a support-session claim onto the AuthUser", async () => {
+    const token = await tokens.signAccess({
+      sub: USER_ID,
+      sid: TOKEN_ID,
+      pv: 1,
+      tid: TENANT_A,
+      sup: "44444444-4444-4444-4444-444444444444",
+    });
+    const { ctx, request } = contextWith(`Bearer ${token}`);
+    await openTenantSlot(() => guard.canActivate(ctx));
+    expect((request.user as { supportSessionId?: string }).supportSessionId).toBe(
+      "44444444-4444-4444-4444-444444444444",
     );
   });
 

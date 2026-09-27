@@ -2,7 +2,15 @@ import { randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { and, eq, isNull } from "drizzle-orm";
-import { role, session, user, userRole, type Db } from "@erp/db";
+import {
+  DEFAULT_TENANT_ID,
+  role,
+  session,
+  tenant,
+  user,
+  userRole,
+  type Db,
+} from "@erp/db";
 import type { MeResponse, TokenPair } from "@erp/contracts";
 import { PasswordService } from "../auth/password.service.js";
 import { TokenService } from "../auth/token.service.js";
@@ -13,6 +21,11 @@ import { currentExecutor } from "../db/tx-context.js";
 import { UnitOfWork } from "../db/unit-of-work.service.js";
 import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
+import {
+  currentTenant,
+  isTenantId,
+  runWithTenant,
+} from "../tenancy/tenant-context.js";
 import { RolePermissionResolver } from "./role-permission.resolver.js";
 import {
   durationToSeconds,
@@ -26,15 +39,11 @@ import {
  * lockout policy), refresh, logout, and the `GET /auth/me` projection. A session row
  * snapshots the user's `permissionsVersion` at issuance so the M0 guard can reject a
  * token once the version bumps (instant revocation, design D2).
+ *
+ * Tenancy (M7 design D5/D10): login resolves credentials by `(tenant_id, username)` against
+ * the host-resolved tenant, so lockout counters are per tenant account; tokens carry `tid` and
+ * the session row carries the tenant. Every read/write runs in a tenant transaction.
  */
-
-// TODO(M7 §4-5): source from the tenant resolved by the `tid` claim once the tenancy
-// module + `tenant` table land — no tenant data model exists yet in this build.
-const PLACEHOLDER_TENANT: MeResponse["tenant"] = {
-  id: "00000000-0000-0000-0000-000000000000",
-  name: "Default",
-  slug: "default",
-};
 
 @Injectable()
 export class AuthService {
@@ -55,18 +64,36 @@ export class AuthService {
    * A successful login resets the counter and creates a session.
    */
   async login(username: string, password: string): Promise<TokenPair> {
-    const [row] = await this.db
-      .select({
-        id: user.id,
-        status: user.status,
-        passwordHash: user.passwordHash,
-        permissionsVersion: user.permissionsVersion,
-        failedLoginCount: user.failedLoginCount,
-        lockedUntil: user.lockedUntil,
-      })
-      .from(user)
-      .where(eq(user.username, username))
-      .limit(1);
+    const scope = currentTenant();
+    // TODO(M7 task 7.9): drop the default-tenant fallback with the other transitional defaults
+    // (design D17) — an unresolved host must then refuse login. Until then no deployment maps
+    // its hostnames in `tenant_domain`, and every existing user lives in the default tenant.
+    const tenantId = scope?.tenantId ?? DEFAULT_TENANT_ID;
+    return runWithTenant(tenantId, scope?.source ?? "host", () =>
+      this.loginInTenant(tenantId, username, password),
+    );
+  }
+
+  private async loginInTenant(
+    tenantId: string,
+    username: string,
+    password: string,
+  ): Promise<TokenPair> {
+    const row = await this.uow.withTransaction(async () => {
+      const [found] = await currentExecutor(this.db)
+        .select({
+          id: user.id,
+          status: user.status,
+          passwordHash: user.passwordHash,
+          permissionsVersion: user.permissionsVersion,
+          failedLoginCount: user.failedLoginCount,
+          lockedUntil: user.lockedUntil,
+        })
+        .from(user)
+        .where(and(eq(user.tenantId, tenantId), eq(user.username, username)))
+        .limit(1);
+      return found;
+    });
 
     // Unknown username — same generic failure as a bad password (no user enumeration).
     if (!row) throw new UnauthenticatedError("Invalid credentials");
@@ -78,16 +105,18 @@ export class AuthService {
 
     const ok = await this.passwords.verify(row.passwordHash, password);
     if (!ok) {
-      // Persist the failed attempt OUTSIDE any transaction so the lockout counter
+      // Persist the failed attempt in its OWN transaction so the lockout counter
       // survives — this write must not roll back when we throw below.
       const failed = row.failedLoginCount + 1;
-      await this.db
-        .update(user)
-        .set({
-          failedLoginCount: failed,
-          lockedUntil: shouldLock(failed) ? lockoutUntil(now) : row.lockedUntil,
-        })
-        .where(eq(user.id, row.id));
+      await this.uow.withTransaction(async () => {
+        await currentExecutor(this.db)
+          .update(user)
+          .set({
+            failedLoginCount: failed,
+            lockedUntil: shouldLock(failed) ? lockoutUntil(now) : row.lockedUntil,
+          })
+          .where(eq(user.id, row.id));
+      });
       throw new UnauthenticatedError("Invalid credentials");
     }
 
@@ -104,7 +133,7 @@ export class AuthService {
         .set({ failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date(now) })
         .where(eq(user.id, row.id));
 
-      const pair = await this.issueSession(row.id, row.permissionsVersion);
+      const pair = await this.issueSession(tenantId, row.id, row.permissionsVersion);
 
       await this.events.publishInTransaction(
         makeEvent({
@@ -130,7 +159,9 @@ export class AuthService {
    * live and its snapshotted `permissionsVersion` must match the user's current
    * version — a stale snapshot (the user's permissions changed) is refused so the
    * caller must re-login (instant revocation, design D2). The refresh token itself
-   * is not rotated (design Open Question 1).
+   * is not rotated (design Open Question 1). The refresh token's `tid` — never the host —
+   * scopes the lookups, and the re-issued access token carries the same `tid`: refresh
+   * cannot move tenants.
    */
   async refresh(refreshToken: string): Promise<TokenPair> {
     let claims;
@@ -139,51 +170,61 @@ export class AuthService {
     } catch {
       throw new UnauthenticatedError();
     }
+    const { sub, sid, tid } = claims;
+    if (!isTenantId(tid)) throw new UnauthenticatedError();
 
-    const ex = currentExecutor(this.db);
-    const [sess] = await ex
-      .select({
-        id: session.id,
-        permissionsVersion: session.permissionsVersion,
-        revokedAt: session.revokedAt,
-        expiresAt: session.expiresAt,
-      })
-      .from(session)
-      .where(eq(session.tokenId, claims.sid))
-      .limit(1);
+    const sess = await runWithTenant(tid, "jwt", () =>
+      this.uow.withTransaction(async () => {
+        const ex = currentExecutor(this.db);
+        const [found] = await ex
+          .select({
+            id: session.id,
+            tenantId: session.tenantId,
+            permissionsVersion: session.permissionsVersion,
+            revokedAt: session.revokedAt,
+            expiresAt: session.expiresAt,
+          })
+          .from(session)
+          .where(eq(session.tokenId, sid))
+          .limit(1);
 
-    if (
-      !sess ||
-      sess.revokedAt !== null ||
-      sess.expiresAt.getTime() <= Date.now()
-    ) {
-      throw new UnauthenticatedError();
-    }
+        if (
+          !found ||
+          found.tenantId !== tid ||
+          found.revokedAt !== null ||
+          found.expiresAt.getTime() <= Date.now()
+        ) {
+          throw new UnauthenticatedError();
+        }
 
-    const [u] = await ex
-      .select({
-        status: user.status,
-        permissionsVersion: user.permissionsVersion,
-      })
-      .from(user)
-      .where(eq(user.id, claims.sub))
-      .limit(1);
+        const [u] = await ex
+          .select({
+            status: user.status,
+            permissionsVersion: user.permissionsVersion,
+          })
+          .from(user)
+          .where(eq(user.id, sub))
+          .limit(1);
 
-    if (
-      !u ||
-      u.status !== "ACTIVE" ||
-      u.permissionsVersion !== sess.permissionsVersion
-    ) {
-      throw new UnauthenticatedError();
-    }
+        if (
+          !u ||
+          u.status !== "ACTIVE" ||
+          u.permissionsVersion !== found.permissionsVersion
+        ) {
+          throw new UnauthenticatedError();
+        }
+        return found;
+      }),
+    );
 
     const accessTtl = durationToSeconds(
       this.config.getOrThrow<string>("JWT_ACCESS_TTL"),
     );
     const access = await this.tokens.signAccess({
-      sub: claims.sub,
-      sid: claims.sid,
+      sub,
+      sid,
       pv: sess.permissionsVersion,
+      tid,
     });
     return {
       access_token: access,
@@ -200,7 +241,7 @@ export class AuthService {
       .where(and(eq(session.id, sessionId), isNull(session.revokedAt)));
   }
 
-  /** The `GET /auth/me` projection — identity, bound roles, effective permissions. */
+  /** The `GET /auth/me` projection — identity, tenant, bound roles, effective permissions. */
   async me(authUser: AuthUser): Promise<MeResponse> {
     const ex = currentExecutor(this.db);
     const [u] = await ex
@@ -216,6 +257,13 @@ export class AuthService {
       .where(eq(user.id, authUser.id))
       .limit(1);
     if (!u) throw new UnauthenticatedError();
+
+    const [t] = await ex
+      .select({ id: tenant.id, name: tenant.name, slug: tenant.slug })
+      .from(tenant)
+      .where(eq(tenant.id, authUser.tenantId))
+      .limit(1);
+    if (!t) throw new UnauthenticatedError();
 
     const roles = await ex
       .select({ id: role.id, name: role.name })
@@ -236,7 +284,7 @@ export class AuthService {
         is_super_admin: u.isSuperAdmin,
         employee_id: u.employeeId,
       },
-      tenant: PLACEHOLDER_TENANT,
+      tenant: t,
       roles,
       permissions,
     };
@@ -244,6 +292,7 @@ export class AuthService {
 
   /** Insert a session row and sign the matching access/refresh token pair. */
   private async issueSession(
+    tenantId: string,
     userId: string,
     permissionsVersion: number,
   ): Promise<TokenPair> {
@@ -258,6 +307,7 @@ export class AuthService {
     );
 
     await ex.insert(session).values({
+      tenantId,
       userId,
       tokenId,
       permissionsVersion,
@@ -268,8 +318,13 @@ export class AuthService {
       sub: userId,
       sid: tokenId,
       pv: permissionsVersion,
+      tid: tenantId,
     });
-    const refresh = await this.tokens.signRefresh({ sub: userId, sid: tokenId });
+    const refresh = await this.tokens.signRefresh({
+      sub: userId,
+      sid: tokenId,
+      tid: tenantId,
+    });
 
     return {
       access_token: access,

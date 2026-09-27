@@ -26,11 +26,47 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export const isTenantId = (value: unknown): value is string =>
   typeof value === "string" && UUID_RE.test(value);
 
-/** The tenant in scope, or `null` outside any tenant context. */
-export const currentTenantId = (): string | null => tenantContext.getStore()?.tenantId ?? null;
+/**
+ * A per-request slot the hostname middleware opens around every HTTP request, which `JwtGuard`
+ * fills from the verified `tid` claim (`enterTenant`). Needed because the guard is *awaited* by
+ * Nest: `AsyncLocalStorage.enterWith` inside it does not flow back to the caller's continuation
+ * under AsyncContextFrame (the Node ≥ 24 default), so the interceptors and handler would lose
+ * the tenant. Mutating a frame opened *above* the guard survives either ALS implementation.
+ */
+interface TenantSlot {
+  store?: TenantStore;
+}
+const tenantSlot = new AsyncLocalStorage<TenantSlot>();
 
-/** The full tenant store in scope (id + source), or `undefined`. */
-export const currentTenant = (): TenantStore | undefined => tenantContext.getStore();
+/** The tenant in scope, or `null` outside any tenant context. */
+export const currentTenantId = (): string | null => currentTenant()?.tenantId ?? null;
+
+/**
+ * The full tenant store in scope (id + source), or `undefined`. An explicit `tenantContext`
+ * frame (`runWithTenant`, the host middleware) shadows the request slot.
+ */
+export const currentTenant = (): TenantStore | undefined =>
+  tenantContext.getStore() ?? tenantSlot.getStore()?.store;
+
+/** Run `fn` (the rest of an HTTP request) with an empty tenant slot open for `enterTenant`. */
+export function openTenantSlot<T>(fn: () => T): T {
+  return tenantSlot.run({}, fn);
+}
+
+/**
+ * Enter `tenantId` for the remainder of the current request — the imperative counterpart of
+ * `runWithTenant` for an entry point that cannot wrap its continuation (`JwtGuard`). Fills the
+ * request slot when one is open; otherwise falls back to `tenantContext.enterWith`.
+ */
+export function enterTenant(tenantId: string, source: TenantSource): void {
+  if (!isTenantId(tenantId)) {
+    throw new Error(`Refusing to enter tenant context: "${tenantId}" is not a uuid`);
+  }
+  const store: TenantStore = { tenantId, source };
+  const slot = tenantSlot.getStore();
+  if (slot) slot.store = store;
+  else tenantContext.enterWith(store);
+}
 
 /**
  * Run `fn` with `tenantId` in scope. Validates the id up front so a malformed value can never

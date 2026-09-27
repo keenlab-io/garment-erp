@@ -7,6 +7,7 @@ import { canViewSalary, gateSalaryFields } from "./salary-gating.js";
 const base = (over: Partial<AuthUser>): AuthUser => ({
   id: "u1",
   sessionId: "s1",
+  tenantId: "00000000-0000-4000-8000-000000000001",
   isSuperAdmin: false,
   permissions: new Set(),
   ...over,

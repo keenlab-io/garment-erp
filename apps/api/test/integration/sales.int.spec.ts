@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { auditLog, createDb, documentSequence } from "@erp/db";
+import { DEFAULT_TENANT_ID, auditLog, createDb, documentSequence } from "@erp/db";
 import {
   asMoney,
   asQty,
@@ -52,6 +52,7 @@ describe.skipIf(!url)("Sales services (integration)", () => {
   const actor: AuthUser = {
     id: randomUUID(),
     sessionId: randomUUID(),
+    tenantId: DEFAULT_TENANT_ID,
     isSuperAdmin: true,
     permissions: new Set(),
   };
