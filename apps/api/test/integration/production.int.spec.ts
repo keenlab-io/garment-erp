@@ -11,6 +11,7 @@ import {
   productionScan,
   routingStep,
   subcontract,
+  tenant,
   workOrder,
   workOrderStep,
 } from "@erp/db";
@@ -28,6 +29,7 @@ import { ScanService } from "../../src/production/scan.service.js";
 import { SubcontractService } from "../../src/production/subcontract.service.js";
 import { WorkOrderService } from "../../src/production/work-order.service.js";
 import type { RealtimeGateway } from "../../src/realtime/realtime.gateway.js";
+import { runWithTenant } from "../../src/tenancy/tenant-context.js";
 
 const url = process.env.DATABASE_URL_TEST;
 
@@ -308,5 +310,220 @@ describe.skipIf(!url)("Production services (integration)", () => {
     await expect(
       conn.db.delete(productionScan).where(eq(productionScan.id, aScan!.id)),
     ).rejects.toThrow();
+  });
+});
+
+// M7 §11 — production is per-tenant: `wo_no` numbering + uniqueness are `(tenant_id, wo_no)`,
+// the monitor sweep runs per tenant and broadcasts on that tenant's rooms, and scans/lists stay
+// inside the caller's tenant. The harness connects as the superuser (RLS bypassed), so these pin
+// the services' own tenant predicates.
+describe.skipIf(!url)("Production is per-tenant (integration)", () => {
+  let conn: ReturnType<typeof createDb>;
+  let uow: UnitOfWork;
+  let routing: RoutingService;
+  let workOrders: WorkOrderService;
+  let scans: ScanService;
+  let subcontracts: SubcontractService;
+  let monitor: ProductionMonitorWorker;
+  let tenantB: string;
+
+  const emitted: { room: string; event: string; payload: unknown }[] = [];
+  const realtime = {
+    emitToRoom: (room: string, event: string, payload: unknown) =>
+      emitted.push({ room, event, payload }),
+    joinRoom: () => {},
+  } as unknown as RealtimeGateway;
+
+  const actorFor = (tenantId: string): AuthUser => ({
+    id: randomUUID(),
+    sessionId: randomUUID(),
+    tenantId,
+    isSuperAdmin: true,
+    permissions: new Set(),
+  });
+  const inTenant = <T>(tenantId: string, fn: () => Promise<T>): Promise<T> =>
+    runWithTenant(tenantId, "jwt", () => uow.withTransaction(fn));
+
+  beforeAll(async () => {
+    conn = createDb(url as string, { max: 1 });
+    const events = new EventBusService(new EventEmitter2());
+    uow = new DefaultTenantUnitOfWork(conn.db);
+    const sequences = new SequenceService(conn.db, uow);
+    routing = new RoutingService(conn.db);
+    workOrders = new WorkOrderService(conn.db, sequences, events);
+    scans = new ScanService(conn.db, events, realtime, new CompletionService(conn.db, events));
+    subcontracts = new SubcontractService(conn.db, events);
+    const config = { get: () => 60_000 } as unknown as ConfigService;
+    monitor = new ProductionMonitorWorker(conn.db, {} as Queue, uow, config, events, realtime);
+
+    const [other] = await conn.db
+      .insert(tenant)
+      .values({ slug: `prod-b-${randomUUID().slice(0, 8)}`, name: "Production tenant B", kind: "CUSTOMER" })
+      .returning({ id: tenant.id });
+    tenantB = (other as { id: string }).id;
+
+    for (const tenantId of [DEFAULT_TENANT_ID, tenantB]) {
+      await conn.db
+        .insert(documentSequence)
+        .values({
+          tenantId,
+          key: "WORK_ORDER",
+          prefix: "WO",
+          includeYear: true,
+          padding: 4,
+          resetYearly: true,
+          currentValue: 0,
+          format: "{prefix}{yyyy}{seq:0000}",
+          yearScope: 2000,
+        })
+        .onConflictDoNothing();
+    }
+  });
+
+  afterAll(async () => {
+    await conn.queryClient.end();
+  });
+
+  beforeEach(() => {
+    emitted.length = 0;
+  });
+
+  async function makeWorkOrder(tenantId: string, standardTimeMin = 30) {
+    const template = await inTenant(tenantId, () =>
+      routing.create({
+        name: `T-${randomUUID().slice(0, 8)}`,
+        steps: [{ seq: 1, name: "Sew", standard_time_min: standardTimeMin }] as never,
+      }),
+    );
+    const wo = await inTenant(tenantId, () =>
+      workOrders.create(
+        {
+          finished_item_id: randomUUID() as never,
+          qty: "5" as never,
+          routing_template_id: template.id as never,
+        },
+        actorFor(tenantId),
+      ),
+    );
+    const [step] = await conn.db.select().from(workOrderStep).where(eq(workOrderStep.woId, wo.id));
+    return { templateId: template.id, wo, stepId: (step as { id: string }).id };
+  }
+
+  const woSequence = (tenantId: string) =>
+    and(eq(documentSequence.tenantId, tenantId), eq(documentSequence.key, "WORK_ORDER"));
+
+  it("wo_no is numbered and unique per tenant: both tenants may hold the same wo_no", async () => {
+    const a = await makeWorkOrder(DEFAULT_TENANT_ID);
+    const [seqA] = await conn.db.select().from(documentSequence).where(woSequence(DEFAULT_TENANT_ID));
+
+    // Line tenant B's sequence up so its next number is the one tenant A just minted.
+    await conn.db
+      .update(documentSequence)
+      .set({ currentValue: seqA!.currentValue - 1, yearScope: seqA!.yearScope })
+      .where(woSequence(tenantB));
+    const b = await makeWorkOrder(tenantB);
+    expect(b.wo.wo_no).toBe(a.wo.wo_no);
+
+    const [rowB] = await conn.db.select().from(workOrder).where(eq(workOrder.id, b.wo.id));
+    expect(rowB?.tenantId).toBe(tenantB);
+
+    // Within one tenant the same wo_no is still a conflict (the insert rolls the sequence back).
+    await conn.db
+      .update(documentSequence)
+      .set({ currentValue: seqA!.currentValue - 1 })
+      .where(woSequence(DEFAULT_TENANT_ID));
+    await expect(makeWorkOrder(DEFAULT_TENANT_ID)).rejects.toThrow();
+    await conn.db
+      .update(documentSequence)
+      .set({ currentValue: seqA!.currentValue })
+      .where(woSequence(DEFAULT_TENANT_ID));
+  });
+
+  it("scans broadcast on the scanning tenant's rooms", async () => {
+    const b = await makeWorkOrder(tenantB);
+
+    await inTenant(tenantB, () =>
+      scans.scan(b.stepId, { action: "START" } as never, actorFor(tenantB)),
+    );
+
+    const rooms = emitted
+      .filter((e) => e.event === REALTIME_EVENTS.stepStarted)
+      .map((e) => e.room)
+      .sort();
+    expect(rooms).toEqual([`t:${tenantB}:timeline`, `t:${tenantB}:wo:${b.wo.id}`].sort());
+  });
+
+  it("the monitor sweep flags only its own tenant's steps and subcontracts, on its own rooms", async () => {
+    const a = await makeWorkOrder(DEFAULT_TENANT_ID, 1);
+    const b = await makeWorkOrder(tenantB, 1);
+    for (const [tenantId, stepId] of [
+      [DEFAULT_TENANT_ID, a.stepId],
+      [tenantB, b.stepId],
+    ] as const) {
+      await inTenant(tenantId, () =>
+        scans.scan(stepId, { action: "START" } as never, actorFor(tenantId)),
+      );
+    }
+    const aSc = await makeWorkOrder(DEFAULT_TENANT_ID);
+    const sc = await inTenant(DEFAULT_TENANT_ID, () =>
+      subcontracts.send(
+        aSc.stepId,
+        { vendor: "Acme", sla_due: "2026-01-01T00:00:00.000Z" } as never,
+        actorFor(DEFAULT_TENANT_ID),
+      ),
+    );
+    emitted.length = 0;
+
+    const later = new Date(Date.now() + 60 * 60_000);
+    await inTenant(tenantB, () => monitor.sweep(later));
+
+    const delayed = emitted.filter((e) => e.event === REALTIME_EVENTS.stepDelayed);
+    expect(delayed.length).toBeGreaterThan(0);
+    expect(delayed.every((e) => e.room.startsWith(`t:${tenantB}:`))).toBe(true);
+    expect(delayed.some((e) => (e.payload as { step_id: string }).step_id === a.stepId)).toBe(false);
+
+    const [stepA] = await conn.db.select().from(workOrderStep).where(eq(workOrderStep.id, a.stepId));
+    const [stepB] = await conn.db.select().from(workOrderStep).where(eq(workOrderStep.id, b.stepId));
+    expect(stepA?.delayNotified).toBe(false);
+    expect(stepB?.delayNotified).toBe(true);
+    const [scRow] = await conn.db.select().from(subcontract).where(eq(subcontract.id, sc.id));
+    expect(scRow?.status).toBe("SENT");
+
+    // Tenant A's own job then flags its step and overdue subcontract, on tenant A's rooms.
+    emitted.length = 0;
+    await inTenant(DEFAULT_TENANT_ID, () => monitor.sweep(later));
+    const [stepAAfter] = await conn.db
+      .select()
+      .from(workOrderStep)
+      .where(eq(workOrderStep.id, a.stepId));
+    expect(stepAAfter?.delayNotified).toBe(true);
+    const [scAfter] = await conn.db.select().from(subcontract).where(eq(subcontract.id, sc.id));
+    expect(scAfter?.status).toBe("OVERDUE");
+    expect(emitted.every((e) => e.room.startsWith(`t:${DEFAULT_TENANT_ID}:`))).toBe(true);
+  });
+
+  it("timeline, routing and subcontract lists stay inside the caller's tenant", async () => {
+    const a = await makeWorkOrder(DEFAULT_TENANT_ID);
+    const b = await makeWorkOrder(tenantB);
+    const sc = await inTenant(DEFAULT_TENANT_ID, () =>
+      subcontracts.send(
+        a.stepId,
+        { vendor: "Acme", sla_due: "2099-01-01T00:00:00.000Z" } as never,
+        actorFor(DEFAULT_TENANT_ID),
+      ),
+    );
+
+    const timeline = await inTenant(tenantB, () => workOrders.timeline({} as never));
+    expect(timeline.some((w) => w.id === b.wo.id)).toBe(true);
+    expect(timeline.some((w) => w.id === a.wo.id)).toBe(false);
+
+    const templates = await inTenant(tenantB, () => routing.list({ limit: 500 }));
+    expect(templates.data.some((t) => t.id === b.templateId)).toBe(true);
+    expect(templates.data.some((t) => t.id === a.templateId)).toBe(false);
+
+    const scsB = await inTenant(tenantB, () => subcontracts.list({ limit: 500 } as never));
+    expect(scsB.data.some((r) => r.id === sc.id)).toBe(false);
+    const scsA = await inTenant(DEFAULT_TENANT_ID, () => subcontracts.list({ limit: 500 } as never));
+    expect(scsA.data.some((r) => r.id === sc.id)).toBe(true);
   });
 });

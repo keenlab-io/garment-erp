@@ -103,9 +103,9 @@
 
 ## 11. Business-module sweep — `apps/api/src/production`
 
-- [ ] 11.1 Audit work-order/routing/scan paths; `wo_no` sequence + unique now per-tenant; production monitor sweep consumes per-tenant jobs (task 7.4)
-- [ ] 11.2 Timeline/work-order socket broadcasts emit via `tenantRoom(...)` (task 7.3); scan-station kiosk tokens carry `tid` like any session
-- [ ] 11.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 11.1 Audit work-order/routing/scan paths; `wo_no` sequence + unique now per-tenant; production monitor sweep consumes per-tenant jobs (task 7.4) *As built:* by-id reads/writes rely on RLS; the monitor sweep's candidate selects (IN_PROGRESS steps, SENT subcontracts) and the timeline / routing / subcontract lists add an explicit `tenant_id` predicate via `inCallerTenant` — on an owner/superuser connection (prod's current `DATABASE_URL`) one tenant's sweep job otherwise flagged every tenant's steps and broadcast them into its own rooms. `production-monitor.worker.spec.ts` pins fan-out (unscoped tick) vs. sweep (per-tenant job); `production.int.spec.ts` covers the same `wo_no` in two tenants vs. twice in one, per-tenant sweeps and lists
+- [x] 11.2 Timeline/work-order socket broadcasts emit via `tenantRoom(...)` (task 7.3); scan-station kiosk tokens carry `tid` like any session *As built:* the `tenantRoom` call sites already landed with task 7.3; the kiosk has no token of its own (it signs in as a normal session, so `tid` is there by construction); the integration spec asserts scan broadcasts land on `t:{tid}:wo:{id}` / `t:{tid}:timeline`
+- [x] 11.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 12. Business-module sweep — `apps/api/src/sales`
 

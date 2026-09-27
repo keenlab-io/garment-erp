@@ -12,6 +12,7 @@ import { makeEvent } from "../events/domain-event.js";
 import { BaseWorker } from "../queue/base.worker.js";
 import { QUEUES } from "../queue/queue.constants.js";
 import { RealtimeGateway, tenantRoom } from "../realtime/realtime.gateway.js";
+import { inCallerTenant } from "../tenancy/in-caller-tenant.js";
 import { fanOutPerTenant } from "../tenancy/tenant-fan-out.js";
 import { currentTenantId } from "../tenancy/tenant-context.js";
 import {
@@ -43,7 +44,10 @@ const PRODUCTION_MONITOR_SCHEDULER_ID = "production-monitor";
  *
  * Tenancy (M7 design D11): the repeatable tick carries no tenant — it is a platform job that
  * fans out one `{ tenantId }` job per ACTIVE tenant; each of those runs the sweep scoped to its
- * tenant (RLS), and broadcasts to that tenant's rooms.
+ * tenant, and broadcasts to that tenant's rooms. The candidate selects carry an explicit
+ * `tenant_id` predicate (`inCallerTenant`, M7 §11.1) on top of RLS: on an owner/superuser
+ * connection RLS is skipped, and one tenant's job would otherwise flag every tenant's steps and
+ * broadcast them into its own rooms.
  */
 @Processor(QUEUES.default)
 export class ProductionMonitorWorker
@@ -101,10 +105,13 @@ export class ProductionMonitorWorker
       .select()
       .from(workOrderStep)
       .where(
-        and(
-          eq(workOrderStep.status, "IN_PROGRESS"),
-          eq(workOrderStep.delayNotified, false),
-          isNotNull(workOrderStep.startedAt),
+        inCallerTenant(
+          workOrderStep.tenantId,
+          and(
+            eq(workOrderStep.status, "IN_PROGRESS"),
+            eq(workOrderStep.delayNotified, false),
+            isNotNull(workOrderStep.startedAt),
+          ),
         ),
       );
 
@@ -144,7 +151,12 @@ export class ProductionMonitorWorker
     const overdue = await ex
       .select()
       .from(subcontract)
-      .where(and(eq(subcontract.status, "SENT"), lt(subcontract.slaDue, now)));
+      .where(
+        inCallerTenant(
+          subcontract.tenantId,
+          and(eq(subcontract.status, "SENT"), lt(subcontract.slaDue, now)),
+        ),
+      );
 
     for (const sc of overdue) {
       await ex
