@@ -97,21 +97,21 @@
 
 ## 10. Business-module sweep — `apps/api/src/inventory`
 
-- [ ] 10.1 Audit GR/GI/count/adjustment/BOM paths; SKU auto-issue (`sku_code`) and barcode checks now per-tenant — update any "code exists" precheck to rely on the composite unique's conflict error
-- [ ] 10.2 Stock ledger (`stock_movement` append-only, `stock_balance` upserts) inherit tenant via default + RLS; extend the negative-stock and balance tests to a two-tenant fixture proving balances never mix
-- [ ] 10.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 10.1 Audit GR/GI/count/adjustment/BOM paths; SKU auto-issue (`sku_code`) and barcode checks now per-tenant — update any "code exists" precheck to rely on the composite unique's conflict error
+- [x] 10.2 Stock ledger (`stock_movement` append-only, `stock_balance` upserts) inherit tenant via default + RLS; extend the negative-stock and balance tests to a two-tenant fixture proving balances never mix
+- [x] 10.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 11. Business-module sweep — `apps/api/src/production`
 
-- [ ] 11.1 Audit work-order/routing/scan paths; `wo_no` sequence + unique now per-tenant; production monitor sweep consumes per-tenant jobs (task 7.4)
-- [ ] 11.2 Timeline/work-order socket broadcasts emit via `tenantRoom(...)` (task 7.3); scan-station kiosk tokens carry `tid` like any session
-- [ ] 11.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 11.1 Audit work-order/routing/scan paths; `wo_no` sequence + unique now per-tenant; production monitor sweep consumes per-tenant jobs (task 7.4) *As built:* by-id reads/writes rely on RLS; the monitor sweep's candidate selects (IN_PROGRESS steps, SENT subcontracts) and the timeline / routing / subcontract lists add an explicit `tenant_id` predicate via `inCallerTenant` — on an owner/superuser connection (prod's current `DATABASE_URL`) one tenant's sweep job otherwise flagged every tenant's steps and broadcast them into its own rooms. `production-monitor.worker.spec.ts` pins fan-out (unscoped tick) vs. sweep (per-tenant job); `production.int.spec.ts` covers the same `wo_no` in two tenants vs. twice in one, per-tenant sweeps and lists
+- [x] 11.2 Timeline/work-order socket broadcasts emit via `tenantRoom(...)` (task 7.3); scan-station kiosk tokens carry `tid` like any session *As built:* the `tenantRoom` call sites already landed with task 7.3; the kiosk has no token of its own (it signs in as a normal session, so `tid` is there by construction); the integration spec asserts scan broadcasts land on `t:{tid}:wo:{id}` / `t:{tid}:timeline`
+- [x] 11.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 12. Business-module sweep — `apps/api/src/sales`
 
-- [ ] 12.1 Audit quotation/invoice/payment/receipt/WHT paths; all `doc_no`/`cert_no` uniques per-tenant; overdue sweep per-tenant (task 7.4); document templates now per-tenant rows (provisioned by `seedTenantDefaults`)
-- [ ] 12.2 PDF renders store under the tenant prefix; PromptPay QR unchanged in M7 (per-tenant `PROMPTPAY_ID` moves to tenant settings in m8 — leave a TODO referencing that change)
-- [ ] 12.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 12.1 Audit quotation/invoice/payment/receipt/WHT paths; all `doc_no`/`cert_no` uniques per-tenant; overdue sweep per-tenant (task 7.4); document templates now per-tenant rows (provisioned by `seedTenantDefaults`) *As built:* the composite uniques already landed with the schema sweep; by-id reads/writes rely on RLS; the overdue sweep's candidate select, the customer search and the aging report add an explicit `tenant_id` predicate via `inCallerTenant` (RLS is skipped on an owner/superuser connection, where one tenant's sweep job otherwise flipped every tenant's past-due invoices). `overdue-monitor.worker.spec.ts` pins fan-out vs. per-tenant sweep; `sales.int.spec.ts` covers the same `doc_no` in two tenants vs. twice in one, per-tenant sweeps, search and aging
+- [x] 12.2 PDF renders store under the tenant prefix; PromptPay QR unchanged in M7 (per-tenant `PROMPTPAY_ID` moves to tenant settings in m8 — leave a TODO referencing that change) *As built:* export/WHT-certificate/e-Tax keys stay relative and `StorageService` (task 7.2) resolves them under `tenants/{tid}/` inside the job's tenant scope — `export.service.spec.ts` asserts the stored keys; `TODO(m8-tenant-control-plane)` on `PromptPayService`
+- [x] 12.3 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 13. Business-module sweep — `apps/api/src/reporting`
 

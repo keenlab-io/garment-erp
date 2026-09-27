@@ -22,6 +22,7 @@ import { decodeItemCursor, mN, q, qN } from "./inventory.util.js";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
 import { SequenceService } from "../sequence/sequence.service.js";
+import { inCallerTenant } from "../tenancy/in-caller-tenant.js";
 
 /** Row → `Item` DTO. `attributes` is a free-form jsonb bag. */
 function toItemDto(row: typeof item.$inferSelect): Item {
@@ -55,13 +56,15 @@ export class ItemService {
   /**
    * The warehouse inventory documents post to. Receipts/issues/counts carry no warehouse
    * on the wire (single-warehouse M3), so movements land in the first (seeded default)
-   * warehouse. 422 if none exists — the seed must have run.
+   * warehouse. 422 if none exists — the seed must have run. The pick is scoped to the
+   * caller's tenant (M7 §10.1) so a receipt can never post into another tenant's warehouse.
    */
   async defaultWarehouseId(): Promise<string> {
     const ex = currentExecutor(this.db);
     const [row] = await ex
       .select({ id: warehouse.id })
       .from(warehouse)
+      .where(inCallerTenant(warehouse.tenantId))
       .orderBy(asc(warehouse.name))
       .limit(1);
     if (!row) throw new ValidationError("No warehouse is configured");
@@ -135,6 +138,9 @@ export class ItemService {
     const ex = currentExecutor(this.db);
     await this.get(itemId); // 404 if the item does not exist
 
+    // Per-tenant keys (M7 §10.1): `sku_code` comes from the caller-tenant's ITEM sequence and
+    // `(tenant_id, sku_code)` / `(tenant_id, barcode)` are the uniques — no "exists" precheck; a
+    // duplicate barcode within the tenant surfaces as 23505 → 409 via AllExceptionsFilter.
     const skuCode = await this.sequences.next("ITEM");
     const [row] = await ex
       .insert(sku)

@@ -1,10 +1,11 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { customer, invoice, type Db } from "@erp/db";
 import { sumMoney, toDecimal } from "@erp/utils";
 import { asMoney, type AgingReportQuery, type AgingReportRow } from "@erp/contracts";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
+import { inCallerTenant } from "../tenancy/in-caller-tenant.js";
 
 const MS_PER_DAY = 86_400_000;
 type Bucket = "current" | "d1_30" | "d31_60" | "d61_90" | "over_90";
@@ -14,6 +15,9 @@ type Bucket = "current" | "d1_30" | "d31_60" | "d61_90" | "over_90";
  * (ISSUED / PARTIALLY_PAID / OVERDUE) the outstanding balance (`grand − wht − amount_paid`) is
  * bucketed by days past `due_date` as of `as_of` (default now): current (not yet due) / 1-30 /
  * 31-60 / 61-90 / 90+ — grouped per customer. Needs no scheduler.
+ *
+ * Tenancy (M7 §12.1): the invoice scan adds an explicit `tenant_id` predicate on top of RLS
+ * (skipped on owner/superuser connections), so a report never aggregates another tenant's AR.
  */
 @Injectable()
 export class AgingReportService {
@@ -35,7 +39,10 @@ export class AgingReportService {
       .from(invoice)
       .innerJoin(customer, eq(invoice.customerId, customer.id))
       .where(
-        and(inArray(invoice.status, ["ISSUED", "PARTIALLY_PAID", "OVERDUE"])),
+        inCallerTenant(
+          invoice.tenantId,
+          inArray(invoice.status, ["ISSUED", "PARTIALLY_PAID", "OVERDUE"]),
+        ),
       );
 
     // customer_id → { name, bucket → list of outstanding strings }
