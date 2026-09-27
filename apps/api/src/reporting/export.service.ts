@@ -17,6 +17,7 @@ import { StorageService } from "../storage/storage.service.js";
 import { REPORTING_EVENTS, type ReportGeneratedPayload } from "./reporting.events.js";
 import { ReportService } from "./report.service.js";
 import { mapJobState, toCsv, toHtml, toReportQuery } from "./reporting.util.js";
+import { currentTenantId } from "../tenancy/tenant-context.js";
 import { tenantJobData, type TenantJobData } from "../tenancy/with-tenant-job.js";
 
 /** `report`-queue job names (design D7). */
@@ -103,10 +104,17 @@ export class ExportService {
     return { key };
   }
 
-  /** Map a job's state to `{ status, file_url? }`; a signed URL only once DONE. */
+  /**
+   * Map a job's state to `{ status, file_url? }`; a signed URL only once DONE. The `report`
+   * queue is shared by every tenant and job ids are sequential, so a job enqueued by another
+   * tenant (or not an export at all) is indistinguishable from a missing one — 404 (M7 §13.1).
+   */
   async getStatus(jobId: string): Promise<ExportStatusResult> {
     const job = await this.queue.getJob(jobId);
-    if (!job) throw new NotFoundError(`Export job not found: ${jobId}`);
+    const owner = (job?.data as Partial<TenantJobData> | undefined)?.tenantId;
+    if (!job || job.name !== REPORT_EXPORT_JOB || owner !== currentTenantId()) {
+      throw new NotFoundError(`Export job not found: ${jobId}`);
+    }
     const status = mapJobState(await job.getState());
     const key = (job.returnvalue as { key?: string } | undefined)?.key;
     if (status === "DONE" && key) {

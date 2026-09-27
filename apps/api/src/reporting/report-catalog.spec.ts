@@ -1,3 +1,5 @@
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import type { ReportQuery } from "@erp/contracts";
 import { REPORT_BUILDERS, type ReportExecutor } from "./report-catalog.js";
@@ -14,7 +16,8 @@ const VALUATION_ROWS = [
 ];
 
 // Task 5.2 (design D11): the valuation reconciliation invariant. `cost.valuation`'s total equals
-// Σ mv_stock_valuation.value, item-by-item — the correctness anchor for the cost/profit layer.
+// Σ v_stock_valuation.value (the caller tenant's slice of the MV), item-by-item — the
+// correctness anchor for the cost/profit layer.
 describe("cost.valuation report", () => {
   it("totals value as the sum over every item/warehouse row", async () => {
     const result = await REPORT_BUILDERS["cost.valuation"]!(
@@ -63,5 +66,34 @@ describe("sales reports", () => {
       {} as ReportQuery,
     );
     expect(result.totals).toEqual({ sales: "150.0000", vat: "10.5000" });
+  });
+});
+
+// M7 §13.1 (design D8): every builder reads only the tenant-filtered `v_*` security-barrier
+// views — never an `mv_*` relation, which holds every tenant's rows and is revoked from erp_app.
+describe("report catalog read path", () => {
+  const dialect = new PgDialect();
+
+  /** A stub executor that records the rendered SQL of every query it is handed. */
+  function recordingExecutor(seen: string[]): ReportExecutor {
+    return {
+      execute: async (q: SQL) => {
+        seen.push(dialect.sqlToQuery(q).sql);
+        return [];
+      },
+    } as unknown as ReportExecutor;
+  }
+
+  it.each(Object.keys(REPORT_BUILDERS))("%s never reads an mv_* relation", async (key) => {
+    const seen: string[] = [];
+    await REPORT_BUILDERS[key]!(
+      recordingExecutor(seen),
+      { from: "2026-03-01", to: "2026-03-31" },
+      {} as ReportQuery,
+    );
+    for (const text of seen) {
+      expect(text).not.toMatch(/\bmv_/);
+      expect(text).toMatch(/\bFROM v_(stock_valuation|sales_daily|cogs_monthly)\b/);
+    }
   });
 });
