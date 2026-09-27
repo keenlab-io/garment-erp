@@ -1,9 +1,10 @@
 import * as React from "react";
-import type { Permission } from "@erp/contracts";
+import type { MeTenant, Permission } from "@erp/contracts";
 import { PermissionsProvider } from "@erp/ui";
 import { type AuthUser, createDevUser } from "./dev-user";
 import { api } from "../api/client.js";
 import { clearTokens, getAccessToken } from "../api/token-store.js";
+import { resetTenantReadOnly } from "../api/tenant-status.js";
 
 export interface Session {
   /** The signed-in user, or null when unauthenticated (login route renders). */
@@ -11,6 +12,8 @@ export interface Session {
   /** Permission check with super-admin bypass — the single gate nav/palette/UI read. */
   hasPermission: (permission: Permission) => boolean;
   isSuperAdmin: boolean;
+  /** The signed-in user's tenant (from `/auth/me`), or null when signed out / on the dev stub. */
+  tenant: MeTenant | null;
   /**
    * Commits a session. Called with no args, it restores the M0 dev stub; `useLoginMutation`
    * (M1 §2.1) calls it with the real `AuthUser` derived from `GET /auth/me` once login succeeds.
@@ -54,6 +57,7 @@ export function SessionProvider({
     () => ({
       user,
       isSuperAdmin: user?.isSuperAdmin ?? false,
+      tenant: user?.tenant ?? null,
       hasPermission: (permission: Permission) => userHasPermission(user, permission),
       signIn: (nextUser) => setUser(nextUser ?? createDevUser()),
       signOut: () => {
@@ -63,6 +67,8 @@ export function SessionProvider({
           void api.iam.logout.mutation({}).catch(() => {});
         }
         clearTokens();
+        // The read-only flag describes the signed-out tenant — never carry it into the next login.
+        resetTenantReadOnly();
         setUser(null);
       },
     }),

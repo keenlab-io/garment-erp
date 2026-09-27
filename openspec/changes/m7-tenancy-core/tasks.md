@@ -121,10 +121,10 @@
 
 ## 14. Web — `apps/web/src`
 
-- [ ] 14.1 Call `GET /public/tenant-context` on the login screen; render tenant name/branding; self-hosted/dev fallback when the endpoint 404s a host
-- [ ] 14.2 `session/auth-user-from-me.ts` + `session-context.tsx` — carry `tenant` from `MeResponse`; no `baseHeaders` change (`api/client.ts` — the token already carries `tid`)
-- [ ] 14.3 Surface `TENANT_READ_ONLY` (task 4.6) as a persistent banner + disabled-mutation toasts in the error path of the api client
-- [ ] 14.4 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 14.1 Call `GET /public/tenant-context` on the login screen; render tenant name/branding; self-hosted/dev fallback when the endpoint 404s a host
+- [x] 14.2 `session/auth-user-from-me.ts` + `session-context.tsx` — carry `tenant` from `MeResponse`; no `baseHeaders` change (`api/client.ts` — the token already carries `tid`)
+- [x] 14.3 Surface `TENANT_READ_ONLY` (task 4.6) as a persistent banner + disabled-mutation toasts in the error path of the api client
+- [x] 14.4 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 15. Tests — the three verification layers + acceptance
 

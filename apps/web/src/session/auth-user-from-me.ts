@@ -13,5 +13,7 @@ export function authUserFromMe(me: MeResponse): AuthUser {
     email: me.user.email,
     isSuperAdmin: me.user.is_super_admin,
     permissions: me.permissions,
+    // The tenant rides the token's `tid` claim server-side; the web only displays it (M7 §14.2).
+    tenant: me.tenant,
   };
 }

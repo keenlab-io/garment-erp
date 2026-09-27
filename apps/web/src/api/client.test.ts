@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { api } from "./client";
 import { clearTokens, setTokens } from "./token-store";
 import { onUnauthorized } from "./auth-events";
+import { isTenantReadOnly, onTenantReadOnlyRejection, resetTenantReadOnly } from "./tenant-status";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -25,6 +26,30 @@ describe("api client", () => {
     vi.unstubAllGlobals();
     clearTokens();
     onUnauthorized(null);
+    resetTenantReadOnly();
+  });
+
+  it("flags the tenant read-only on a 403 TENANT_READ_ONLY response", async () => {
+    stubFetch(() => jsonResponse({ code: "TENANT_READ_ONLY", message: "read only", details: [] }, 403));
+    const rejection = vi.fn();
+    const unsubscribe = onTenantReadOnlyRejection(rejection);
+    const unauthorized = vi.fn();
+    onUnauthorized(unauthorized);
+
+    await api.iam.logout.mutation({}).catch(() => {});
+
+    expect(isTenantReadOnly()).toBe(true);
+    expect(rejection).toHaveBeenCalledTimes(1);
+    expect(unauthorized).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it("does not flag read-only on an unrelated 403", async () => {
+    stubFetch(() => jsonResponse({ code: "FORBIDDEN", message: "nope", details: [] }, 403));
+
+    await api.iam.logout.mutation({}).catch(() => {});
+
+    expect(isTenantReadOnly()).toBe(false);
   });
 
   it("attaches no Authorization header when signed out", async () => {

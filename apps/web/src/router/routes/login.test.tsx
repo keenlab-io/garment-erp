@@ -113,6 +113,39 @@ describe("LoginPage", () => {
     expect(getAccessToken()).toBeNull();
   });
 
+  it("shows the host-resolved tenant from /public/tenant-context", async () => {
+    stubFetch({
+      "/public/tenant-context": () =>
+        jsonResponse({
+          tenant_name: "Acme Garments",
+          slug: "acme",
+          branding: { logo_url: "https://cdn.example.com/acme.png" },
+        }),
+    });
+
+    await renderLogin();
+
+    expect(await screen.findByText("Acme Garments")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Acme Garments logo" })).toHaveAttribute(
+      "src",
+      "https://cdn.example.com/acme.png",
+    );
+  });
+
+  it("falls back to the generic login when the host resolves no tenant (404)", async () => {
+    const fetchSpy = vi.fn(() =>
+      Promise.resolve(jsonResponse({ code: "NOT_FOUND", message: "unknown host", details: [] }, 404)),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await renderLogin();
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(document.querySelector("[data-tenant-slug]")).toBeNull();
+  });
+
   it("shows the re-auth notice banner from the search param", async () => {
     await renderLogin("/login?notice=reauth");
     expect(screen.getByText("Your access changed. Please sign in again.")).toBeInTheDocument();

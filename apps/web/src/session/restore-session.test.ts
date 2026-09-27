@@ -34,6 +34,7 @@ const ME_BODY = {
     is_super_admin: false,
     employee_id: null,
   },
+  tenant: { id: "t1", name: "Acme Garments", slug: "acme" },
   roles: [],
   permissions: ["iam.user.manage"],
 };
@@ -73,6 +74,7 @@ describe("restoreSession", () => {
       email: "alice@example.com",
       isSuperAdmin: false,
       permissions: ["iam.user.manage"],
+      tenant: { id: "t1", name: "Acme Garments", slug: "acme" },
     });
     // The fresh access token is now in memory and the rotated refresh token is persisted.
     expect(getAccessToken()).toBe("fresh-access");
