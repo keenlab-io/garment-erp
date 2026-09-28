@@ -228,6 +228,22 @@ export const AuditQuery = paginationQuery.extend({
 });
 export type AuditQuery = z.infer<typeof AuditQuery>;
 
+// ── Seats (m8 §1 — the tenant-side read of the seat cap defined in `plan-entitlements`) ──
+
+/**
+ * Counted vs. exempt seat usage against the tenant's plan cap (m8 design D3/OQ2). `counted`
+ * is the seat-occupying total (`deleted_at IS NULL`, status PENDING/ACTIVE, effective
+ * permissions not a subset of `SCAN_ONLY_PERMISSIONS`); `exempt` is the free scan-only
+ * floor-account total. The cap itself is `included_seats + extra_seats`.
+ */
+export const SeatUsage = z.object({
+  included_seats: z.number().int().nonnegative(),
+  extra_seats: z.number().int().nonnegative(),
+  counted: z.number().int().nonnegative(),
+  exempt: z.number().int().nonnegative(),
+});
+export type SeatUsage = z.infer<typeof SeatUsage>;
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export const iamContract = c.router(
@@ -388,6 +404,14 @@ export const iamContract = c.router(
       query: AuditQuery,
       responses: withErrors({ 200: paginated(AuditEntry) }),
       summary: "Query the audit log (iam.audit.view)",
+    },
+
+    // Seats (iam.user.manage)
+    getSeats: {
+      method: "GET",
+      path: "/iam/seats",
+      responses: withErrors({ 200: SeatUsage }),
+      summary: "Counted vs. exempt seat usage against the tenant's plan cap",
     },
   },
   { pathPrefix: API_PREFIX },
