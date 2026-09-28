@@ -3,7 +3,7 @@ import { auditLog, platformAuditLog, type Db } from "@erp/db";
 import type { AuditAction } from "@erp/contracts";
 import { BusinessRuleError } from "../common/errors/app-exception.js";
 import { DB } from "../db/db.tokens.js";
-import { currentExecutor } from "../db/tx-context.js";
+import { currentCorrelationId, currentExecutor } from "../db/tx-context.js";
 import { currentSupportScope, currentTenantId } from "../tenancy/tenant-context.js";
 
 /** `actor_role` stamped on tenant audit rows written under a platform support session. */
@@ -60,6 +60,7 @@ export class AuditService {
         ...row,
         platformAdminId: support.platformAdminId,
         tenantId,
+        correlationId: currentCorrelationId(),
       });
     }
   }

@@ -42,3 +42,24 @@ export const supportSession = pgTable(
   },
   (t) => [index("support_session_tenant_idx").on(t.tenantId)],
 );
+
+// Platform-admin session (M8 design D7) — one row per issued platform token pair, the
+// control-plane twin of the tenant `session` table. `token_id` is the `sid` claim both
+// platform tokens carry; `PlatformJwtGuard` refuses a token whose row is revoked (logout) or
+// expired. Exempt from `tenantColumn`/RLS like its `platform_admin` parent.
+export const platformSession = pgTable(
+  "platform_session",
+  {
+    id: uuid()
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    platformAdminId: uuid()
+      .notNull()
+      .references(() => platformAdmin.id),
+    tokenId: text().notNull().unique(),
+    expiresAt: timestamp({ withTimezone: true }).notNull(),
+    revokedAt: timestamp({ withTimezone: true }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("platform_session_admin_idx").on(t.platformAdminId)],
+);

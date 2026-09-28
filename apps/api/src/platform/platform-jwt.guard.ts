@@ -3,17 +3,18 @@ import type { Request } from "express";
 import { UnauthenticatedError } from "../common/errors/app-exception.js";
 import { PlatformAuthService, type PlatformPrincipal } from "./platform-auth.service.js";
 
-/** A request the `PlatformGuard` admitted carries its platform admin. */
+/** A request the `PlatformJwtGuard` admitted carries its platform admin. */
 export type PlatformRequest = Request & { platformAdmin?: PlatformPrincipal };
 
 /**
- * Authenticates the control-plane surface (M7 design D6). Platform controllers are `@Public()`
- * to the tenant `JwtGuard` (which would refuse a platform token anyway) and apply this guard
- * instead: it accepts only a platform-audience bearer token of an ACTIVE admin, so a tenant
- * token — including a support-session token — is a 401 here.
+ * Authenticates the control-plane surface (M7 design D6, M8 design D7). Platform controllers are
+ * `@Public()` to the tenant `JwtGuard` (which refuses a platform token anyway: wrong audience, no
+ * `sub`/`tid`) and apply this guard instead: it accepts only a platform-audience `{pid, sid}`
+ * bearer token whose `platform_session` is live and whose admin is ACTIVE, so a tenant token —
+ * including a support-session token — is a 401 here.
  */
 @Injectable()
-export class PlatformGuard implements CanActivate {
+export class PlatformJwtGuard implements CanActivate {
   constructor(private readonly auth: PlatformAuthService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {

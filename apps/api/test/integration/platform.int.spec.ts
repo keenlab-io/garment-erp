@@ -14,6 +14,7 @@ import {
   otRate,
   platformAdmin,
   platformAuditLog,
+  platformSession,
   ssoConfig,
   supportSession,
   taxBracket,
@@ -157,10 +158,21 @@ describe.skipIf(!url)("platform module (integration)", () => {
     const pair = await platformAuth.login(email, "platform-pw");
     expect(pair.expires_in).toBe(1800);
 
-    await expect(platformAuth.authenticate(pair.access_token)).resolves.toEqual({
-      id: adminId,
-      email,
+    const principal = await platformAuth.authenticate(pair.access_token);
+    expect(principal).toMatchObject({ id: adminId, email });
+    // `{pid, sid}` — never a tenant identity.
+    const claims = await new JwtService({}).verifyAsync(pair.access_token, {
+      secret: "test-platform-secret",
+      audience: "erp-platform",
     });
+    expect(claims).toMatchObject({ pid: adminId, sid: expect.any(String) });
+    expect(claims).not.toHaveProperty("tid");
+    expect(claims).not.toHaveProperty("sub");
+    const [sessionRow] = await conn.db
+      .select()
+      .from(platformSession)
+      .where(eq(platformSession.tokenId, claims.sid));
+    expect(sessionRow).toMatchObject({ id: principal.sessionId, platformAdminId: adminId, revokedAt: null });
     // Neither the tenant verifier nor the JwtGuard accepts a platform token.
     await expect(tokens.verifyAccess(pair.access_token)).rejects.toThrow();
     await expect(
@@ -176,6 +188,27 @@ describe.skipIf(!url)("platform module (integration)", () => {
       .from(platformAuditLog)
       .where(and(eq(platformAuditLog.platformAdminId, adminId), eq(platformAuditLog.action, "LOGIN")));
     expect(logins.length).toBeGreaterThanOrEqual(1);
+    expect(logins.every((r) => r.correlationId !== null)).toBe(true);
+  });
+
+  it("refreshes a live platform session and revokes both tokens on logout", async () => {
+    const pair = await platformAuth.login(email, "platform-pw");
+    const refreshed = await platformAuth.refresh(pair.refresh_token);
+    const principal = await platformAuth.authenticate(refreshed.access_token);
+    expect(principal.id).toBe(adminId);
+
+    await platformAuth.logout(principal);
+    await expect(platformAuth.authenticate(pair.access_token)).rejects.toBeInstanceOf(
+      UnauthenticatedError,
+    );
+    await expect(platformAuth.refresh(pair.refresh_token)).rejects.toBeInstanceOf(
+      UnauthenticatedError,
+    );
+    const logouts = await conn.db
+      .select()
+      .from(platformAuditLog)
+      .where(and(eq(platformAuditLog.platformAdminId, adminId), eq(platformAuditLog.action, "LOGOUT")));
+    expect(logouts).toHaveLength(1);
   });
 
   it("refuses a tenant access token at the platform guard", async () => {
@@ -275,9 +308,12 @@ describe.skipIf(!url)("platform module (integration)", () => {
     const audit = await platformAudit.list({ limit: 10, entity_id: created.id });
     expect(audit.data[0]).toMatchObject({
       action: "UPDATE",
+      platform_admin_id: adminId,
+      tenant_id: created.id,
       reason: "billing overdue",
       before: { status: "ACTIVE" },
       after: { status: "READ_ONLY" },
+      correlation_id: expect.any(String),
     });
 
     await expect(

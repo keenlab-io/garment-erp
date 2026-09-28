@@ -188,7 +188,10 @@ export type SupportSessionsQuery = z.infer<typeof SupportSessionsQuery>;
 
 // ── Platform audit ────────────────────────────────────────────────────────────
 
-/** An append-only `platform_audit_log` entry — control-plane actions, not tenant data. */
+/**
+ * An append-only `platform_audit_log` entry — control-plane actions, not tenant data.
+ * `correlation_id` ties the row to the unit of work that wrote it (null on pre-M8 rows).
+ */
 export const PlatformAuditRow = z.object({
   id: uuid,
   at: z.string().datetime(),
@@ -200,6 +203,7 @@ export const PlatformAuditRow = z.object({
   reason: z.string().nullable(),
   before: z.unknown().nullable(),
   after: z.unknown().nullable(),
+  correlation_id: uuid.nullable(),
 });
 export type PlatformAuditRow = z.infer<typeof PlatformAuditRow>;
 

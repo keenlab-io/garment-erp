@@ -5,7 +5,7 @@ import type { AuditAction, PlatformAuditRow } from "@erp/contracts";
 import { tryDecodeCursor } from "@erp/utils";
 import { buildPage } from "../common/pagination/cursor.js";
 import { DB } from "../db/db.tokens.js";
-import { currentExecutor } from "../db/tx-context.js";
+import { currentCorrelationId, currentExecutor } from "../db/tx-context.js";
 
 /** A control-plane action to append to `platform_audit_log`. */
 export interface PlatformAuditEntry {
@@ -17,6 +17,8 @@ export interface PlatformAuditEntry {
   before?: unknown;
   after?: unknown;
   reason?: string | null;
+  /** Defaults to the active transaction's correlation id (see `currentCorrelationId`). */
+  correlationId?: string | null;
 }
 
 /** Filters accepted by `GET /platform/audit`. */
@@ -36,9 +38,11 @@ interface PlatformAuditCursor {
 }
 
 /**
- * The control-plane audit trail (M7 design D7) — tenant provisioned, status changed, support
- * session opened/closed, platform-admin login. `append` uses `currentExecutor`, so a call inside
- * a transaction is atomic with the action it records; the table is append-only at the DB level
+ * The control-plane audit trail (M7 design D7, M8 task 3.2) — tenant provisioned, status changed,
+ * support session opened/closed, platform-admin login/logout. Every row names the acting platform
+ * admin, the action, the target tenant, before/after payloads, and a correlation id (the writing
+ * transaction's, so it matches the domain events of the same unit of work). `append` uses
+ * `currentExecutor`, so a call inside a transaction is atomic with the action it records; the table is append-only at the DB level
  * (trigger + revoked UPDATE/DELETE). `list` is the cursor-paginated, newest-first read the
  * platform surface exposes. `platform_audit_log` is exempt from tenancy/RLS, so neither path
  * needs a tenant in scope.
@@ -59,6 +63,7 @@ export class PlatformAuditService {
         before: entry.before ?? null,
         after: entry.after ?? null,
         reason: entry.reason ?? null,
+        correlationId: entry.correlationId ?? currentCorrelationId(),
       });
   }
 
@@ -106,6 +111,7 @@ export class PlatformAuditService {
         reason: r.reason,
         before: r.before,
         after: r.after,
+        correlation_id: r.correlationId,
       })),
       next_cursor: page.next_cursor,
     };

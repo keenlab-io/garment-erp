@@ -16,6 +16,7 @@ const TENANT_EXEMPT = new Set([
   "support_session",
   "permission",
   "plan",
+  "platform_session",
 ]);
 
 /** Every tenant-scoped table in the `@erp/db` schema barrel. */
