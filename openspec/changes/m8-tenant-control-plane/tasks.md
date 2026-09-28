@@ -5,10 +5,10 @@ the change is picked up for implementation; M7 (`m7-tenancy-core`) must be merge
 
 ## 1. Contracts — `packages/contracts/src`
 
-- [ ] 1.1 Extend `enums/tenancy.ts` with `PlanCode` (`WORKSHOP | FACTORY | MULTISITE | SELFHOSTED`), `SupportSessionScope` (`READ_ONLY | FULL`), `TenantExportStatus`; add `TENANT_READ_ONLY` to `enums/error-code.ts` (mapped 403 in the filter)
-- [ ] 1.2 Add `SCAN_ONLY_PERMISSIONS` (`["production.scan"] as const`) to `permissions/catalog.ts` as the single source for the seat exemption
-- [ ] 1.3 Grow `dto/platform.ts`: `platformContract` — platform auth (login/refresh/logout/me), tenant provisioning + list + lifecycle transitions + purge + export, plan read/update, `tenant_feature` override CRUD, support-session create/list/end; seat-count read endpoint on the tenant-side `iam` router; register on the root contract
-- [ ] 1.4 Verify: `pnpm build && pnpm typecheck && pnpm lint`
+- [x] 1.1 Extend `enums/tenancy.ts` with `PlanCode` (`WORKSHOP | FACTORY | MULTISITE | SELFHOSTED`), `SupportSessionScope` (`READ_ONLY | FULL`), `TenantExportStatus`; add `TENANT_READ_ONLY` to `enums/error-code.ts` (mapped 403 in the filter)
+- [x] 1.2 Add `SCAN_ONLY_PERMISSIONS` (`["production.scan"] as const`) to `permissions/catalog.ts` as the single source for the seat exemption
+- [x] 1.3 Grow `dto/platform.ts`: `platformContract` — platform auth (login/refresh/logout/me), tenant provisioning + list + lifecycle transitions + purge + export, plan read/update, `tenant_feature` override CRUD, support-session create/list/end; seat-count read endpoint on the tenant-side `iam` router; register on the root contract
+- [x] 1.4 Verify: `pnpm build && pnpm typecheck && pnpm lint`
 
 ## 2. DB schema & migration — `packages/db` + `tooling/drizzle/0013_control_plane.sql`
 

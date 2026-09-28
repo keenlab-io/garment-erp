@@ -46,6 +46,15 @@ export const PERMISSIONS = [
 
 export type Permission = (typeof PERMISSIONS)[number];
 
+/**
+ * The maximal permission set a seat-exempt "scan-only" user may hold (m8 design D3) — a
+ * counted seat is any user whose effective permission set is NOT a subset of this. Free
+ * floor accounts get exactly `production.scan`; granting anything else promotes them into
+ * a counted seat and re-runs the seat cap check. Single source for both `SeatService` and
+ * any UI that needs to explain the exemption.
+ */
+export const SCAN_ONLY_PERMISSIONS = ["production.scan"] as const;
+
 const permissionSet = new Set<string>(PERMISSIONS);
 
 /** Type guard: is the given string a known permission? */
