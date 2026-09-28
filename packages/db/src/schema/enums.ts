@@ -207,3 +207,11 @@ export type TenantStatus = "ACTIVE" | "READ_ONLY" | "SUSPENDED" | "PURGING";
 
 // How a `tenant_domain` hostname resolves: to its single tenant, or into the m10 demo pool.
 export type DomainResolutionMode = "TENANT" | "DEMO_POOL";
+
+// ── M8 Tenant Control Plane ───────────────────────────────────────────────────
+// These duplicate the enums in `packages/contracts/src/enums/tenancy.ts` (the same
+// no-cross-import rule as above); the parity test keeps them in lockstep.
+
+// The commercial package a tenant subscribes to (`plan.code`) — seats and feature defaults
+// live on the row itself, this is just the stable code.
+export type PlanCode = "WORKSHOP" | "FACTORY" | "MULTISITE" | "SELFHOSTED";

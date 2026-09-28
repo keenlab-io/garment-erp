@@ -1,17 +1,23 @@
-import { foreignKey, pgTable, text, uuid, type PgColumn } from "drizzle-orm/pg-core";
+import { foreignKey, integer, pgTable, text, uuid, type PgColumn } from "drizzle-orm/pg-core";
 import { auditColumns, citext, versionColumn } from "../../base-columns.js";
 import type { DomainResolutionMode, TenantKind, TenantStatus } from "../enums.js";
+import { plan } from "./plan.js";
 
 // Control-plane tenant registry (M7 design D1/D5). Exempt from `tenantColumn` and RLS —
 // these rows ARE the tenants. `slug` is citext so it is unique case-insensitively; `status`
 // drives the central lifecycle enforcement (SUSPENDED/PURGING reject everything, READ_ONLY
-// rejects mutations).
+// rejects mutations). `plan_id` is nullable at the column level only for the pre-M8 default
+// tenant (backfilled by seed once the plan catalog exists) — `ProvisioningService` (M8 design
+// D1) always sets it for every tenant it creates. `extra_seats` is the M9 upsell knob on top
+// of `plan.included_seats`, default 0 until then.
 export const tenant = pgTable("tenant", {
   ...auditColumns,
   slug: citext().notNull().unique(),
   name: text().notNull(),
   kind: text().$type<TenantKind>().notNull(),
   status: text().$type<TenantStatus>().notNull().default("ACTIVE"),
+  planId: uuid().references(() => plan.id),
+  extraSeats: integer().notNull().default(0),
   ...versionColumn,
 });
 

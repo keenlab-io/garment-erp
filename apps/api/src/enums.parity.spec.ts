@@ -20,6 +20,7 @@ import type {
   PayComponentType as ContractPayComponentType,
   PaymentMethod as ContractPaymentMethod,
   PayrollRunStatus as ContractPayrollRunStatus,
+  PlanCode as ContractPlanCode,
   ProductType as ContractProductType,
   QuotationStatus as ContractQuotationStatus,
   ReceiptType as ContractReceiptType,
@@ -59,6 +60,7 @@ import type {
   PayComponentType as DbPayComponentType,
   PaymentMethod as DbPaymentMethod,
   PayrollRunStatus as DbPayrollRunStatus,
+  PlanCode as DbPlanCode,
   ProductType as DbProductType,
   QuotationStatus as DbQuotationStatus,
   ReceiptType as DbReceiptType,
@@ -228,5 +230,9 @@ describe("enum parity: @erp/contracts <-> @erp/db", () => {
 
   it("DomainResolutionMode unions are identical", () => {
     expectTypeOf<ContractDomainResolutionMode>().toEqualTypeOf<DbDomainResolutionMode>();
+  });
+
+  it("PlanCode unions are identical", () => {
+    expectTypeOf<ContractPlanCode>().toEqualTypeOf<DbPlanCode>();
   });
 });

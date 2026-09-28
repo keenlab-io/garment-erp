@@ -12,10 +12,10 @@ the change is picked up for implementation; M7 (`m7-tenancy-core`) must be merge
 
 ## 2. DB schema & migration — `packages/db` + `tooling/drizzle/0013_control_plane.sql`
 
-- [ ] 2.1 Add the `schema/platform/` tables **M7 does not already create**: `plan` and `tenant_feature` (PK `(tenant_id, key)`); add `tenant.plan_id` FK + `tenant.extra_seats`. `platform_admin`, `platform_audit_log`, and `support_session` are created by M7's `0012_tenancy.sql` — adopt them, never re-declare them
-- [ ] 2.2 Hand-author `0013_control_plane.sql` — it creates only `plan`, `tenant_feature`, and the two `tenant` columns, and MUST NOT re-create M7's control-plane tables. `plan` is `TENANT_EXEMPT` (no `tenant_id`, no RLS) and is appended to M7's `tenancy.parity.spec.ts` allowlist; `tenant_feature` DOES carry `tenant_id` and gets a `tenant_isolation` policy like any business table
-- [ ] 2.3 Seed the four `plan` rows (seats 8/20/40/20 + `features` module defaults) and the bootstrap platform admin from env
-- [ ] 2.4 Verify: migrate + seed clean on fresh DB; `tenancy.parity.spec.ts` green with the new exempt tables
+- [x] 2.1 Add the `schema/platform/` tables **M7 does not already create**: `plan` and `tenant_feature` (PK `(tenant_id, key)`); add `tenant.plan_id` FK + `tenant.extra_seats`. `platform_admin`, `platform_audit_log`, and `support_session` are created by M7's `0012_tenancy.sql` — adopt them, never re-declare them
+- [x] 2.2 Hand-author `0015_control_plane.sql` (renumbered from the `0013` this section was drafted against — M7 landed as `0012_tenancy.sql`/`0013_tenancy_rls.sql`/`0014_permission_catalog_readonly.sql`, so the next free slot is `0015`) — it creates only `plan`, `tenant_feature`, and the two `tenant` columns, and does not re-create M7's control-plane tables. `plan` is `TENANT_EXEMPT` (no `tenant_id`, no RLS) and is appended to M7's `tenancy.parity.spec.ts` (and its integration-test mirror) allowlist; `tenant_feature` DOES carry `tenant_id` and gets a `tenant_isolation` policy like any business table
+- [x] 2.3 Seed the four `plan` rows (seats 8/20/40/20 + `features` module defaults) and the bootstrap platform admin from env
+- [x] 2.4 Verify: migrate + seed clean on fresh DB; `tenancy.parity.spec.ts` green with the new exempt tables
 
 ## 3. Platform principal & auth — `apps/api/src/platform`
 
