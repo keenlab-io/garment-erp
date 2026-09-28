@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { randomUUID } from "node:crypto";
 import type { Db, Tx } from "@erp/db";
 
 /**
@@ -20,6 +21,13 @@ export const txContext = new AsyncLocalStorage<TxStore>();
  * without threading a `tx` handle through every signature.
  */
 export const currentExecutor = (db: Db): Db | Tx => txContext.getStore()?.tx ?? db;
+
+/**
+ * The correlation id of the active transaction, or a fresh one outside a transaction — what
+ * audit writers stamp so a row can be tied back to the unit of work that produced it.
+ */
+export const currentCorrelationId = (): string =>
+  txContext.getStore()?.correlationId ?? randomUUID();
 
 /**
  * Register a hook to run after the current transaction commits. Called outside a

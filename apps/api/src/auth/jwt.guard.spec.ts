@@ -287,6 +287,19 @@ describe("JwtGuard (instant revocation)", () => {
     expect(lookupTenants).toEqual([]);
   });
 
+  it("rejects a real {pid, sid} platform token before any lookup (M8 design D7)", async () => {
+    // Even stripped of its audience and signed with the tenant secret, a platform token has no
+    // `tid`/`sub`, so it can never authenticate a tenant request.
+    const platform = await new JwtService({}).signAsync(
+      { pid: USER_ID, sid: TOKEN_ID },
+      { secret: "test-access-secret", expiresIn: "15m" },
+    );
+    await expect(
+      openTenantSlot(() => guard.canActivate(contextWith(`Bearer ${platform}`).ctx)),
+    ).rejects.toBeInstanceOf(UnauthenticatedError);
+    expect(lookupTenants).toEqual([]);
+  });
+
   it("rejects a missing or non-bearer Authorization header with 401", async () => {
     await expect(
       guard.canActivate(contextWith(undefined).ctx),

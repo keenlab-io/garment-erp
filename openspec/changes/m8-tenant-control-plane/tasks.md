@@ -19,9 +19,9 @@ the change is picked up for implementation; M7 (`m7-tenancy-core`) must be merge
 
 ## 3. Platform principal & auth — `apps/api/src/platform`
 
-- [ ] 3.1 `PlatformAuthService` + `PlatformJwtGuard`: argon2id + lockout parity with tenant login; token claims `{pid, sid}` (never `tid`); mount `/platform/*` only when `DEPLOYMENT_MODE=cloud`
-- [ ] 3.2 `platform_audit_log` writer: append-only row for every control-plane mutation (actor, action, target tenant, before/after, correlation id)
-- [ ] 3.3 Verify: tenant token rejected on `/platform/*`; platform token rejected on tenant routes; `pnpm build && pnpm typecheck && pnpm lint`
+- [x] 3.1 `PlatformAuthService` + `PlatformJwtGuard`: argon2id + lockout parity with tenant login; token claims `{pid, sid}` (never `tid`); mount `/platform/*` only when `DEPLOYMENT_MODE=cloud`
+- [x] 3.2 `platform_audit_log` writer: append-only row for every control-plane mutation (actor, action, target tenant, before/after, correlation id)
+- [x] 3.3 Verify: tenant token rejected on `/platform/*`; platform token rejected on tenant routes; `pnpm build && pnpm typecheck && pnpm lint`
 
 ## 4. Provisioning & lifecycle — `apps/api/src/platform`
 

@@ -17,6 +17,7 @@ const TENANT_EXEMPT: ReadonlySet<string> = new Set([
   "support_session",
   "permission", // the global permission catalog mirror
   "plan", // M8 commercial plan catalog (design D10)
+  "platform_session", // M8 platform-admin sessions (design D7)
 ]);
 
 const tables = (Object.values(schema) as unknown[])

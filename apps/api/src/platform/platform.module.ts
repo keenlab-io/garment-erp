@@ -3,7 +3,7 @@ import { JwtModule } from "@nestjs/jwt";
 import { PlatformAuditService } from "./platform-audit.service.js";
 import { PlatformAuthService } from "./platform-auth.service.js";
 import { PlatformAuthController, PlatformController } from "./platform.controller.js";
-import { PlatformGuard } from "./platform.guard.js";
+import { PlatformJwtGuard } from "./platform-jwt.guard.js";
 import { SelfHostedBootstrap } from "./self-hosted-bootstrap.service.js";
 import { SupportSessionService } from "./support-session.service.js";
 import { TenantProvisioningService } from "./tenant-provisioning.service.js";
@@ -45,7 +45,7 @@ export class PlatformModule {
       providers: [
         PlatformAuditService,
         PlatformAuthService,
-        PlatformGuard,
+        PlatformJwtGuard,
         TenantProvisioningService,
         SupportSessionService,
       ],
