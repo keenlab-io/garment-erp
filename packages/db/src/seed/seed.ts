@@ -1,5 +1,5 @@
 import argon2 from "argon2";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { DEFAULT_TENANT_ID, DEFAULT_TENANT_SLUG } from "../base-columns.js";
 import { createDb, type Tx } from "../client.js";
 import {
@@ -7,6 +7,8 @@ import {
   item,
   permission,
   PERMISSION_CODES,
+  plan,
+  platformAdmin,
   role,
   rolePermission,
   sku,
@@ -19,8 +21,29 @@ import {
   workOrder,
   workOrderStep,
   type ItemType,
+  type PlanCode,
 } from "../schema/index.js";
 import { BASE_SEQUENCES, BASE_UOMS, seedTenantDefaults } from "./tenant-defaults.js";
+
+// The M8 plan catalog (design D10): seat counts from the GTM doc, seeded by migration/seed and
+// editable only by platform admins from here on — `onConflictDoNothing` below never clobbers an
+// admin's edit. Every reserved `module.*` key defaults on for every tier; the GTM doc gates plans
+// by seats/price, not by module — add-ons are a platform admin flipping a `tenant_feature` row
+// (design D2), not a different seed default per plan.
+const BASE_MODULE_FEATURES: Record<string, boolean> = {
+  "module.hr": true,
+  "module.inventory": true,
+  "module.production": true,
+  "module.sales": true,
+  "module.reporting": true,
+};
+
+const PLAN_CATALOG: ReadonlyArray<{ code: PlanCode; includedSeats: number }> = [
+  { code: "WORKSHOP", includedSeats: 8 },
+  { code: "FACTORY", includedSeats: 20 },
+  { code: "MULTISITE", includedSeats: 40 },
+  { code: "SELFHOSTED", includedSeats: 20 },
+];
 
 // Idempotent development/bootstrap seed: the global permission catalog, the
 // `DEFAULT_TENANT_SLUG` tenant with its per-tenant defaults (`seedTenantDefaults`), and a
@@ -412,6 +435,12 @@ async function main() {
   const password = process.env.SEED_SUPERADMIN_PASSWORD ?? "changeme";
   const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
 
+  const platformAdminEmail = process.env.SEED_PLATFORM_ADMIN_EMAIL ?? "platform-admin@erp.local";
+  const platformAdminPassword = process.env.SEED_PLATFORM_ADMIN_PASSWORD ?? "changeme";
+  const platformAdminPasswordHash = await argon2.hash(platformAdminPassword, {
+    type: argon2.argon2id,
+  });
+
   const { db, queryClient } = createDb(url, { max: 1 });
   try {
     // Mirror the permission catalog into the `permission` table (M1 design D8). Global — the
@@ -419,6 +448,33 @@ async function main() {
     await db
       .insert(permission)
       .values(PERMISSION_CODES.map((code) => ({ code })))
+      .onConflictDoNothing();
+
+    // Seed the four commercial plans (M8 design D10). Global catalog, tenant-exempt.
+    // `onConflictDoNothing` on the unique `code` — a platform admin's edit to `included_seats`
+    // or `features` is never clobbered by a later seed run.
+    await db
+      .insert(plan)
+      .values(
+        PLAN_CATALOG.map(({ code, includedSeats }) => ({
+          code,
+          includedSeats,
+          features: BASE_MODULE_FEATURES,
+        })),
+      )
+      .onConflictDoNothing();
+
+    // Bootstrap platform admin (M8 design D7) — the control-plane operator, separate from
+    // every tenant's `user` table. `platform_admin` is global, so this runs outside any
+    // tenant transaction. Idempotent on the unique `email`; rotate the password by hand
+    // afterwards (`onConflictDoNothing` never resets a forgotten one).
+    await db
+      .insert(platformAdmin)
+      .values({
+        email: platformAdminEmail,
+        passwordHash: platformAdminPasswordHash,
+        status: "ACTIVE",
+      })
       .onConflictDoNothing();
 
     // Create-or-find the default tenant (control-plane table, not under RLS). Migration 0012
@@ -440,6 +496,17 @@ async function main() {
       .where(eq(tenant.slug, tenantSlug));
     if (!defaultTenant) throw new Error(`Tenant "${tenantSlug}" could not be created`);
     const tenantId = defaultTenant.id;
+
+    // Backfill `plan_id` on any tenant that predates the plan catalog (the default tenant on a
+    // fresh migrate — 0012 inserts it before this seed ever runs). New tenants get their plan
+    // from `ProvisioningService` (design D1); this is a one-time catch-up, not the steady state.
+    const [factoryPlan] = await db.select({ id: plan.id }).from(plan).where(eq(plan.code, "FACTORY"));
+    if (factoryPlan) {
+      await db
+        .update(tenant)
+        .set({ planId: factoryPlan.id })
+        .where(and(eq(tenant.id, tenantId), isNull(tenant.planId)));
+    }
 
     // Everything tenant-scoped runs in one transaction with the `app.tenant_id` GUC set, so
     // column defaults inherit the tenant and the RLS `WITH CHECK` accepts the rows.
@@ -470,9 +537,9 @@ async function main() {
     });
 
     console.log(
-      `Seed complete: permission catalog + tenant "${tenantSlug}" (${BASE_SEQUENCES.length} ` +
-        `sequences, ${BASE_UOMS.length} uoms, warehouse, HR config, document template) + ` +
-        "super-admin" +
+      `Seed complete: permission catalog + plan catalog + platform admin + tenant "${tenantSlug}" ` +
+        `(${BASE_SEQUENCES.length} sequences, ${BASE_UOMS.length} uoms, warehouse, HR config, ` +
+        "document template) + super-admin" +
         (SEED_TEST_DATA
           ? ` + ${SEED_PERSONAS.length} UI-test personas + sales/inventory/production master data`
           : " (test data skipped — set SEED_TEST_DATA=1 to include personas + sample master data)"),
