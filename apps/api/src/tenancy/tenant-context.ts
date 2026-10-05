@@ -21,6 +21,11 @@ export interface TenantStore {
   source: TenantSource;
   /** Set when the request authenticated with a support-session token (`sup` claim). */
   support?: SupportScope;
+  /**
+   * The tenant's resolved feature map (M8 design D2), filled lazily by `EntitlementsService` so
+   * entitlement resolution runs at most once per request/job — the store lives exactly that long.
+   */
+  features?: Readonly<Record<string, boolean>>;
 }
 
 /**

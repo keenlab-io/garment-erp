@@ -2,6 +2,7 @@ import { Controller } from "@nestjs/common";
 import { TsRestHandler, tsRestHandler } from "@ts-rest/nest";
 import { contract } from "@erp/contracts";
 import { assertPermissions } from "../auth/authz.js";
+import { EntitlementsService } from "../platform/entitlements.service.js";
 import { CurrentUser } from "../auth/decorators/current-user.decorator.js";
 import type { AuthUser } from "../auth/auth-user.js";
 import { UnitOfWork } from "../db/unit-of-work.service.js";
@@ -25,6 +26,7 @@ import { VoidService } from "./void.service.js";
 export class SalesController {
   constructor(
     private readonly uow: UnitOfWork,
+    private readonly entitlements: EntitlementsService,
     private readonly customers: CustomerService,
     private readonly quotations: QuotationService,
     private readonly invoices: InvoiceService,
@@ -41,6 +43,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.createCustomer)
   createCustomer(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.createCustomer, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "sales.customer.manage");
       assertPermissions(user, "sales.customer.manage");
       const customer = await this.uow.withTransaction(() =>
         this.customers.create(body, user),
@@ -52,6 +55,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.listCustomers)
   listCustomers(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.listCustomers, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "sales.customer.manage");
       assertPermissions(user, "sales.customer.manage");
       return { status: 200, body: await this.customers.list(query) };
     });
@@ -62,6 +66,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.createQuotation)
   createQuotation(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.createQuotation, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "sales.quotation.manage");
       assertPermissions(user, "sales.quotation.manage");
       const quotation = await this.uow.withTransaction(() =>
         this.quotations.create(body),
@@ -73,6 +78,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.sendQuotation)
   sendQuotation(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.sendQuotation, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "sales.quotation.manage");
       assertPermissions(user, "sales.quotation.manage");
       const quotation = await this.uow.withTransaction(() =>
         this.quotations.send(params.id),
@@ -84,6 +90,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.approveQuotation)
   approveQuotation(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.approveQuotation, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "sales.quotation.manage");
       assertPermissions(user, "sales.quotation.manage");
       const quotation = await this.uow.withTransaction(() =>
         this.quotations.approve(params.id, user),
@@ -95,6 +102,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.rejectQuotation)
   rejectQuotation(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.rejectQuotation, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "sales.quotation.manage");
       assertPermissions(user, "sales.quotation.manage");
       const quotation = await this.uow.withTransaction(() =>
         this.quotations.reject(params.id),
@@ -106,6 +114,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.convertQuotation)
   convertQuotation(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.convertQuotation, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "sales.invoice.create");
       assertPermissions(user, "sales.invoice.create");
       const invoice = await this.uow.withTransaction(() =>
         this.quotations.convert(params.id),
@@ -119,6 +128,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.createInvoice)
   createInvoice(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.createInvoice, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "sales.invoice.create");
       assertPermissions(user, "sales.invoice.create");
       const invoice = await this.uow.withTransaction(() => this.invoices.create(body));
       return { status: 201, body: { invoice } };
@@ -128,6 +138,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.issueInvoice)
   issueInvoice(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.issueInvoice, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "sales.invoice.create");
       assertPermissions(user, "sales.invoice.create");
       const invoice = await this.uow.withTransaction(() =>
         this.invoices.issue(params.id, user),
@@ -139,6 +150,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.recordPayment)
   recordPayment(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.recordPayment, async ({ params, body }) => {
+      await this.entitlements.assertModuleEnabled(user, "sales.payment.record");
       assertPermissions(user, "sales.payment.record");
       const result = await this.uow.withTransaction(() =>
         this.payments.record(params.id, body, user),
@@ -150,6 +162,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.voidInvoice)
   voidInvoice(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.voidInvoice, async ({ params, body }) => {
+      await this.entitlements.assertModuleEnabled(user, "sales.document.void");
       assertPermissions(user, "sales.document.void");
       const invoice = await this.uow.withTransaction(() =>
         this.voids.voidInvoice(params.id, body.reason, user),
@@ -161,6 +174,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.getInvoicePromptPayQr)
   getInvoicePromptPayQr(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.getInvoicePromptPayQr, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "sales.payment.record");
       assertPermissions(user, "sales.payment.record");
       return { status: 200, body: await this.promptpay.qr(params.id) };
     });
@@ -169,6 +183,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.exportInvoice)
   exportInvoice(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.exportInvoice, async ({ params, query }) => {
+      await this.entitlements.assertModuleEnabled(user, "sales.invoice.create");
       assertPermissions(user, "sales.invoice.create");
       return {
         status: 202,
@@ -180,6 +195,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.getInvoiceWhtCertificate)
   getInvoiceWhtCertificate(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.getInvoiceWhtCertificate, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "sales.invoice.create");
       assertPermissions(user, "sales.invoice.create");
       return { status: 202, body: await this.exports.enqueueWhtCertificate(params.id) };
     });
@@ -190,6 +206,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.agingReport)
   agingReport(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.agingReport, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "report.sales.view");
       assertPermissions(user, "report.sales.view");
       return { status: 200, body: { rows: await this.aging.report(query) } };
     });
@@ -198,6 +215,7 @@ export class SalesController {
   @TsRestHandler(contract.sales.submitEtax)
   submitEtax(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.sales.submitEtax, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "sales.etax.submit");
       assertPermissions(user, "sales.etax.submit");
       return { status: 202, body: await this.etax.submit(params.invoice_id) };
     });

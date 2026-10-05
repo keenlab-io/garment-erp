@@ -2,6 +2,7 @@ import { Controller } from "@nestjs/common";
 import { TsRestHandler, tsRestHandler } from "@ts-rest/nest";
 import { contract } from "@erp/contracts";
 import { assertPermissions } from "../auth/authz.js";
+import { EntitlementsService } from "../platform/entitlements.service.js";
 import { CurrentUser } from "../auth/decorators/current-user.decorator.js";
 import type { AuthUser } from "../auth/auth-user.js";
 import { UnitOfWork } from "../db/unit-of-work.service.js";
@@ -29,6 +30,7 @@ function canViewCost(user: AuthUser): boolean {
 export class InventoryController {
   constructor(
     private readonly uow: UnitOfWork,
+    private readonly entitlements: EntitlementsService,
     private readonly items: ItemService,
     private readonly receipts: GoodsReceiptService,
     private readonly issues: GoodsIssueService,
@@ -44,6 +46,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.listItems)
   listItems(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.listItems, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.product.create");
       assertPermissions(user, "inventory.product.create");
       return { status: 200, body: await this.items.list(query) };
     });
@@ -52,6 +55,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.createItem)
   createItem(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.createItem, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.product.create");
       assertPermissions(user, "inventory.product.create");
       const item = await this.uow.withTransaction(() => this.items.create(body, user));
       return { status: 201, body: { item } };
@@ -61,6 +65,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.createSku)
   createSku(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.createSku, async ({ params, body }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.product.create");
       assertPermissions(user, "inventory.product.create");
       const sku = await this.uow.withTransaction(() =>
         this.items.createSku(params.id, body),
@@ -72,6 +77,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.createUomConversion)
   createUomConversion(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.createUomConversion, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.product.create");
       assertPermissions(user, "inventory.product.create");
       const conversion = await this.uow.withTransaction(() =>
         this.items.createConversion(body),
@@ -83,6 +89,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.printBarcodes)
   printBarcodes(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.printBarcodes, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.product.create");
       assertPermissions(user, "inventory.product.create");
       return { status: 202, body: await this.barcodes.print(body) };
     });
@@ -93,6 +100,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.listGoodsReceipts)
   listGoodsReceipts(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.listGoodsReceipts, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.receipt.manage");
       assertPermissions(user, "inventory.receipt.manage");
       return { status: 200, body: await this.receipts.list(query.limit, query.cursor) };
     });
@@ -101,6 +109,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.createGoodsReceipt)
   createGoodsReceipt(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.createGoodsReceipt, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.receipt.manage");
       assertPermissions(user, "inventory.receipt.manage");
       const receipt = await this.uow.withTransaction(() =>
         this.receipts.create(body, user),
@@ -112,6 +121,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.confirmGoodsReceipt)
   confirmGoodsReceipt(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.confirmGoodsReceipt, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.receipt.manage");
       assertPermissions(user, "inventory.receipt.manage");
       const receipt = await this.uow.withTransaction(() =>
         this.receipts.confirm(params.id),
@@ -123,6 +133,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.postGoodsReceipt)
   postGoodsReceipt(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.postGoodsReceipt, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.receipt.manage");
       assertPermissions(user, "inventory.receipt.manage");
       const receipt = await this.uow.withTransaction(() =>
         this.receipts.post(params.id, user),
@@ -136,6 +147,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.listGoodsIssues)
   listGoodsIssues(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.listGoodsIssues, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.issue.manage");
       assertPermissions(user, "inventory.issue.manage");
       return { status: 200, body: await this.issues.list(query.limit) };
     });
@@ -144,6 +156,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.createGoodsIssue)
   createGoodsIssue(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.createGoodsIssue, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.issue.manage");
       assertPermissions(user, "inventory.issue.manage");
       const issue = await this.uow.withTransaction(() => this.issues.create(body, user));
       return { status: 201, body: { issue } };
@@ -153,6 +166,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.postGoodsIssue)
   postGoodsIssue(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.postGoodsIssue, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.issue.manage");
       assertPermissions(user, "inventory.issue.manage");
       const issue = await this.uow.withTransaction(() =>
         this.issues.post(params.id, user),
@@ -166,6 +180,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.createBom)
   createBom(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.createBom, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.product.create");
       assertPermissions(user, "inventory.product.create");
       const bom = await this.uow.withTransaction(() => this.boms.create(body, user));
       return { status: 201, body: { bom } };
@@ -175,6 +190,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.rollupBom)
   rollupBom(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.rollupBom, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.product.create");
       assertPermissions(user, "inventory.product.create");
       return { status: 200, body: await this.boms.rollup(params.id) };
     });
@@ -185,6 +201,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.createStockCount)
   createStockCount(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.createStockCount, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.issue.manage");
       assertPermissions(user, "inventory.issue.manage");
       const count = await this.uow.withTransaction(() => this.counts.create(body, user));
       return { status: 201, body: { count } };
@@ -194,6 +211,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.setStockCountLines)
   setStockCountLines(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.setStockCountLines, async ({ params, body }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.issue.manage");
       assertPermissions(user, "inventory.issue.manage");
       const count = await this.uow.withTransaction(() =>
         this.counts.setLines(params.id, body, user),
@@ -205,6 +223,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.reconcileStockCount)
   reconcileStockCount(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.reconcileStockCount, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.issue.manage");
       assertPermissions(user, "inventory.issue.manage");
       const adjustment = await this.uow.withTransaction(() =>
         this.counts.reconcile(params.id, user),
@@ -218,6 +237,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.createStockAdjustment)
   createStockAdjustment(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.createStockAdjustment, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.issue.manage");
       assertPermissions(user, "inventory.issue.manage");
       const adjustment = await this.uow.withTransaction(() =>
         this.adjustments.create(body, user),
@@ -229,6 +249,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.approveStockAdjustment)
   approveStockAdjustment(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.approveStockAdjustment, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.adjustment.approve");
       assertPermissions(user, "inventory.adjustment.approve");
       const adjustment = await this.uow.withTransaction(() =>
         this.adjustments.approve(params.id, user),
@@ -240,6 +261,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.postStockAdjustment)
   postStockAdjustment(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.postStockAdjustment, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.adjustment.approve");
       assertPermissions(user, "inventory.adjustment.approve");
       const adjustment = await this.uow.withTransaction(() =>
         this.adjustments.post(params.id, user),
@@ -253,6 +275,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.stockCardReport)
   stockCardReport(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.stockCardReport, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.issue.manage");
       assertPermissions(user, "inventory.issue.manage");
       return { status: 200, body: await this.reports.stockCard(query, canViewCost(user)) };
     });
@@ -261,6 +284,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.valuationReport)
   valuationReport(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.valuationReport, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.cost.view");
       assertPermissions(user, "inventory.cost.view");
       return { status: 200, body: await this.reports.valuation(query.as_of, true) };
     });
@@ -269,6 +293,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.lowStockReport)
   lowStockReport(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.lowStockReport, async () => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.issue.manage");
       assertPermissions(user, "inventory.issue.manage");
       return { status: 200, body: { rows: await this.reports.lowStock() } };
     });
@@ -277,6 +302,7 @@ export class InventoryController {
   @TsRestHandler(contract.inventory.deadStockReport)
   deadStockReport(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.inventory.deadStockReport, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "inventory.issue.manage");
       assertPermissions(user, "inventory.issue.manage");
       return { status: 200, body: { rows: await this.reports.deadStock(query.months) } };
     });

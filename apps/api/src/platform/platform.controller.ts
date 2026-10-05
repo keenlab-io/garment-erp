@@ -8,6 +8,7 @@ import { PlatformAuthService, type PlatformPrincipal } from "./platform-auth.ser
 import { PlatformJwtGuard, type PlatformRequest } from "./platform-jwt.guard.js";
 import { SupportSessionService } from "./support-session.service.js";
 import { TenantDataService } from "./tenant-data.service.js";
+import { TenantFeatureService } from "./tenant-feature.service.js";
 import { TenantProvisioningService } from "./tenant-provisioning.service.js";
 
 /**
@@ -40,8 +41,9 @@ export class PlatformAuthController {
 /**
  * The control-plane surface for `contract.platform` (M7 design D6): the platform admin's own
  * session (`me`/`logout`), tenant provisioning and lifecycle, PDPA export + purge (M8 design D9),
- * support sessions, and the platform audit log. `@Public()` opts out of the tenant
- * `JwtGuard` (a platform token carries no `tid`); `PlatformJwtGuard` authenticates the platform
+ * `tenant_feature` overrides (M8 design D2), support sessions, and the platform audit log.
+ * `@Public()` opts out of the tenant `JwtGuard` (a platform token carries no `tid`);
+ * `PlatformJwtGuard` authenticates the platform
  * admin instead, and refuses every tenant token. Registered only in `DEPLOYMENT_MODE=cloud`.
  */
 @Public()
@@ -54,6 +56,7 @@ export class PlatformController {
     private readonly supportSessions: SupportSessionService,
     private readonly audit: PlatformAuditService,
     private readonly tenantData: TenantDataService,
+    private readonly features: TenantFeatureService,
   ) {}
 
   @TsRestHandler(contract.platform.me)
@@ -123,6 +126,32 @@ export class PlatformController {
       status: 200,
       body: await this.tenantData.exportStatus(params.id, params.job_id),
     }));
+  }
+
+  @TsRestHandler(contract.platform.listTenantFeatures)
+  listTenantFeatures() {
+    return tsRestHandler(contract.platform.listTenantFeatures, async ({ params }) => ({
+      status: 200,
+      body: await this.features.list(params.id),
+    }));
+  }
+
+  @TsRestHandler(contract.platform.setTenantFeature)
+  setTenantFeature(@Req() req: PlatformRequest) {
+    return tsRestHandler(contract.platform.setTenantFeature, async ({ params, body }) => ({
+      status: 200,
+      body: {
+        feature: await this.features.set(params.id, params.key, body.enabled, admin(req).id),
+      },
+    }));
+  }
+
+  @TsRestHandler(contract.platform.deleteTenantFeature)
+  deleteTenantFeature(@Req() req: PlatformRequest) {
+    return tsRestHandler(contract.platform.deleteTenantFeature, async ({ params }) => {
+      await this.features.remove(params.id, params.key, admin(req).id);
+      return { status: 204, body: undefined };
+    });
   }
 
   @TsRestHandler(contract.platform.createSupportSession)

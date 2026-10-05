@@ -3,6 +3,7 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { TsRestHandler, tsRestHandler } from "@ts-rest/nest";
 import { contract, type Employee, type PayslipSummary } from "@erp/contracts";
 import { assertPermissions } from "../auth/authz.js";
+import { EntitlementsService } from "../platform/entitlements.service.js";
 import { CurrentUser } from "../auth/decorators/current-user.decorator.js";
 import type { AuthUser } from "../auth/auth-user.js";
 import { ValidationError } from "../common/errors/app-exception.js";
@@ -45,6 +46,7 @@ function gatePayslip(user: AuthUser, p: PayslipSummary): PayslipSummary {
 export class HrController {
   constructor(
     private readonly uow: UnitOfWork,
+    private readonly entitlements: EntitlementsService,
     private readonly employees: EmployeeService,
     private readonly comp: CompensationService,
     private readonly ot: OtService,
@@ -60,6 +62,7 @@ export class HrController {
   @TsRestHandler(contract.hr.listDepartments)
   listDepartments(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.listDepartments, async () => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.view");
       assertPermissions(user, "hr.employee.view");
       return { status: 200, body: { departments: await this.employees.listDepartments() } };
     });
@@ -68,6 +71,7 @@ export class HrController {
   @TsRestHandler(contract.hr.createDepartment)
   createDepartment(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.createDepartment, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       const department = await this.uow.withTransaction(() =>
         this.employees.createDepartment(body, user),
@@ -79,6 +83,7 @@ export class HrController {
   @TsRestHandler(contract.hr.updateDepartment)
   updateDepartment(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.updateDepartment, async ({ params, body }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       const department = await this.uow.withTransaction(() =>
         this.employees.updateDepartment(params.id, body, user),
@@ -90,6 +95,7 @@ export class HrController {
   @TsRestHandler(contract.hr.deleteDepartment)
   deleteDepartment(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.deleteDepartment, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       await this.uow.withTransaction(() =>
         this.employees.deleteDepartment(params.id, user),
@@ -101,6 +107,7 @@ export class HrController {
   @TsRestHandler(contract.hr.listPositions)
   listPositions(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.listPositions, async () => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.view");
       assertPermissions(user, "hr.employee.view");
       return { status: 200, body: { positions: await this.employees.listPositions() } };
     });
@@ -109,6 +116,7 @@ export class HrController {
   @TsRestHandler(contract.hr.createPosition)
   createPosition(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.createPosition, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       const position = await this.uow.withTransaction(() =>
         this.employees.createPosition(body, user),
@@ -120,6 +128,7 @@ export class HrController {
   @TsRestHandler(contract.hr.updatePosition)
   updatePosition(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.updatePosition, async ({ params, body }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       const position = await this.uow.withTransaction(() =>
         this.employees.updatePosition(params.id, body, user),
@@ -131,6 +140,7 @@ export class HrController {
   @TsRestHandler(contract.hr.deletePosition)
   deletePosition(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.deletePosition, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       await this.uow.withTransaction(() => this.employees.deletePosition(params.id, user));
       return { status: 204, body: undefined };
@@ -143,6 +153,7 @@ export class HrController {
   @TsRestHandler(contract.hr.getReportingLine)
   getReportingLine(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.getReportingLine, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.view");
       assertPermissions(user, "hr.employee.view");
       return {
         status: 200,
@@ -154,6 +165,7 @@ export class HrController {
   @TsRestHandler(contract.hr.setReportingLine)
   setReportingLine(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.setReportingLine, async ({ params, body }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       const reporting_line = await this.uow.withTransaction(() =>
         this.employees.setReportingLine(params.id, body, user),
@@ -167,6 +179,7 @@ export class HrController {
   @TsRestHandler(contract.hr.listEmployees)
   listEmployees(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.listEmployees, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.view");
       assertPermissions(user, "hr.employee.view");
       const page = await this.employees.list(query);
       return {
@@ -179,6 +192,7 @@ export class HrController {
   @TsRestHandler(contract.hr.createEmployee)
   createEmployee(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.createEmployee, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       const employee = await this.uow.withTransaction(() =>
         this.employees.create(body, user),
@@ -190,6 +204,7 @@ export class HrController {
   @TsRestHandler(contract.hr.getEmployee)
   getEmployee(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.getEmployee, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.view");
       assertPermissions(user, "hr.employee.view");
       const employee = await this.employees.get(params.id);
       return { status: 200, body: { employee: gateEmployee(user, employee) } };
@@ -199,6 +214,7 @@ export class HrController {
   @TsRestHandler(contract.hr.updateEmployee)
   updateEmployee(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.updateEmployee, async ({ params, body, headers }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       const expected = parseIfMatch(headers["if-match"]);
       const employee = await this.uow.withTransaction(() =>
@@ -211,6 +227,7 @@ export class HrController {
   @TsRestHandler(contract.hr.listEmployeeDocuments)
   listEmployeeDocuments(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.listEmployeeDocuments, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.view");
       assertPermissions(user, "hr.employee.view");
       return { status: 200, body: { documents: await this.employees.listDocuments(params.id) } };
     });
@@ -223,6 +240,7 @@ export class HrController {
     @UploadedFile() file: UploadedDoc | undefined,
   ) {
     return tsRestHandler(contract.hr.uploadEmployeeDocument, async ({ params, body }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       if (!file) throw new ValidationError("A document file is required");
       const document = await this.uow.withTransaction(() =>
@@ -235,6 +253,7 @@ export class HrController {
   @TsRestHandler(contract.hr.getEmployeeDocumentUrl)
   getEmployeeDocumentUrl(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.getEmployeeDocumentUrl, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.view");
       assertPermissions(user, "hr.employee.view");
       const url = await this.employees.getDocumentUrl(params.id, params.documentId);
       return { status: 302, body: { url } };
@@ -244,6 +263,7 @@ export class HrController {
   @TsRestHandler(contract.hr.addSalaryRecord)
   addSalaryRecord(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.addSalaryRecord, async ({ params, body }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.salary.edit");
       assertPermissions(user, "hr.salary.edit");
       const salary = await this.uow.withTransaction(() =>
         this.comp.addSalaryRecord(params.id, body, user),
@@ -257,6 +277,7 @@ export class HrController {
   @TsRestHandler(contract.hr.listOtRequests)
   listOtRequests(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.listOtRequests, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.ot.approve");
       assertPermissions(user, "hr.ot.approve");
       return { status: 200, body: { ot_requests: await this.ot.list(query) } };
     });
@@ -265,6 +286,7 @@ export class HrController {
   @TsRestHandler(contract.hr.createOtRequest)
   createOtRequest(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.createOtRequest, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       const ot_request = await this.uow.withTransaction(() => this.ot.create(body));
       return { status: 201, body: { ot_request } };
@@ -274,6 +296,7 @@ export class HrController {
   @TsRestHandler(contract.hr.submitOtRequest)
   submitOtRequest(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.submitOtRequest, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       const ot_request = await this.uow.withTransaction(() => this.ot.submit(params.id));
       return { status: 200, body: { ot_request } };
@@ -283,6 +306,7 @@ export class HrController {
   @TsRestHandler(contract.hr.approveOtRequest)
   approveOtRequest(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.approveOtRequest, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.ot.approve");
       assertPermissions(user, "hr.ot.approve");
       const ot_request = await this.uow.withTransaction(() =>
         this.ot.approve(params.id, user),
@@ -294,6 +318,7 @@ export class HrController {
   @TsRestHandler(contract.hr.reconcileOtRequest)
   reconcileOtRequest(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.reconcileOtRequest, async ({ params, body }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.ot.approve");
       assertPermissions(user, "hr.ot.approve");
       const ot_request = await this.uow.withTransaction(() =>
         this.ot.reconcile(params.id, body),
@@ -307,6 +332,7 @@ export class HrController {
   @TsRestHandler(contract.hr.listCashAdvances)
   listCashAdvances(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.listCashAdvances, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       return { status: 200, body: { cash_advances: await this.advances.list(query) } };
     });
@@ -315,6 +341,7 @@ export class HrController {
   @TsRestHandler(contract.hr.createCashAdvance)
   createCashAdvance(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.createCashAdvance, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       const cash_advance = await this.uow.withTransaction(() => this.advances.create(body));
       return { status: 201, body: { cash_advance } };
@@ -335,6 +362,7 @@ export class HrController {
   @TsRestHandler(contract.hr.rejectCashAdvance)
   rejectCashAdvance(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.rejectCashAdvance, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       const cash_advance = await this.uow.withTransaction(() =>
         this.advances.reject(params.id, user),
@@ -346,6 +374,7 @@ export class HrController {
   @TsRestHandler(contract.hr.disburseCashAdvance)
   disburseCashAdvance(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.disburseCashAdvance, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       const cash_advance = await this.uow.withTransaction(() =>
         this.advances.disburse(params.id, user),
@@ -359,6 +388,7 @@ export class HrController {
   @TsRestHandler(contract.hr.listAttendance)
   listAttendance(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.listAttendance, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       return { status: 200, body: { attendance: await this.attendance.list(query) } };
     });
@@ -371,6 +401,7 @@ export class HrController {
     @UploadedFile() file: UploadedDoc | undefined,
   ) {
     return tsRestHandler(contract.hr.importAttendance, async () => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.manage");
       assertPermissions(user, "hr.employee.manage");
       if (!file) throw new ValidationError("An attendance file is required");
       const result = await this.uow.withTransaction(() =>
@@ -385,6 +416,7 @@ export class HrController {
   @TsRestHandler(contract.hr.listPayrollRuns)
   listPayrollRuns(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.listPayrollRuns, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.payroll.approve");
       assertPermissions(user, "hr.payroll.approve");
       return { status: 200, body: { payroll_runs: await this.payroll.list(query) } };
     });
@@ -393,6 +425,7 @@ export class HrController {
   @TsRestHandler(contract.hr.createPayrollRun)
   createPayrollRun(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.createPayrollRun, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.payroll.approve");
       assertPermissions(user, "hr.payroll.approve");
       const payroll_run = await this.uow.withTransaction(() => this.payroll.create(body));
       return { status: 201, body: { payroll_run } };
@@ -402,6 +435,7 @@ export class HrController {
   @TsRestHandler(contract.hr.calculatePayrollRun)
   calculatePayrollRun(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.calculatePayrollRun, async ({ params, body }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.payroll.approve");
       assertPermissions(user, "hr.payroll.approve");
       return {
         status: 202,
@@ -413,6 +447,7 @@ export class HrController {
   @TsRestHandler(contract.hr.listPayslips)
   listPayslips(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.listPayslips, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.employee.view");
       assertPermissions(user, "hr.employee.view");
       const payslips = await this.payroll.listPayslips(params.id);
       return { status: 200, body: { payslips: payslips.map((p) => gatePayslip(user, p)) } };
@@ -422,6 +457,7 @@ export class HrController {
   @TsRestHandler(contract.hr.approvePayrollRun)
   approvePayrollRun(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.approvePayrollRun, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.payroll.approve");
       assertPermissions(user, "hr.payroll.approve");
       const payroll_run = await this.uow.withTransaction(() =>
         this.payroll.approve(params.id, user),
@@ -442,6 +478,7 @@ export class HrController {
   @TsRestHandler(contract.hr.exportPnd1)
   exportPnd1(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.exportPnd1, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.payroll.approve");
       assertPermissions(user, "hr.payroll.approve");
       return { status: 202, body: await this.exports.enqueue("pnd1", query.period) };
     });
@@ -450,6 +487,7 @@ export class HrController {
   @TsRestHandler(contract.hr.exportSso)
   exportSso(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.hr.exportSso, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "hr.payroll.approve");
       assertPermissions(user, "hr.payroll.approve");
       return { status: 202, body: await this.exports.enqueue("sso", query.period) };
     });

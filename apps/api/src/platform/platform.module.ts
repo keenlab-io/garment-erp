@@ -9,6 +9,7 @@ import { SelfHostedBootstrap } from "./self-hosted-bootstrap.service.js";
 import { SupportSessionService } from "./support-session.service.js";
 import { TenantDataService } from "./tenant-data.service.js";
 import { TenantExportController } from "./tenant-export.controller.js";
+import { TenantFeatureService } from "./tenant-feature.service.js";
 import { TenantJobsWorker } from "./tenant-jobs.worker.js";
 import { TenantProvisioningService } from "./tenant-provisioning.service.js";
 
@@ -27,8 +28,8 @@ export function deploymentMode(): DeploymentMode {
  * The platform control plane (M7 §6, design D6/D15). `forRoot(mode)`:
  *
  * - `cloud` — the full surface: platform-admin auth + guard, tenant provisioning/lifecycle,
- *   support sessions, and the platform audit log, served by `PlatformAuthController` +
- *   `PlatformController` (`contract.platform`).
+ *   support sessions, `tenant_feature` overrides, and the platform audit log, served by
+ *   `PlatformAuthController` + `PlatformController` (`contract.platform`).
  * - `self-hosted` — **no platform controllers** (no platform login surface exists to attack;
  *   `/platform/*` is a 404); only provisioning, which `SelfHostedBootstrap` uses to ensure the
  *   single `DEFAULT_TENANT_SLUG` tenant exists at boot.
@@ -63,6 +64,7 @@ export class PlatformModule {
         TenantProvisioningService,
         SupportSessionService,
         TenantDataService,
+        TenantFeatureService,
         ...(workersEnabled() ? [TenantJobsWorker] : []),
       ],
     };

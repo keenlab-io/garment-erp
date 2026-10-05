@@ -17,6 +17,8 @@ import { EventBusService } from "../../src/events/event-bus.service.js";
 import { AuthService } from "../../src/iam/auth.service.js";
 import { RolePermissionResolver } from "../../src/iam/role-permission.resolver.js";
 import { UserService } from "../../src/iam/user.service.js";
+import { EntitlementsService } from "../../src/platform/entitlements.service.js";
+import { SeatService } from "../../src/platform/seat.service.js";
 import { runWithTenant } from "../../src/tenancy/tenant-context.js";
 
 const url = process.env.DATABASE_URL_TEST;
@@ -92,8 +94,9 @@ describe.skipIf(!url)("tenant-scoped auth (integration)", () => {
       uow,
       events,
       new RolePermissionResolver(conn.db),
+      new EntitlementsService(conn.db),
     );
-    userService = new UserService(conn.db, passwords, uow, events);
+    userService = new UserService(conn.db, passwords, uow, events, new SeatService(conn.db));
 
     await conn.db
       .insert(tenant)

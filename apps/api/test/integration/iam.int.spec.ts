@@ -37,6 +37,8 @@ import { ImportService } from "../../src/iam/import.service.js";
 import { RolePermissionResolver } from "../../src/iam/role-permission.resolver.js";
 import { RoleService } from "../../src/iam/role.service.js";
 import { UserService } from "../../src/iam/user.service.js";
+import { EntitlementsService } from "../../src/platform/entitlements.service.js";
+import { SeatService } from "../../src/platform/seat.service.js";
 import { runWithTenant } from "../../src/tenancy/tenant-context.js";
 
 const url = process.env.DATABASE_URL_TEST;
@@ -129,10 +131,12 @@ describe.skipIf(!url)("IAM services (integration)", () => {
       uow,
       events,
       resolver,
+      new EntitlementsService(conn.db),
     );
-    roleService = new RoleService(conn.db, passwords, uow, events);
-    userService = new UserService(conn.db, passwords, uow, events);
-    importService = new ImportService(conn.db, uow, events);
+    const seats = new SeatService(conn.db);
+    roleService = new RoleService(conn.db, passwords, uow, events, seats);
+    userService = new UserService(conn.db, passwords, uow, events, seats);
+    importService = new ImportService(conn.db, uow, events, seats);
 
     // The permission catalog is seeded by seed.ts, not by migrations — seed it here.
     await conn.db

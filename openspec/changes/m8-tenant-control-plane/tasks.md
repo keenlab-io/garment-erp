@@ -32,10 +32,10 @@ the change is picked up for implementation; M7 (`m7-tenancy-core`) must be merge
 
 ## 5. Entitlements, seats, flags — `apps/api/src/platform` + hooks in `iam/`
 
-- [ ] 5.1 `EntitlementsService.resolve` (tenant_feature > plan.features > off) cached on `tenantContext`; `assertModuleEnabled(user, code)` called beside `assertPermissions` in module controllers; resolved flags + entitlements added to `GET /auth/me`
-- [ ] 5.2 `SeatService` (D3): counted-seat query with `SCAN_ONLY_PERMISSIONS` subset test; `assertCapacity` with tenant-row `FOR UPDATE`; wire into `UserService.create/setRoles/setStatus`, `RoleService.update`, `ImportService` (projected post-edit count, 422 details naming promoted users — D4)
-- [ ] 5.3 `tenant_feature` override endpoints (platform admin) + `GET /iam/seats` (tenant-side counts)
-- [ ] 5.4 Verify: `pnpm build && pnpm typecheck && pnpm lint`
+- [x] 5.1 `EntitlementsService.resolve` (tenant_feature > plan.features > off) cached on `tenantContext`; `assertModuleEnabled(user, code)` called beside `assertPermissions` in module controllers; resolved flags + entitlements added to `GET /auth/me`
+- [x] 5.2 `SeatService` (D3): counted-seat query with `SCAN_ONLY_PERMISSIONS` subset test; `assertCapacity` with tenant-row `FOR UPDATE`; wire into `UserService.create/setRoles/setStatus`, `RoleService.update`, `ImportService` (projected post-edit count, 422 details naming promoted users — D4)
+- [x] 5.3 `tenant_feature` override endpoints (platform admin) + `GET /iam/seats` (tenant-side counts)
+- [x] 5.4 Verify: `pnpm build && pnpm typecheck && pnpm lint`
 
 ## 6. Support impersonation — `apps/api/src/platform`
 
