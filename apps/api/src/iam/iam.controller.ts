@@ -10,6 +10,7 @@ import { assertPermissions } from "../auth/authz.js";
 import { CurrentUser } from "../auth/decorators/current-user.decorator.js";
 import type { AuthUser } from "../auth/auth-user.js";
 import { ValidationError } from "../common/errors/app-exception.js";
+import { SeatService } from "../platform/seat.service.js";
 import { AuthService } from "./auth.service.js";
 import { AuditQueryService } from "./audit-query.service.js";
 import { ImportService } from "./import.service.js";
@@ -39,6 +40,7 @@ export class IamController {
     private readonly permissions: PermissionService,
     private readonly imports: ImportService,
     private readonly audit: AuditQueryService,
+    private readonly seats: SeatService,
   ) {}
 
   // ── Session ───────────────────────────────────────────────────────────────
@@ -234,6 +236,16 @@ export class IamController {
         to: query.to,
       });
       return { status: 200, body: page };
+    });
+  }
+
+  // ── Seats ─────────────────────────────────────────────────────────────────
+
+  @TsRestHandler(contract.iam.getSeats)
+  getSeats(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.iam.getSeats, async () => {
+      assertPermissions(user, "iam.user.manage");
+      return { status: 200, body: await this.seats.usage() };
     });
   }
 }

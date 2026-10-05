@@ -29,6 +29,7 @@ import { currentExecutor } from "../db/tx-context.js";
 import { UnitOfWork } from "../db/unit-of-work.service.js";
 import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
+import { SeatService } from "../platform/seat.service.js";
 
 /**
  * Role administration (spec §1.5). Every mutation runs in one transaction, bumps the
@@ -48,6 +49,7 @@ export class RoleService {
     private readonly passwords: PasswordService,
     private readonly uow: UnitOfWork,
     private readonly events: EventBusService,
+    private readonly seats: SeatService,
   ) {}
 
   /** Get a role with its full permission-code set; 404 if absent. */
@@ -116,7 +118,10 @@ export class RoleService {
         .where(eq(role.id, id));
 
       if (input.permission_codes !== undefined) {
-        await this.replacePermissions(id, input.permission_codes);
+        const codes = input.permission_codes;
+        // A grant can promote every scan-only holder of this role into a counted seat (M8 D4):
+        // checked against the projected post-edit count; over-cap rolls the whole edit back.
+        await this.seats.withSeatCheck(() => this.replacePermissions(id, codes));
         // The effective permission set changed → log out every bound user.
         await this.bumpBoundUsers(id);
       }

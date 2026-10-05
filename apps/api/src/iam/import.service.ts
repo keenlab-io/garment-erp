@@ -18,6 +18,7 @@ import { currentExecutor } from "../db/tx-context.js";
 import { UnitOfWork } from "../db/unit-of-work.service.js";
 import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
+import { SeatService } from "../platform/seat.service.js";
 import { currentTenantId } from "../tenancy/tenant-context.js";
 
 /** One raw worksheet row: role name in column A, permission codes in column B. */
@@ -91,6 +92,7 @@ export class ImportService {
     @Inject(DB) private readonly db: Db,
     private readonly uow: UnitOfWork,
     private readonly events: EventBusService,
+    private readonly seats: SeatService,
   ) {}
 
   async import(buffer: Buffer, actor: AuthUser): Promise<ImportResult> {
@@ -125,23 +127,27 @@ export class ImportService {
         );
       }
 
+      // The import can promote scan-only users bound to the re-granted roles (M8 design D4): the
+      // seat cap is checked against the projected post-import count, all-or-nothing.
       let imported = 0;
-      for (const row of parsed.rows) {
-        const roleId = await this.upsertRole(row.roleName, actor);
-        await ex
-          .delete(rolePermission)
-          .where(eq(rolePermission.roleId, roleId));
-        if (row.codes.length > 0) {
-          await ex.insert(rolePermission).values(
-            row.codes.map((c) => ({
-              roleId,
-              permissionId: idByCode.get(c) as string,
-            })),
-          );
+      await this.seats.withSeatCheck(async () => {
+        for (const row of parsed.rows) {
+          const roleId = await this.upsertRole(row.roleName, actor);
+          await ex
+            .delete(rolePermission)
+            .where(eq(rolePermission.roleId, roleId));
+          if (row.codes.length > 0) {
+            await ex.insert(rolePermission).values(
+              row.codes.map((c) => ({
+                roleId,
+                permissionId: idByCode.get(c) as string,
+              })),
+            );
+          }
+          await this.bumpBoundUsers(roleId);
+          imported += 1;
         }
-        await this.bumpBoundUsers(roleId);
-        imported += 1;
-      }
+      });
 
       await this.events.publishInTransaction(
         makeEvent({

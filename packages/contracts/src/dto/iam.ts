@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { initContract } from "@ts-rest/core";
-import { PERMISSIONS } from "../permissions/index.js";
+import { ENTITLED_MODULES, PERMISSIONS } from "../permissions/index.js";
 import { UserStatus } from "../enums/index.js";
 import {
   API_PREFIX,
@@ -74,12 +74,22 @@ export const MeTenant = z.object({
 });
 export type MeTenant = z.infer<typeof MeTenant>;
 
-/** `GET /auth/me` payload — identity, tenant, bound roles, and the effective permission union. */
+/** A plan-gated module (m8 design D2) — entitled by its reserved `module.<name>` feature key. */
+export const entitledModule = z.enum(ENTITLED_MODULES);
+
+/**
+ * `GET /auth/me` payload — identity, tenant, bound roles, and the effective permission union, plus
+ * the tenant's resolved feature map (`tenant_feature` → `plan.features` → off; m8 design D2) and
+ * the modules it entitles — the same resolution the server enforces, so the client never
+ * re-derives plan defaults.
+ */
 export const MeResponse = z.object({
   user: AuthUser,
   tenant: MeTenant,
   roles: z.array(RoleRef),
   permissions: z.array(permissionCode),
+  features: z.record(z.boolean()),
+  modules: z.array(entitledModule),
 });
 export type MeResponse = z.infer<typeof MeResponse>;
 
@@ -236,10 +246,11 @@ export type AuditQuery = z.infer<typeof AuditQuery>;
  * Counted vs. exempt seat usage against the tenant's plan cap (m8 design D3/OQ2). `counted`
  * is the seat-occupying total (`deleted_at IS NULL`, status PENDING/ACTIVE, effective
  * permissions not a subset of `SCAN_ONLY_PERMISSIONS`); `exempt` is the free scan-only
- * floor-account total. The cap itself is `included_seats + extra_seats`.
+ * floor-account total. The cap itself is `included_seats + extra_seats`; `included_seats` is
+ * `null` only for a tenant that predates the plan catalog (no plan → uncapped).
  */
 export const SeatUsage = z.object({
-  included_seats: z.number().int().nonnegative(),
+  included_seats: z.number().int().nonnegative().nullable(),
   extra_seats: z.number().int().nonnegative(),
   counted: z.number().int().nonnegative(),
   exempt: z.number().int().nonnegative(),

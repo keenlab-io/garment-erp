@@ -24,6 +24,7 @@ import { currentExecutor } from "../db/tx-context.js";
 import { UnitOfWork } from "../db/unit-of-work.service.js";
 import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
+import { SeatService } from "../platform/seat.service.js";
 
 interface UserCursor {
   createdAt: string;
@@ -39,6 +40,10 @@ interface UserCursor {
  * Tenancy (M7 task 8.1): RLS under the request's tenant transaction scopes users and the
  * roles `setRoles` may bind (another tenant's role id reads as absent → 404); usernames are
  * unique per tenant via `(tenant_id, username)`.
+ *
+ * Seat cap (M8 design D3): `create`, `setRoles`, and `setStatus` can each turn an exempt (or new)
+ * user into a counted seat, so they run their writes inside `SeatService.withSeatCheck` — over-cap
+ * is a 422 and the whole transaction rolls back.
  */
 @Injectable()
 export class UserService {
@@ -47,6 +52,7 @@ export class UserService {
     private readonly passwords: PasswordService,
     private readonly uow: UnitOfWork,
     private readonly events: EventBusService,
+    private readonly seats: SeatService,
   ) {}
 
   /** Get a single user by id; 404 if absent. */
@@ -111,23 +117,25 @@ export class UserService {
   async create(input: CreateUserRequest, actor: AuthUser): Promise<User> {
     const passwordHash = await this.passwords.hash(input.temp_password);
     return this.uow.withTransaction(async () => {
-      const ex = currentExecutor(this.db);
-      const [created] = await ex
-        .insert(user)
-        .values({
-          username: input.username,
-          email: input.email,
-          employeeId: input.employee_id ?? null,
-          passwordHash,
-          // Provisioned active with a temporary password (design D3).
-          status: "ACTIVE",
-          createdBy: actor.id,
-          updatedBy: actor.id,
-        })
-        .returning({ id: user.id });
-      if (!created) throw new StateConflictError("User could not be created");
+      const created = await this.seats.withSeatCheck(async () => {
+        const [row] = await currentExecutor(this.db)
+          .insert(user)
+          .values({
+            username: input.username,
+            email: input.email,
+            employeeId: input.employee_id ?? null,
+            passwordHash,
+            // Provisioned active with a temporary password (design D3).
+            status: "ACTIVE",
+            createdBy: actor.id,
+            updatedBy: actor.id,
+          })
+          .returning({ id: user.id });
+        if (!row) throw new StateConflictError("User could not be created");
+        await this.assignRoles(row.id, input.role_ids);
+        return row;
+      });
 
-      await this.assignRoles(created.id, input.role_ids);
       const snapshot = await this.loadUser(created.id);
       await this.auditPermissionChange(actor, created.id, null, snapshot.roles);
       return snapshot;
@@ -142,8 +150,10 @@ export class UserService {
     return this.uow.withTransaction(async () => {
       const before = await this.loadUser(id);
       const ex = currentExecutor(this.db);
-      await ex.delete(userRole).where(eq(userRole.userId, id));
-      await this.assignRoles(id, input.role_ids);
+      await this.seats.withSeatCheck(async () => {
+        await ex.delete(userRole).where(eq(userRole.userId, id));
+        await this.assignRoles(id, input.role_ids);
+      });
       // Effective permissions changed → invalidate live tokens (design D2).
       await ex
         .update(user)
@@ -203,11 +213,13 @@ export class UserService {
   ): Promise<User> {
     return this.uow.withTransaction(async () => {
       const before = await this.loadUser(id);
-      const ex = currentExecutor(this.db);
-      await ex
-        .update(user)
-        .set({ status, updatedBy: actor.id, updatedAt: new Date() })
-        .where(eq(user.id, id));
+      // Re-activation (DISABLED → ACTIVE) re-occupies a seat.
+      await this.seats.withSeatCheck(() =>
+        currentExecutor(this.db)
+          .update(user)
+          .set({ status, updatedBy: actor.id, updatedAt: new Date() })
+          .where(eq(user.id, id)),
+      );
 
       const after = await this.loadUser(id);
       await this.events.publishInTransaction(

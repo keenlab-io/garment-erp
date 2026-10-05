@@ -2,6 +2,7 @@ import { Controller } from "@nestjs/common";
 import { TsRestHandler, tsRestHandler } from "@ts-rest/nest";
 import { contract } from "@erp/contracts";
 import { assertPermissions } from "../auth/authz.js";
+import { EntitlementsService } from "../platform/entitlements.service.js";
 import { CurrentUser } from "../auth/decorators/current-user.decorator.js";
 import type { AuthUser } from "../auth/auth-user.js";
 import { UnitOfWork } from "../db/unit-of-work.service.js";
@@ -22,6 +23,7 @@ import { WorkOrderService } from "./work-order.service.js";
 export class ProductionController {
   constructor(
     private readonly uow: UnitOfWork,
+    private readonly entitlements: EntitlementsService,
     private readonly routing: RoutingService,
     private readonly workOrders: WorkOrderService,
     private readonly scans: ScanService,
@@ -34,6 +36,7 @@ export class ProductionController {
   @TsRestHandler(contract.production.listRoutingTemplates)
   listRoutingTemplates(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.production.listRoutingTemplates, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "production.wo.manage");
       assertPermissions(user, "production.wo.manage");
       return { status: 200, body: await this.routing.list(query) };
     });
@@ -42,6 +45,7 @@ export class ProductionController {
   @TsRestHandler(contract.production.createRoutingTemplate)
   createRoutingTemplate(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.production.createRoutingTemplate, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "production.wo.manage");
       assertPermissions(user, "production.wo.manage");
       const template = await this.uow.withTransaction(() => this.routing.create(body));
       return { status: 201, body: { template } };
@@ -53,6 +57,7 @@ export class ProductionController {
   @TsRestHandler(contract.production.createWorkOrder)
   createWorkOrder(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.production.createWorkOrder, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "production.wo.manage");
       assertPermissions(user, "production.wo.manage");
       const work_order = await this.uow.withTransaction(() =>
         this.workOrders.create(body, user),
@@ -64,6 +69,7 @@ export class ProductionController {
   @TsRestHandler(contract.production.workOrderTimeline)
   workOrderTimeline(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.production.workOrderTimeline, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "production.wo.manage");
       assertPermissions(user, "production.wo.manage");
       return { status: 200, body: { data: await this.workOrders.timeline(query) } };
     });
@@ -72,6 +78,7 @@ export class ProductionController {
   @TsRestHandler(contract.production.getWorkOrder)
   getWorkOrder(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.production.getWorkOrder, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "production.wo.manage");
       assertPermissions(user, "production.wo.manage");
       return { status: 200, body: await this.workOrders.detail(params.id) };
     });
@@ -82,6 +89,7 @@ export class ProductionController {
   @TsRestHandler(contract.production.scanWoStep)
   scanWoStep(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.production.scanWoStep, async ({ params, body }) => {
+      await this.entitlements.assertModuleEnabled(user, "production.scan");
       assertPermissions(user, "production.scan");
       const step = await this.uow.withTransaction(() =>
         this.scans.scan(params.id, body, user),
@@ -93,6 +101,7 @@ export class ProductionController {
   @TsRestHandler(contract.production.holdWoStep)
   holdWoStep(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.production.holdWoStep, async ({ params, body }) => {
+      await this.entitlements.assertModuleEnabled(user, "production.scan");
       assertPermissions(user, "production.scan");
       const step = await this.uow.withTransaction(() =>
         this.scans.hold(params.id, body, user),
@@ -104,6 +113,7 @@ export class ProductionController {
   @TsRestHandler(contract.production.recordDefect)
   recordDefect(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.production.recordDefect, async ({ params, body }) => {
+      await this.entitlements.assertModuleEnabled(user, "production.scan");
       assertPermissions(user, "production.scan");
       const defect = await this.uow.withTransaction(() =>
         this.scans.recordDefect(params.id, body, user),
@@ -117,6 +127,7 @@ export class ProductionController {
   @TsRestHandler(contract.production.subcontractWoStep)
   subcontractWoStep(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.production.subcontractWoStep, async ({ params, body }) => {
+      await this.entitlements.assertModuleEnabled(user, "production.subcontract.manage");
       assertPermissions(user, "production.subcontract.manage");
       const subcontract = await this.uow.withTransaction(() =>
         this.subcontracts.send(params.id, body, user),
@@ -128,6 +139,7 @@ export class ProductionController {
   @TsRestHandler(contract.production.receiveSubcontract)
   receiveSubcontract(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.production.receiveSubcontract, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "production.subcontract.manage");
       assertPermissions(user, "production.subcontract.manage");
       const subcontract = await this.uow.withTransaction(() =>
         this.subcontracts.receive(params.id, user),
@@ -139,6 +151,7 @@ export class ProductionController {
   @TsRestHandler(contract.production.listSubcontracts)
   listSubcontracts(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.production.listSubcontracts, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "production.subcontract.manage");
       assertPermissions(user, "production.subcontract.manage");
       return { status: 200, body: await this.subcontracts.list(query) };
     });
@@ -149,6 +162,7 @@ export class ProductionController {
   @TsRestHandler(contract.production.wipReport)
   wipReport(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.production.wipReport, async () => {
+      await this.entitlements.assertModuleEnabled(user, "production.wo.manage");
       assertPermissions(user, "production.wo.manage");
       return { status: 200, body: { rows: await this.wip.report() } };
     });

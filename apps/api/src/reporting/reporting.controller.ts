@@ -2,6 +2,7 @@ import { Controller } from "@nestjs/common";
 import { TsRestHandler, tsRestHandler } from "@ts-rest/nest";
 import { contract } from "@erp/contracts";
 import { assertPermissions } from "../auth/authz.js";
+import { EntitlementsService } from "../platform/entitlements.service.js";
 import { CurrentUser } from "../auth/decorators/current-user.decorator.js";
 import type { AuthUser } from "../auth/auth-user.js";
 import { parseIfMatch } from "../common/concurrency/if-match.js";
@@ -28,6 +29,7 @@ import { ReportService } from "./report.service.js";
 export class ReportingController {
   constructor(
     private readonly uow: UnitOfWork,
+    private readonly entitlements: EntitlementsService,
     private readonly reports: ReportService,
     private readonly dashboards: DashboardService,
     private readonly exports: ExportService,
@@ -39,7 +41,7 @@ export class ReportingController {
   @TsRestHandler(contract.reporting.getReport)
   getReport(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.reporting.getReport, async ({ params, query }) => {
-      this.authorizeReport(user, params.report_key);
+      await this.authorizeReport(user, params.report_key);
       return { status: 200, body: await this.reports.run(params.report_key, query) };
     });
   }
@@ -47,7 +49,7 @@ export class ReportingController {
   @TsRestHandler(contract.reporting.exportReport)
   exportReport(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.reporting.exportReport, async ({ params, body }) => {
-      this.authorizeReport(user, params.report_key);
+      await this.authorizeReport(user, params.report_key);
       return {
         status: 202,
         body: await this.exports.enqueueExport(params.report_key, body.format, body.params),
@@ -71,6 +73,7 @@ export class ReportingController {
     return tsRestHandler(contract.reporting.getDashboard, async ({ params, query }) => {
       const perms = requiredDashboardPermissions(params.key);
       if (!perms) throw new NotFoundError(`Unknown dashboard: ${params.key}`);
+      await this.entitlements.assertModuleEnabled(user, ...perms);
       assertPermissions(user, ...perms);
       return { status: 200, body: await this.dashboards.get(params.key, query) };
     });
@@ -81,6 +84,7 @@ export class ReportingController {
   @TsRestHandler(contract.reporting.listReportSchedules)
   listReportSchedules(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.reporting.listReportSchedules, async ({ query }) => {
+      await this.entitlements.assertModuleEnabled(user, "report.schedule.manage");
       assertPermissions(user, "report.schedule.manage");
       return { status: 200, body: await this.schedules.list(query) };
     });
@@ -89,6 +93,7 @@ export class ReportingController {
   @TsRestHandler(contract.reporting.createReportSchedule)
   createReportSchedule(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.reporting.createReportSchedule, async ({ body }) => {
+      await this.entitlements.assertModuleEnabled(user, "report.schedule.manage");
       assertPermissions(user, "report.schedule.manage");
       const schedule = await this.uow.withTransaction(() =>
         this.schedules.create(body, user),
@@ -102,6 +107,7 @@ export class ReportingController {
     return tsRestHandler(
       contract.reporting.updateReportSchedule,
       async ({ params, headers, body }) => {
+        await this.entitlements.assertModuleEnabled(user, "report.schedule.manage");
         assertPermissions(user, "report.schedule.manage");
         const expected = parseIfMatch(headers["if-match"]);
         const schedule = await this.uow.withTransaction(() =>
@@ -115,6 +121,7 @@ export class ReportingController {
   @TsRestHandler(contract.reporting.deleteReportSchedule)
   deleteReportSchedule(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.reporting.deleteReportSchedule, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "report.schedule.manage");
       assertPermissions(user, "report.schedule.manage");
       await this.uow.withTransaction(() => this.schedules.remove(params.id));
       return { status: 204, body: undefined };
@@ -124,15 +131,20 @@ export class ReportingController {
   @TsRestHandler(contract.reporting.runReportScheduleNow)
   runReportScheduleNow(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.reporting.runReportScheduleNow, async ({ params }) => {
+      await this.entitlements.assertModuleEnabled(user, "report.schedule.manage");
       assertPermissions(user, "report.schedule.manage");
       return { status: 202, body: await this.schedules.runNow(params.id) };
     });
   }
 
-  /** Gate a report by its group permission; unknown key → 404, missing permission → 403. */
-  private authorizeReport(user: AuthUser, reportKey: string): void {
+  /**
+   * Gate a report by its group permission; unknown key → 404, module not in plan or missing
+   * permission → 403.
+   */
+  private async authorizeReport(user: AuthUser, reportKey: string): Promise<void> {
     const perms = requiredReportPermissions(reportKey);
     if (!perms) throw new NotFoundError(`Unknown report: ${reportKey}`);
+    await this.entitlements.assertModuleEnabled(user, ...perms);
     assertPermissions(user, ...perms);
   }
 }

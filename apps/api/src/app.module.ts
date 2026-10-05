@@ -18,6 +18,7 @@ import { HrModule } from "./hr/hr.module.js";
 import { IamModule } from "./iam/iam.module.js";
 import { InventoryModule } from "./inventory/inventory.module.js";
 import { PdfModule } from "./pdf/pdf.module.js";
+import { EntitlementsModule } from "./platform/entitlements.module.js";
 import { PlatformModule } from "./platform/platform.module.js";
 import { ProductionModule } from "./production/production.module.js";
 import { QueueModule } from "./queue/queue.module.js";
@@ -47,6 +48,8 @@ import { TenantTransactionInterceptor } from "./tenancy/tenant-transaction.inter
     EventsModule,
     AuthModule,
     AuditModule,
+    // Module entitlements + seat cap (M8 §5) — global, consumed by IAM and every gated module.
+    EntitlementsModule,
     // IamModule supplies the real PERMISSION_RESOLVER (RolePermissionResolver). Import order
     // alone is NOT enough to rebind it for the global guard — see the provider below.
     IamModule,

@@ -10,7 +10,7 @@ import {
   userRole,
   type Db,
 } from "@erp/db";
-import type { MeResponse, TokenPair } from "@erp/contracts";
+import { entitledModules, type MeResponse, type TokenPair } from "@erp/contracts";
 import { PasswordService } from "../auth/password.service.js";
 import { TokenService } from "../auth/token.service.js";
 import type { AuthUser } from "../auth/auth-user.js";
@@ -20,6 +20,7 @@ import { currentExecutor } from "../db/tx-context.js";
 import { UnitOfWork } from "../db/unit-of-work.service.js";
 import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
+import { EntitlementsService } from "../platform/entitlements.service.js";
 import {
   currentTenant,
   isTenantId,
@@ -54,6 +55,7 @@ export class AuthService {
     private readonly uow: UnitOfWork,
     private readonly events: EventBusService,
     private readonly resolver: RolePermissionResolver,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   /**
@@ -275,6 +277,9 @@ export class AuthService {
       ? []
       : [...(await this.resolver.resolve(authUser.id))];
 
+    // The same resolution the server enforces (M8 design D2) — the web never re-derives plan defaults.
+    const features = await this.entitlements.resolve(authUser.tenantId);
+
     return {
       user: {
         id: u.id,
@@ -287,6 +292,8 @@ export class AuthService {
       tenant: t,
       roles,
       permissions,
+      features: { ...features },
+      modules: entitledModules(features),
     };
   }
 

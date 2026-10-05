@@ -37,6 +37,8 @@ const ME_BODY = {
   tenant: { id: "t1", name: "Acme Garments", slug: "acme" },
   roles: [],
   permissions: ["iam.user.manage"],
+  features: { "module.hr": true },
+  modules: ["hr"],
 };
 
 /** Simulate a fresh page load with a session left behind by a prior login: refresh token in
