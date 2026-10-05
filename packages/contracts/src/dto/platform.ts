@@ -99,6 +99,25 @@ export const TenantStatusUpdate = z.object({
 });
 export type TenantStatusUpdate = z.infer<typeof TenantStatusUpdate>;
 
+/**
+ * The first tenant super-admin `provisionTenant` creates (design D1). `temp_password` is returned
+ * exactly once, in the provisioning response — only its argon2id hash is stored.
+ */
+export const ProvisionedTenantAdmin = z.object({
+  id: uuid,
+  username: z.string(),
+  email: z.string().email(),
+  temp_password: z.string(),
+});
+export type ProvisionedTenantAdmin = z.infer<typeof ProvisionedTenantAdmin>;
+
+/** `POST /platform/tenants` result — the tenant plus its first super-admin (null if none requested). */
+export const TenantProvisioned = z.object({
+  tenant: TenantListItem,
+  admin: ProvisionedTenantAdmin.nullable(),
+});
+export type TenantProvisioned = z.infer<typeof TenantProvisioned>;
+
 /** Tenants list query — cursor pagination plus the optional `filter[status]`/`filter[kind]` facets. */
 export const TenantsQuery = paginationQuery.extend({
   "filter[status]": tenantStatus.optional(),
@@ -258,8 +277,8 @@ export const platformContract = c.router(
       method: "POST",
       path: "/platform/tenants",
       body: TenantCreate,
-      responses: withErrors({ 201: z.object({ tenant: TenantListItem }) }),
-      summary: "Provision a new tenant (seeds tenant defaults)",
+      responses: withErrors({ 201: TenantProvisioned }),
+      summary: "Provision a new tenant (seeds tenant defaults and its first super-admin)",
     },
     setTenantStatus: {
       method: "POST",

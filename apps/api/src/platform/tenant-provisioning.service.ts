@@ -1,15 +1,19 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { seedTenantDefaults, tenant, tenantDomain, type Db } from "@erp/db";
+import { plan, seedTenantDefaults, tenant, tenantDomain, user, type Db } from "@erp/db";
 import type {
+  PlanCode,
+  ProvisionedTenantAdmin,
   TenantCreate,
   TenantKind,
   TenantListItem,
+  TenantProvisioned,
   TenantStatus,
   TenantStatusUpdate,
 } from "@erp/contracts";
 import { tryDecodeCursor } from "@erp/utils";
+import { PasswordService } from "../auth/password.service.js";
 import { BusinessRuleError, NotFoundError } from "../common/errors/app-exception.js";
 import { buildPage } from "../common/pagination/cursor.js";
 import { DB } from "../db/db.tokens.js";
@@ -18,9 +22,23 @@ import { UnitOfWork } from "../db/unit-of-work.service.js";
 import { runWithTenant } from "../tenancy/tenant-context.js";
 import { normalizeHost } from "../tenancy/tenant-resolution.service.js";
 import { PlatformAuditService } from "./platform-audit.service.js";
+import { assertStatusTransition } from "./tenant-lifecycle.js";
 
 /** A slug is a DNS label: lower-case alphanumerics and inner hyphens, at most 63 characters. */
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+
+/**
+ * `provisionTenant` input (M8 design D1): the platform contract's `TenantCreate` plus the knobs a
+ * non-HTTP caller sets — M10 passes `kind: "DEMO_SANDBOX"`; self-hosted boot names its plan by
+ * code. `plan_id` wins over `planCode`; with neither, the tenant gets the `WORKSHOP` plan.
+ */
+export interface ProvisionTenantInput extends TenantCreate {
+  kind?: TenantKind;
+  planCode?: PlanCode;
+}
+
+/** Plan a provisioned tenant falls back to when the caller names none. */
+const DEFAULT_PLAN: PlanCode = "WORKSHOP";
 
 /** Filters accepted by `GET /platform/tenants`. */
 export interface TenantFilters {
@@ -63,13 +81,16 @@ const toItem = (r: TenantRow): TenantListItem => ({
 });
 
 /**
- * Tenant provisioning and lifecycle (M7 design D6/D14/D15). `provision` creates the `tenant` row,
- * its optional `tenant_domain`, and the per-tenant defaults (`seedTenantDefaults` — the same
- * function the dev seed and self-hosted boot use) in ONE transaction entered under the new
- * tenant (`runWithTenant(newId, "system", …)`), so the `app.tenant_id` GUC equals the id every
- * seeded row carries and the whole tenant appears atomically or not at all. Every control-plane
- * change writes a `platform_audit_log` row in the same transaction. A duplicate slug or hostname
- * hits its citext unique and surfaces as 409 via the global exception filter.
+ * Tenant provisioning and lifecycle (M7 design D6/D14/D15, M8 design D1). `provisionTenant` is the
+ * ONE engine that makes a working tenant — cloud provisioning, self-hosted boot, and M10's demo
+ * sandboxes all call it. It creates the `tenant` row (kind, plan), its optional `tenant_domain`,
+ * the per-tenant config (`seedTenantDefaults` — sequences, `sso_config`, Thai `tax_bracket`s,
+ * `advance_policy`, the default `document_template`; `report_schedule` starts empty), and the
+ * first tenant super-admin with a hashed temporary password, in ONE transaction entered under the
+ * new tenant (`runWithTenant(newId, "system", …)` — the one sanctioned place a platform path sets
+ * `app.tenant_id` explicitly), so the whole tenant appears atomically or not at all. Every
+ * control-plane change writes a `platform_audit_log` row in the same transaction. A duplicate
+ * slug or hostname hits its citext unique and surfaces as 409 via the global exception filter.
  */
 @Injectable()
 export class TenantProvisioningService {
@@ -77,12 +98,13 @@ export class TenantProvisioningService {
     @Inject(DB) private readonly db: Db,
     private readonly uow: UnitOfWork,
     private readonly audit: PlatformAuditService,
+    private readonly passwords: PasswordService,
   ) {}
 
-  async provision(
-    input: TenantCreate,
+  async provisionTenant(
+    input: ProvisionTenantInput,
     platformAdminId: string | null = null,
-  ): Promise<TenantListItem> {
+  ): Promise<TenantProvisioned> {
     const name = input.name.trim();
     const slug = input.slug.trim().toLowerCase();
     const hostname = input.domain === undefined ? undefined : normalizeHost(input.domain);
@@ -95,18 +117,44 @@ export class TenantProvisioningService {
     if (hostname !== undefined && !hostname) {
       throw new BusinessRuleError("Tenant domain must be a hostname");
     }
+    const adminEmail = input.admin_email?.trim().toLowerCase();
+    // Hash outside the transaction — argon2id is deliberately slow.
+    const tempPassword = adminEmail ? randomBytes(12).toString("base64url") : null;
+    const passwordHash = tempPassword ? await this.passwords.hash(tempPassword) : null;
 
     const id = randomUUID();
     return runWithTenant(id, "system", () =>
       this.uow.withTransaction(async (tx) => {
+        const planId = await this.resolvePlanId(input);
         const [row] = await tx
           .insert(tenant)
-          .values({ id, name, slug, kind: "CUSTOMER" })
+          .values({ id, name, slug, kind: input.kind ?? "CUSTOMER", planId })
           .returning(listColumns);
         if (hostname) {
-          await tx.insert(tenantDomain).values({ hostname, tenantId: id });
+          await tx.insert(tenantDomain).values({ hostname, tenantId: id, resolutionMode: "TENANT" });
         }
         await seedTenantDefaults(tx, id);
+
+        let admin: ProvisionedTenantAdmin | null = null;
+        if (adminEmail && tempPassword && passwordHash) {
+          const [created] = await tx
+            .insert(user)
+            .values({
+              tenantId: id,
+              username: adminEmail,
+              email: adminEmail,
+              passwordHash,
+              status: "ACTIVE",
+              isSuperAdmin: true,
+            })
+            .returning({ id: user.id });
+          admin = {
+            id: (created as { id: string }).id,
+            username: adminEmail,
+            email: adminEmail,
+            temp_password: tempPassword,
+          };
+        }
 
         const created = toItem(row as TenantRow);
         await this.audit.append({
@@ -115,11 +163,32 @@ export class TenantProvisioningService {
           entityId: id,
           tenantId: id,
           platformAdminId,
-          after: { ...created, domain: hostname ?? null },
+          after: {
+            ...created,
+            domain: hostname ?? null,
+            plan_id: planId,
+            admin: admin ? { id: admin.id, email: admin.email } : null,
+          },
         });
-        return created;
+        return { tenant: created, admin };
       }),
     );
+  }
+
+  /** The plan a new tenant gets: an explicit `plan_id` (must exist), else the plan by code. */
+  private async resolvePlanId(input: ProvisionTenantInput): Promise<string | null> {
+    const ex = currentExecutor(this.db);
+    if (input.plan_id) {
+      const [row] = await ex.select({ id: plan.id }).from(plan).where(eq(plan.id, input.plan_id));
+      if (!row) throw new BusinessRuleError("Unknown plan", [{ field: "plan_id", issue: "not found" }]);
+      return row.id;
+    }
+    // The plan catalog is seed data (M8 §2.3): a database without it provisions plan-less.
+    const [row] = await ex
+      .select({ id: plan.id })
+      .from(plan)
+      .where(eq(plan.code, input.planCode ?? DEFAULT_PLAN));
+    return row?.id ?? null;
   }
 
   /**
@@ -130,7 +199,7 @@ export class TenantProvisioningService {
     const existing = await this.bySlug(slug);
     if (existing) return existing;
     try {
-      return await this.provision({ name, slug });
+      return (await this.provisionTenant({ name, slug, planCode: "SELFHOSTED" })).tenant;
     } catch (err) {
       const raced = await this.bySlug(slug);
       if (raced) return raced;
@@ -167,7 +236,11 @@ export class TenantProvisioningService {
     return { data: page.data.map(toItem), next_cursor: page.next_cursor };
   }
 
-  /** Change a tenant's lifecycle status (reason required); audited with before/after. */
+  /**
+   * Move a tenant along `ACTIVE ↔ READ_ONLY ↔ SUSPENDED` (reason required; 409 on any other edge —
+   * PURGING is reachable only through the purge endpoint); audited with before/after. M9's
+   * subscription expiry drives the same `ACTIVE → READ_ONLY` edge through here.
+   */
   async setStatus(
     id: string,
     update: TenantStatusUpdate,
@@ -184,6 +257,7 @@ export class TenantProvisioningService {
         .for("update")
         .limit(1);
       if (!current) throw new NotFoundError("Tenant not found");
+      assertStatusTransition((current as TenantRow).status, update.status);
 
       const [row] = await tx
         .update(tenant)

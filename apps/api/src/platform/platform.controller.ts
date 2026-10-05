@@ -7,6 +7,7 @@ import { PlatformAuditService } from "./platform-audit.service.js";
 import { PlatformAuthService, type PlatformPrincipal } from "./platform-auth.service.js";
 import { PlatformJwtGuard, type PlatformRequest } from "./platform-jwt.guard.js";
 import { SupportSessionService } from "./support-session.service.js";
+import { TenantDataService } from "./tenant-data.service.js";
 import { TenantProvisioningService } from "./tenant-provisioning.service.js";
 
 /**
@@ -38,8 +39,8 @@ export class PlatformAuthController {
 
 /**
  * The control-plane surface for `contract.platform` (M7 design D6): the platform admin's own
- * session (`me`/`logout`), tenant provisioning and lifecycle, support sessions, and the platform
- * audit log. `@Public()` opts out of the tenant
+ * session (`me`/`logout`), tenant provisioning and lifecycle, PDPA export + purge (M8 design D9),
+ * support sessions, and the platform audit log. `@Public()` opts out of the tenant
  * `JwtGuard` (a platform token carries no `tid`); `PlatformJwtGuard` authenticates the platform
  * admin instead, and refuses every tenant token. Registered only in `DEPLOYMENT_MODE=cloud`.
  */
@@ -52,6 +53,7 @@ export class PlatformController {
     private readonly tenants: TenantProvisioningService,
     private readonly supportSessions: SupportSessionService,
     private readonly audit: PlatformAuditService,
+    private readonly tenantData: TenantDataService,
   ) {}
 
   @TsRestHandler(contract.platform.me)
@@ -87,7 +89,7 @@ export class PlatformController {
   createTenant(@Req() req: PlatformRequest) {
     return tsRestHandler(contract.platform.createTenant, async ({ body }) => ({
       status: 201,
-      body: { tenant: await this.tenants.provision(body, admin(req).id) },
+      body: await this.tenants.provisionTenant(body, admin(req).id),
     }));
   }
 
@@ -96,6 +98,30 @@ export class PlatformController {
     return tsRestHandler(contract.platform.setTenantStatus, async ({ params, body }) => ({
       status: 200,
       body: { tenant: await this.tenants.setStatus(params.id, body, admin(req).id) },
+    }));
+  }
+
+  @TsRestHandler(contract.platform.purgeTenant)
+  purgeTenant(@Req() req: PlatformRequest) {
+    return tsRestHandler(contract.platform.purgeTenant, async ({ params, body }) => ({
+      status: 202,
+      body: await this.tenantData.requestPurge(params.id, body.confirm, admin(req).id),
+    }));
+  }
+
+  @TsRestHandler(contract.platform.exportTenant)
+  exportTenant(@Req() req: PlatformRequest) {
+    return tsRestHandler(contract.platform.exportTenant, async ({ params }) => ({
+      status: 202,
+      body: await this.tenantData.requestExport(params.id, { platformAdminId: admin(req).id }),
+    }));
+  }
+
+  @TsRestHandler(contract.platform.getTenantExport)
+  getTenantExport() {
+    return tsRestHandler(contract.platform.getTenantExport, async ({ params }) => ({
+      status: 200,
+      body: await this.tenantData.exportStatus(params.id, params.job_id),
     }));
   }
 

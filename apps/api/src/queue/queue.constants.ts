@@ -11,6 +11,9 @@ export const QUEUES = {
   // Reporting (M6): async report exports and scheduled/one-off digest renders. Its own
   // queue so its worker never competes with the `pdf`/`default` workers for jobs.
   report: "report",
+  // Tenant control plane (M8 design D9): the PDPA export and the purge. Its own queue with one
+  // dispatcher worker, so nothing else competes for these jobs.
+  tenant: "tenant",
   default: "default",
 } as const;
 

@@ -4,11 +4,13 @@ import { PERMISSIONS } from "../permissions/index.js";
 import { UserStatus } from "../enums/index.js";
 import {
   API_PREFIX,
+  jobAccepted,
   paginated,
   paginationQuery,
   uuid,
   withErrors,
 } from "./_shared.js";
+import { TenantExportStatusResult } from "./platform.js";
 
 /**
  * M1 — Access & Identity (IAM) contract (spec §1.7). Router `iamContract` covers
@@ -412,6 +414,22 @@ export const iamContract = c.router(
       path: "/iam/seats",
       responses: withErrors({ 200: SeatUsage }),
       summary: "Counted vs. exempt seat usage against the tenant's plan cap",
+    },
+    // PDPA data portability (M8 design D9): the tenant super-admin's own trigger for the
+    // `tenant.export` job — on `TenantStatusGuard`'s READ_ONLY allowlist (design D6).
+    exportTenantData: {
+      method: "POST",
+      path: "/iam/tenant-export",
+      body: c.noBody(),
+      responses: withErrors({ 202: jobAccepted }),
+      summary: "Queue a PDPA export of this tenant's data (tenant super-admin; allowed while READ_ONLY)",
+    },
+    getTenantDataExport: {
+      method: "GET",
+      path: "/iam/tenant-export/:job_id",
+      pathParams: z.object({ job_id: z.string() }),
+      responses: withErrors({ 200: TenantExportStatusResult }),
+      summary: "Get this tenant's export job status and, once DONE, a signed download URL",
     },
   },
   { pathPrefix: API_PREFIX },

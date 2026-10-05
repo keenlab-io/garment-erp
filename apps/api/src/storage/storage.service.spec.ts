@@ -1,5 +1,10 @@
 import type { ConfigService } from "@nestjs/config";
-import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectsCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+} from "@aws-sdk/client-s3";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BusinessRuleError } from "../common/errors/app-exception.js";
 import { runWithTenant } from "../tenancy/tenant-context.js";
@@ -86,6 +91,45 @@ describe("StorageService tenant key space", () => {
       made.service.getSignedUrl("payslips/p1.pdf"),
     );
     expect(new URL(url).pathname).toBe(`/erp-test/${tenantPrefix(TENANT_A)}payslips/p1.pdf`);
+  });
+
+  it("lists the caller-tenant's objects relative to its prefix, across pages", async () => {
+    const made = makeService();
+    service = made.service;
+    const prefix = tenantPrefix(TENANT_A);
+    made.send
+      .mockResolvedValueOnce({
+        Contents: [{ Key: `${prefix}payslips/p1.pdf` }],
+        IsTruncated: true,
+        NextContinuationToken: "t1",
+      })
+      .mockResolvedValueOnce({ Contents: [{ Key: `${prefix}reports/r.xlsx` }], IsTruncated: false });
+    const keys = await runWithTenant(TENANT_A, "job", () => made.service.listTenantObjects());
+    expect(keys).toEqual(["payslips/p1.pdf", "reports/r.xlsx"]);
+    const first = made.send.mock.calls[0]?.[0] as ListObjectsV2Command;
+    expect(first).toBeInstanceOf(ListObjectsV2Command);
+    expect(first.input.Prefix).toBe(prefix);
+    expect((made.send.mock.calls[1]?.[0] as ListObjectsV2Command).input.ContinuationToken).toBe("t1");
+  });
+
+  it("deletes exactly the caller-tenant's prefix", async () => {
+    const made = makeService();
+    service = made.service;
+    const prefix = tenantPrefix(TENANT_B);
+    made.send.mockResolvedValueOnce({ Contents: [{ Key: `${prefix}a.pdf` }, { Key: `${prefix}b/c.pdf` }] });
+    const deleted = await runWithTenant(TENANT_B, "job", () => made.service.deleteTenantObjects());
+    expect(deleted).toBe(2);
+    const del = made.send.mock.calls[1]?.[0] as DeleteObjectsCommand;
+    expect(del).toBeInstanceOf(DeleteObjectsCommand);
+    expect(del.input.Delete?.Objects).toEqual([{ Key: `${prefix}a.pdf` }, { Key: `${prefix}b/c.pdf` }]);
+  });
+
+  it("refuses to list or delete outside a tenant scope", async () => {
+    const made = makeService();
+    service = made.service;
+    await expect(made.service.listTenantObjects()).rejects.toBeInstanceOf(BusinessRuleError);
+    await expect(made.service.deleteTenantObjects()).rejects.toBeInstanceOf(BusinessRuleError);
+    expect(made.send).not.toHaveBeenCalled();
   });
 
   it("uses platform keys verbatim via the explicit escape hatch", async () => {

@@ -4,6 +4,7 @@ import type { ConfigService } from "@nestjs/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createDb, tenant } from "@erp/db";
 import { UnitOfWork } from "../../src/db/unit-of-work.service.js";
+import { PasswordService } from "../../src/auth/password.service.js";
 import { PlatformAuditService } from "../../src/platform/platform-audit.service.js";
 import { SelfHostedBootstrap } from "../../src/platform/self-hosted-bootstrap.service.js";
 import { TenantProvisioningService } from "../../src/platform/tenant-provisioning.service.js";
@@ -37,7 +38,12 @@ describe.skipIf(!url)("self-hosted deployment boot (integration)", () => {
 
   it("provisions exactly one tenant for DEFAULT_TENANT_SLUG, idempotently across boots", async () => {
     const uow = new UnitOfWork(conn.db);
-    const provisioning = new TenantProvisioningService(conn.db, uow, new PlatformAuditService(conn.db));
+    const provisioning = new TenantProvisioningService(
+      conn.db,
+      uow,
+      new PlatformAuditService(conn.db),
+      new PasswordService(),
+    );
     const bootstrap = new SelfHostedBootstrap(provisioning, config);
 
     await bootstrap.onApplicationBootstrap();

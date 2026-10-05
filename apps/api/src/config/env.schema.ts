@@ -31,6 +31,10 @@ export const envSchema = z.object({
   APP_DOMAIN: z.string().min(1).optional(),
   DEFAULT_TENANT_SLUG: z.string().min(1).default("default"),
 
+  // Tenant PDPA export (M8 design D9) — lifetime (minutes) of the presigned download URL a
+  // finished `tenant.export` archive is served through. Default one hour.
+  TENANT_EXPORT_URL_TTL_MINUTES: z.coerce.number().int().positive().default(60),
+
   // Redis (BullMQ connection).
   REDIS_URL: z.string().url(),
 
