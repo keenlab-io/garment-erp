@@ -127,6 +127,13 @@
       "when": 1790700000000,
       "tag": "0017_tenant_purge",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790800000000,
+      "tag": "0018_control_plane_grants",
+      "breakpoints": true
     }
   ]
 }
