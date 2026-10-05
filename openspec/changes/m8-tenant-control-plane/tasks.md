@@ -25,10 +25,10 @@ the change is picked up for implementation; M7 (`m7-tenancy-core`) must be merge
 
 ## 4. Provisioning & lifecycle — `apps/api/src/platform`
 
-- [ ] 4.1 `ProvisioningService.provisionTenant` (D1): tenant + domain + per-tenant config seed (`sso_config`, `tax_bracket`, `advance_policy`, `document_template`, `report_schedule`) + first tenant super-admin, one transaction, reusable by M10
-- [ ] 4.2 Lifecycle transitions `ACTIVE ↔ READ_ONLY ↔ SUSPENDED → PURGING` with guards (purge requires SUSPENDED + typed confirmation); `TenantStateGuard` (D6) with the named non-GET allowlist and `TENANT_READ_ONLY` 403
-- [ ] 4.3 `tenant.export` + `tenant.purge` BullMQ workers (D9): JSONL-per-table archive → presigned URL; reverse-FK purge + `tenants/{tid}/` S3 prefix delete; export exposed to tenant super-admin and allowed in READ_ONLY
-- [ ] 4.4 Verify: sweeps skip non-ACTIVE tenants; export completes on a seeded tenant; purge leaves zero rows + zero objects + intact `platform_audit_log`
+- [x] 4.1 `ProvisioningService.provisionTenant` (D1): tenant + domain + per-tenant config seed (`sso_config`, `tax_bracket`, `advance_policy`, `document_template`, `report_schedule`) + first tenant super-admin, one transaction, reusable by M10
+- [x] 4.2 Lifecycle transitions `ACTIVE ↔ READ_ONLY ↔ SUSPENDED → PURGING` with guards (purge requires SUSPENDED + typed confirmation); `TenantStateGuard` (D6) with the named non-GET allowlist and `TENANT_READ_ONLY` 403
+- [x] 4.3 `tenant.export` + `tenant.purge` BullMQ workers (D9): JSONL-per-table archive → presigned URL; reverse-FK purge + `tenants/{tid}/` S3 prefix delete; export exposed to tenant super-admin and allowed in READ_ONLY
+- [x] 4.4 Verify: sweeps skip non-ACTIVE tenants; export completes on a seeded tenant; purge leaves zero rows + zero objects + intact `platform_audit_log`
 
 ## 5. Entitlements, seats, flags — `apps/api/src/platform` + hooks in `iam/`
 

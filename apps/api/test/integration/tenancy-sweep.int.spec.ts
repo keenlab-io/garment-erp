@@ -35,6 +35,9 @@ describe.skipIf(!url || !appUrl)("sweep fan-out & withTenantJob (integration)", 
 
   const TENANT_ACTIVE = randomUUID();
   const TENANT_SUSPENDED = randomUUID();
+  // M8 §4.4 — every non-ACTIVE lifecycle state is skipped, not just SUSPENDED.
+  const TENANT_READ_ONLY = randomUUID();
+  const TENANT_PURGING = randomUUID();
   const JOB_NAME = `test.sweep.${randomUUID().slice(0, 8)}`;
 
   beforeAll(async () => {
@@ -57,6 +60,20 @@ describe.skipIf(!url || !appUrl)("sweep fan-out & withTenantJob (integration)", 
         kind: "CUSTOMER",
         status: "SUSPENDED",
       },
+      {
+        id: TENANT_READ_ONLY,
+        slug: `sweep-readonly-${TENANT_READ_ONLY.slice(0, 8)}`,
+        name: "Sweep Read-only",
+        kind: "CUSTOMER",
+        status: "READ_ONLY",
+      },
+      {
+        id: TENANT_PURGING,
+        slug: `sweep-purging-${TENANT_PURGING.slice(0, 8)}`,
+        name: "Sweep Purging",
+        kind: "CUSTOMER",
+        status: "PURGING",
+      },
     ]);
   });
 
@@ -65,10 +82,12 @@ describe.skipIf(!url || !appUrl)("sweep fan-out & withTenantJob (integration)", 
     await app?.queryClient.end();
   });
 
-  it("activeTenantIds / a scheduler tick includes the ACTIVE tenant and skips the SUSPENDED one", async () => {
+  it("activeTenantIds / a scheduler tick includes the ACTIVE tenant and skips every non-ACTIVE one", async () => {
     const ids = await activeTenantIds(admin.db);
     expect(ids).toContain(TENANT_ACTIVE);
     expect(ids).not.toContain(TENANT_SUSPENDED);
+    expect(ids).not.toContain(TENANT_READ_ONLY);
+    expect(ids).not.toContain(TENANT_PURGING);
 
     const queue = new RecordingQueue();
     await fanOutPerTenant(admin.db, queue, JOB_NAME, Date.now());
@@ -76,6 +95,8 @@ describe.skipIf(!url || !appUrl)("sweep fan-out & withTenantJob (integration)", 
     const tenantsFannedTo = new Set(queue.calls.filter((c) => c.name === JOB_NAME).map((c) => c.data.tenantId));
     expect(tenantsFannedTo.has(TENANT_ACTIVE)).toBe(true);
     expect(tenantsFannedTo.has(TENANT_SUSPENDED)).toBe(false);
+    expect(tenantsFannedTo.has(TENANT_READ_ONLY)).toBe(false);
+    expect(tenantsFannedTo.has(TENANT_PURGING)).toBe(false);
   });
 
   it("a hand-enqueued job without tenantId fails instead of running unscoped", async () => {

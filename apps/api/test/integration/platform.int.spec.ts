@@ -21,6 +21,7 @@ import {
   tenant,
   tenantDomain,
   uom,
+  user,
   warehouse,
 } from "@erp/db";
 import { AuditService, SUPPORT_ACTOR_ROLE } from "../../src/audit/audit.service.js";
@@ -108,7 +109,7 @@ describe.skipIf(!url)("platform module (integration)", () => {
       uow,
       platformAudit,
     );
-    provisioning = new TenantProvisioningService(conn.db, uow, platformAudit);
+    provisioning = new TenantProvisioningService(conn.db, uow, platformAudit, passwords);
     support = new SupportSessionService(conn.db, uow, tokens, platformAudit);
     jwtGuard = new JwtGuard(
       { getAllAndOverride: () => false } as unknown as Reflector,
@@ -240,13 +241,29 @@ describe.skipIf(!url)("platform module (integration)", () => {
     );
   });
 
-  it("provisions a tenant, its domain, and its seeded defaults atomically with an audit row", async () => {
+  it("provisions a tenant, its domain, its seeded config, and its first super-admin atomically with an audit row", async () => {
     const slug = `acme-${run}`;
-    const created = await provisioning.provision(
-      { name: "Acme Garments", slug, domain: `Acme-${run}.erp.example:443` },
+    const adminEmail = `Owner-${run}@Acme.example`;
+    const { tenant: created, admin } = await provisioning.provisionTenant(
+      { name: "Acme Garments", slug, domain: `Acme-${run}.erp.example:443`, admin_email: adminEmail },
       adminId,
     );
     expect(created).toMatchObject({ name: "Acme Garments", slug, kind: "CUSTOMER", status: "ACTIVE" });
+
+    // The first tenant super-admin: ACTIVE, in the new tenant, temp password hashed (never stored raw).
+    expect(admin).toMatchObject({ email: adminEmail.toLowerCase(), temp_password: expect.any(String) });
+    const [owner] = await conn.db.select().from(user).where(eq(user.id, (admin as { id: string }).id));
+    expect(owner).toMatchObject({ tenantId: created.id, isSuperAdmin: true, status: "ACTIVE" });
+    expect(owner?.passwordHash).not.toBe(admin?.temp_password);
+    expect(await passwords.verify(owner?.passwordHash as string, admin?.temp_password as string)).toBe(true);
+    // Removed straight away: other specs read the `user` table across tenants.
+    await conn.db.delete(user).where(eq(user.tenantId, created.id));
+
+    // The per-tenant config M7 de-globalized is seeded (report_schedule starts empty).
+    for (const table of [taxBracket, ssoConfig, advancePolicy, documentTemplate]) {
+      const rows = await conn.db.select().from(table).where(eq(table.tenantId, created.id));
+      expect(rows.length).toBeGreaterThan(0);
+    }
 
     const [domain] = await conn.db
       .select()
@@ -270,17 +287,27 @@ describe.skipIf(!url)("platform module (integration)", () => {
 
     // A duplicate slug is rejected by the citext unique — and leaves no partial tenant behind.
     await expect(
-      provisioning.provision({ name: "Dup", slug: slug.toUpperCase(), domain: `dup-${run}.erp.example` }),
+      provisioning.provisionTenant({
+        name: "Dup",
+        slug: slug.toUpperCase(),
+        domain: `dup-${run}.erp.example`,
+        admin_email: `dup-${run}@acme.example`,
+      }),
     ).rejects.toThrow();
     const dupDomain = await conn.db
       .select()
       .from(tenantDomain)
       .where(eq(tenantDomain.hostname, `dup-${run}.erp.example`));
     expect(dupDomain).toEqual([]);
+    const dupAdmin = await conn.db.select().from(user).where(eq(user.email, `dup-${run}@acme.example`));
+    expect(dupAdmin).toEqual([]);
 
-    await expect(provisioning.provision({ name: "Bad", slug: "not a slug" })).rejects.toBeInstanceOf(
-      BusinessRuleError,
-    );
+    await expect(
+      provisioning.provisionTenant({ name: "Bad", slug: "not a slug" }),
+    ).rejects.toBeInstanceOf(BusinessRuleError);
+    await expect(
+      provisioning.provisionTenant({ name: "No plan", slug: `noplan-${run}`, plan_id: randomUUID() }),
+    ).rejects.toBeInstanceOf(BusinessRuleError);
   });
 
   it("ensureTenant is idempotent", async () => {
@@ -293,7 +320,10 @@ describe.skipIf(!url)("platform module (integration)", () => {
   });
 
   it("changes a tenant's status with a platform audit row and lists by status", async () => {
-    const created = await provisioning.provision({ name: "Status Co", slug: `status-${run}` }, adminId);
+    const { tenant: created } = await provisioning.provisionTenant(
+      { name: "Status Co", slug: `status-${run}` },
+      adminId,
+    );
     const updated = await provisioning.setStatus(
       created.id,
       { status: "READ_ONLY", reason: "billing overdue" },
@@ -319,10 +349,24 @@ describe.skipIf(!url)("platform module (integration)", () => {
     await expect(
       provisioning.setStatus(randomUUID(), { status: "ACTIVE", reason: "x" }, adminId),
     ).rejects.toBeInstanceOf(NotFoundError);
+
+    // Only ACTIVE ↔ READ_ONLY ↔ SUSPENDED: PURGING is never set here, and no step is skipped.
+    await expect(
+      provisioning.setStatus(created.id, { status: "PURGING", reason: "x" }, adminId),
+    ).rejects.toBeInstanceOf(StateConflictError);
+    await provisioning.setStatus(created.id, { status: "ACTIVE", reason: "paid" }, adminId);
+    await expect(
+      provisioning.setStatus(created.id, { status: "SUSPENDED", reason: "x" }, adminId),
+    ).rejects.toBeInstanceOf(StateConflictError);
+    const [still] = await conn.db.select().from(tenant).where(eq(tenant.id, created.id));
+    expect(still?.status).toBe("ACTIVE");
   });
 
   it("opens a support session whose tid+sup token authenticates until revoked, dual-writing audits", async () => {
-    const target = await provisioning.provision({ name: "Support Co", slug: `support-${run}` }, adminId);
+    const { tenant: target } = await provisioning.provisionTenant(
+      { name: "Support Co", slug: `support-${run}` },
+      adminId,
+    );
 
     const opened = await support.create(
       { tenant_id: target.id, reason: "ticket #42", minutes: 30 },
@@ -389,7 +433,11 @@ describe.skipIf(!url)("platform module (integration)", () => {
       support.create({ tenant_id: randomUUID(), reason: "x", minutes: 5 }, adminId),
     ).rejects.toBeInstanceOf(NotFoundError);
 
-    const suspended = await provisioning.provision({ name: "Gone", slug: `gone-${run}` }, adminId);
+    const { tenant: suspended } = await provisioning.provisionTenant(
+      { name: "Gone", slug: `gone-${run}` },
+      adminId,
+    );
+    await provisioning.setStatus(suspended.id, { status: "READ_ONLY", reason: "unpaid" }, adminId);
     await provisioning.setStatus(suspended.id, { status: "SUSPENDED", reason: "churned" }, adminId);
     await expect(
       support.create({ tenant_id: suspended.id, reason: "x", minutes: 5 }, adminId),

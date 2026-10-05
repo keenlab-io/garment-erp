@@ -3,6 +3,8 @@ import { PlatformAuthController, PlatformController } from "./platform.controlle
 import { deploymentMode, PlatformModule } from "./platform.module.js";
 import { SelfHostedBootstrap } from "./self-hosted-bootstrap.service.js";
 import { SupportSessionService } from "./support-session.service.js";
+import { TenantDataService } from "./tenant-data.service.js";
+import { TenantExportController } from "./tenant-export.controller.js";
 import { TenantProvisioningService } from "./tenant-provisioning.service.js";
 
 // M7 §6.5 / design D15 — the control plane is mounted only in `DEPLOYMENT_MODE=cloud`; a
@@ -17,16 +19,21 @@ describe("PlatformModule.forRoot", () => {
 
   it("mounts the platform controllers and services in cloud mode", () => {
     const mod = PlatformModule.forRoot("cloud");
-    expect(mod.controllers).toEqual([PlatformAuthController, PlatformController]);
+    expect(mod.controllers).toEqual([
+      PlatformAuthController,
+      PlatformController,
+      TenantExportController,
+    ]);
     expect(mod.providers).toContain(SupportSessionService);
+    expect(mod.providers).toContain(TenantDataService);
     expect(mod.providers).not.toContain(SelfHostedBootstrap);
   });
 
-  it("registers no controllers in self-hosted mode — only the default-tenant bootstrap", () => {
+  it("registers no platform controllers in self-hosted mode — the bootstrap and tenant export only", () => {
     const mod = PlatformModule.forRoot("self-hosted");
-    expect(mod.controllers ?? []).toEqual([]);
+    expect(mod.controllers ?? []).toEqual([TenantExportController]);
     expect(mod.providers).toEqual(
-      expect.arrayContaining([TenantProvisioningService, SelfHostedBootstrap]),
+      expect.arrayContaining([TenantProvisioningService, SelfHostedBootstrap, TenantDataService]),
     );
     expect(mod.providers).not.toContain(SupportSessionService);
   });

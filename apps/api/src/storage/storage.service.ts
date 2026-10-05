@@ -2,7 +2,9 @@ import { Injectable, type OnModuleDestroy } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
   type GetObjectCommandOutput,
@@ -101,6 +103,46 @@ export class StorageService implements OnModuleDestroy {
   }
 
   /**
+   * Every object key under the caller-tenant's prefix, relative to it (`payslips/p1.pdf`) — the
+   * object half of the M8 PDPA export (design D9). Pages through `ListObjectsV2`.
+   */
+  async listTenantObjects(): Promise<string[]> {
+    const prefix = this.callerPrefix();
+    const keys: string[] = [];
+    let token: string | undefined;
+    do {
+      const out = await this.client.send(
+        new ListObjectsV2Command({ Bucket: this.bucket, Prefix: prefix, ContinuationToken: token }),
+      );
+      for (const obj of out.Contents ?? []) {
+        if (obj.Key?.startsWith(prefix)) keys.push(obj.Key.slice(prefix.length));
+      }
+      token = out.IsTruncated ? out.NextContinuationToken : undefined;
+    } while (token);
+    return keys;
+  }
+
+  /**
+   * Delete every object under the caller-tenant's prefix (`tenants/{tid}/`) — the tenant purge's
+   * storage step (M8 design D9). Scoped by the ambient tenant, never by an argument, so it can
+   * only ever erase the tenant the job runs as. Idempotent; returns the number of keys deleted.
+   */
+  async deleteTenantObjects(): Promise<number> {
+    const prefix = this.callerPrefix();
+    const keys = (await this.listTenantObjects()).map((key) => `${prefix}${key}`);
+    // DeleteObjects takes at most 1000 keys per call.
+    for (let i = 0; i < keys.length; i += 1000) {
+      await this.client.send(
+        new DeleteObjectsCommand({
+          Bucket: this.bucket,
+          Delete: { Objects: keys.slice(i, i + 1000).map((Key) => ({ Key })), Quiet: true },
+        }),
+      );
+    }
+    return keys.length;
+  }
+
+  /**
    * The escape hatch for control-plane objects (M7 design D13): a key under `platform/` that
    * bypasses the tenant prefix. Reserved for platform code — no tenant code path calls it.
    */
@@ -114,11 +156,16 @@ export class StorageService implements OnModuleDestroy {
    */
   private resolveKey(key: ObjectKey): string {
     if (typeof key !== "string") return key.platformKey;
+    return `${this.callerPrefix()}${assertRelativeKey(key)}`;
+  }
+
+  /** The caller-tenant's key prefix. Throws outside a tenant scope. */
+  private callerPrefix(): string {
     const tenantId = currentTenantId();
     if (tenantId === null) {
       throw new BusinessRuleError("Object storage requires a tenant scope");
     }
-    return `${tenantPrefix(tenantId)}${assertRelativeKey(key)}`;
+    return tenantPrefix(tenantId);
   }
 
   onModuleDestroy(): void {
