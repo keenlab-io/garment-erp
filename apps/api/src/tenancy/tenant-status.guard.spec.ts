@@ -51,6 +51,16 @@ describe("TenantStatusGuard", () => {
     }
   });
 
+  it("READ_ONLY keeps payroll and report reads available (data stays viewable)", async () => {
+    const { guard } = guardWith("READ_ONLY");
+    for (const path of ["/hr/payslips", "/hr/payroll-runs", "/reports/sales-daily"]) {
+      await expect(inTenant(() => guard.canActivate(http("GET", `${API_PREFIX}${path}`)))).resolves.toBe(true);
+    }
+    await expect(
+      inTenant(() => guard.canActivate(http("POST", `${API_PREFIX}/hr/payroll-runs`))),
+    ).rejects.toBeInstanceOf(TenantReadOnlyError);
+  });
+
   it("a READ_ONLY-scope support session on an ACTIVE tenant is held to the READ_ONLY rules (M8 D8)", async () => {
     const { guard } = guardWith("ACTIVE");
     const asSupport = <T>(scope: "READ_ONLY" | "FULL", fn: () => Promise<T>) =>
