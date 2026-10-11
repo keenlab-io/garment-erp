@@ -19,6 +19,8 @@ export interface PlatformAuditEntry {
   reason?: string | null;
   /** Defaults to the active transaction's correlation id (see `currentCorrelationId`). */
   correlationId?: string | null;
+  /** The support session the action belongs to (M8 task 6.2), if any. */
+  supportSessionId?: string | null;
 }
 
 /** Filters accepted by `GET /platform/audit`. */
@@ -64,6 +66,7 @@ export class PlatformAuditService {
         after: entry.after ?? null,
         reason: entry.reason ?? null,
         correlationId: entry.correlationId ?? currentCorrelationId(),
+        supportSessionId: entry.supportSessionId ?? null,
       });
   }
 
@@ -112,6 +115,7 @@ export class PlatformAuditService {
         before: r.before,
         after: r.after,
         correlation_id: r.correlationId,
+        support_session_id: r.supportSessionId,
       })),
       next_cursor: page.next_cursor,
     };

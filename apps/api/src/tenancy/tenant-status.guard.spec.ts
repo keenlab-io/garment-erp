@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { TenantStatus } from "@erp/db";
 import { API_PREFIX } from "@erp/contracts";
 import { ForbiddenError, TenantReadOnlyError } from "../common/errors/app-exception.js";
-import { runWithTenant } from "./tenant-context.js";
+import { enterTenant, openTenantSlot, runWithTenant } from "./tenant-context.js";
 import type { TenantResolutionService } from "./tenant-resolution.service.js";
 import { READ_ONLY_WRITE_ALLOWLIST, TenantStatusGuard } from "./tenant-status.guard.js";
 
@@ -49,6 +49,27 @@ describe("TenantStatusGuard", () => {
       expect(err).toBeInstanceOf(TenantReadOnlyError);
       expect((err as TenantReadOnlyError).code).toBe("TENANT_READ_ONLY");
     }
+  });
+
+  it("a READ_ONLY-scope support session on an ACTIVE tenant is held to the READ_ONLY rules (M8 D8)", async () => {
+    const { guard } = guardWith("ACTIVE");
+    const asSupport = <T>(scope: "READ_ONLY" | "FULL", fn: () => Promise<T>) =>
+      openTenantSlot(() => {
+        enterTenant(TENANT, "jwt", {
+          supportSessionId: "44444444-4444-4444-4444-444444444444",
+          platformAdminId: "55555555-5555-5555-5555-555555555555",
+          scope,
+        });
+        return fn();
+      });
+    await expect(asSupport("READ_ONLY", () => guard.canActivate(http("GET")))).resolves.toBe(true);
+    await expect(
+      asSupport("READ_ONLY", () => guard.canActivate(http("POST"))),
+    ).rejects.toBeInstanceOf(TenantReadOnlyError);
+    await expect(
+      asSupport("READ_ONLY", () => guard.canActivate(http("POST", `${API_PREFIX}/auth/logout`))),
+    ).resolves.toBe(true);
+    await expect(asSupport("FULL", () => guard.canActivate(http("POST")))).resolves.toBe(true);
   });
 
   it("READ_ONLY allowlist is exactly login/refresh/logout, the PDPA export and the report export", () => {

@@ -49,6 +49,7 @@ describe("PlatformAuditService.append", () => {
           after: { status: "READ_ONLY" },
           reason: "billing overdue",
           correlationId: CORRELATION,
+          supportSessionId: null,
         },
       },
     ]);

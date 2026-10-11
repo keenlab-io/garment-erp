@@ -35,6 +35,11 @@ export const envSchema = z.object({
   // finished `tenant.export` archive is served through. Default one hour.
   TENANT_EXPORT_URL_TTL_MINUTES: z.coerce.number().int().positive().default(60),
 
+  // Support impersonation (M8 design D8) — the time box of a support session's token. A request
+  // that omits `minutes` gets the default; one above the max is refused (400). No refresh exists.
+  SUPPORT_SESSION_DEFAULT_MINUTES: z.coerce.number().int().positive().default(60),
+  SUPPORT_SESSION_MAX_MINUTES: z.coerce.number().int().positive().default(240),
+
   // Redis (BullMQ connection).
   REDIS_URL: z.string().url(),
 

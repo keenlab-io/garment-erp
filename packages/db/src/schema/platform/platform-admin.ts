@@ -21,7 +21,9 @@ export const platformAdmin = pgTable("platform_admin", {
 // Support session — the only way a platform admin enters a tenant: explicit, time-boxed
 // (`expires_at` NOT NULL), reason-tagged (`reason` NOT NULL), revocable, and fully audited.
 // `token_id` is the jti of the support-scoped access token (the `sup` claim). Control-plane
-// data, so exempt from RLS even though it names a tenant.
+// data, so exempt from RLS even though it names a tenant. `scope` (M8 design D8): `FULL` acts as
+// the tenant super-admin; `READ_ONLY` additionally runs every request through the tenant
+// read-only rules. Pre-M8 rows default to `FULL` (the only behaviour M7 had).
 export const supportSession = pgTable(
   "support_session",
   {
@@ -35,6 +37,7 @@ export const supportSession = pgTable(
       .notNull()
       .references(() => tenant.id),
     reason: text().notNull(),
+    scope: text().$type<"READ_ONLY" | "FULL">().notNull().default("FULL"),
     tokenId: text(),
     expiresAt: timestamp({ withTimezone: true }).notNull(),
     revokedAt: timestamp({ withTimezone: true }),

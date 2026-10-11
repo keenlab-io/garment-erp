@@ -39,9 +39,9 @@ the change is picked up for implementation; M7 (`m7-tenancy-core`) must be merge
 
 ## 6. Support impersonation — `apps/api/src/platform`
 
-- [ ] 6.1 `SupportSessionService` (D8): create (reason + scope + minutes ≤ cap) → `support_session` row + tenant-scoped access token with `sup` claim, no refresh token; end-early endpoint; `JwtGuard` extension rejecting ended/expired `sup` sessions
-- [ ] 6.2 Dual-ledger audit: every request under `sup` writes the support-session id into the tenant `audit_log` row AND `platform_audit_log`; `READ_ONLY` scope routes through the D6 read-only rules
-- [ ] 6.3 Verify: impersonated writes attributable in both ledgers; expired token 401s
+- [x] 6.1 `SupportSessionService` (D8): create (reason + scope + minutes ≤ cap) → `support_session` row + tenant-scoped access token with `sup` claim, no refresh token; end-early endpoint; `JwtGuard` extension rejecting ended/expired `sup` sessions
+- [x] 6.2 Dual-ledger audit: every request under `sup` writes the support-session id into the tenant `audit_log` row AND `platform_audit_log`; `READ_ONLY` scope routes through the D6 read-only rules
+- [x] 6.3 Verify: impersonated writes attributable in both ledgers; expired token 401s
 
 ## 7. Web — `apps/web`
 

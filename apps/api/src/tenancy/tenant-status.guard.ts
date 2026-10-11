@@ -2,7 +2,7 @@ import { type CanActivate, type ExecutionContext, Injectable } from "@nestjs/com
 import type { Request } from "express";
 import { contract } from "@erp/contracts";
 import { ForbiddenError, TenantReadOnlyError } from "../common/errors/app-exception.js";
-import { currentTenantId } from "./tenant-context.js";
+import { currentSupportScope, currentTenantId } from "./tenant-context.js";
 import { TenantResolutionService } from "./tenant-resolution.service.js";
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -54,7 +54,8 @@ export function isReadOnlyAllowed(method: string, rawPath: string): boolean {
  *
  * This is the M8 `TenantStateGuard` (design D6) — M7 shipped the mechanism, M8 the allowlist and
  * the platform lifecycle endpoints that flip the status. A tenant id in scope with no tenant row
- * fails closed.
+ * fails closed. A support session opened with scope `READ_ONLY` (M8 design D8) is held to the
+ * READ_ONLY rules even when the tenant is ACTIVE.
  */
 @Injectable()
 export class TenantStatusGuard implements CanActivate {
@@ -65,7 +66,10 @@ export class TenantStatusGuard implements CanActivate {
     const tenantId = currentTenantId();
     if (tenantId === null) return true;
 
-    const status = await this.resolution.statusOf(tenantId);
+    const actual = await this.resolution.statusOf(tenantId);
+    // A READ_ONLY-scope support session (M8 design D8) sees an ACTIVE tenant as READ_ONLY.
+    const status =
+      actual === "ACTIVE" && currentSupportScope()?.scope === "READ_ONLY" ? "READ_ONLY" : actual;
     switch (status) {
       case "ACTIVE":
         return true;

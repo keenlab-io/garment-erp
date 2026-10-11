@@ -73,6 +73,7 @@ export class DefaultSupportSessionLookup implements SupportSessionLookup {
         platformAdminId: supportSession.platformAdminId,
         tenantId: supportSession.tenantId,
         tokenId: supportSession.tokenId,
+        scope: supportSession.scope,
         expiresAt: supportSession.expiresAt,
         revokedAt: supportSession.revokedAt,
         adminStatus: platformAdmin.status,

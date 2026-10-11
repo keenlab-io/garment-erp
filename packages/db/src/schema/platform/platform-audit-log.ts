@@ -9,7 +9,8 @@ import { platformAdmin } from "./platform-admin.js";
 // a tenant purge. Exempt from RLS; append-only is enforced by a BEFORE UPDATE OR DELETE
 // trigger in the tenancy migration (same pattern as `audit_log`). `correlation_id` (M8 task
 // 3.2) ties a row to the request/transaction that wrote it — the same id the domain events of
-// that transaction carry.
+// that transaction carry. `support_session_id` (M8 task 6.2) names the support session a row
+// was written under — the same id stamped on the tenant `audit_log` twin of the row.
 export const platformAuditLog = pgTable("platform_audit_log", {
   id: uuid().primaryKey().default(sql`gen_random_uuid()`),
   at: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -26,4 +27,5 @@ export const platformAuditLog = pgTable("platform_audit_log", {
   ip: inet(),
   userAgent: text(),
   correlationId: uuid(),
+  supportSessionId: uuid(),
 });

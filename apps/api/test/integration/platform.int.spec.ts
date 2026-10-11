@@ -40,6 +40,7 @@ import {
   NotFoundError,
   StateConflictError,
   UnauthenticatedError,
+  ValidationError,
 } from "../../src/common/errors/app-exception.js";
 import { UnitOfWork } from "../../src/db/unit-of-work.service.js";
 import { PlatformAuditService } from "../../src/platform/platform-audit.service.js";
@@ -77,9 +78,12 @@ describe.skipIf(!url)("platform module (integration)", () => {
     JWT_REFRESH_TTL: "7d",
     JWT_PLATFORM_SECRET: "test-platform-secret",
     JWT_PLATFORM_TTL: "30m",
+    SUPPORT_SESSION_DEFAULT_MINUTES: "60",
+    SUPPORT_SESSION_MAX_MINUTES: "240",
   };
+  const numeric = new Set(["SUPPORT_SESSION_DEFAULT_MINUTES", "SUPPORT_SESSION_MAX_MINUTES"]);
   const config = {
-    get: (key: string) => values[key],
+    get: (key: string) => (numeric.has(key) ? Number(values[key]) : values[key]),
     getOrThrow: (key: string) => values[key],
   } as unknown as ConfigService;
 
@@ -110,7 +114,7 @@ describe.skipIf(!url)("platform module (integration)", () => {
       platformAudit,
     );
     provisioning = new TenantProvisioningService(conn.db, uow, platformAudit, passwords);
-    support = new SupportSessionService(conn.db, uow, tokens, platformAudit);
+    support = new SupportSessionService(conn.db, uow, tokens, new AuditService(conn.db), config);
     jwtGuard = new JwtGuard(
       { getAllAndOverride: () => false } as unknown as Reflector,
       tokens,
@@ -369,7 +373,7 @@ describe.skipIf(!url)("platform module (integration)", () => {
     );
 
     const opened = await support.create(
-      { tenant_id: target.id, reason: "ticket #42", minutes: 30 },
+      { tenant_id: target.id, reason: "ticket #42", scope: "FULL", minutes: 30 },
       adminId,
     );
     const claims = await tokens.verifyAccess(opened.access_token);
@@ -403,12 +407,20 @@ describe.skipIf(!url)("platform module (integration)", () => {
       .select()
       .from(auditLog)
       .where(eq(auditLog.reason, `support-${run}`));
-    expect(tenantRow).toMatchObject({ tenantId: target.id, actorRole: SUPPORT_ACTOR_ROLE });
+    expect(tenantRow).toMatchObject({
+      tenantId: target.id,
+      actorRole: SUPPORT_ACTOR_ROLE,
+      supportSessionId: opened.support_session.id,
+    });
     const [platformRow] = await conn.db
       .select()
       .from(platformAuditLog)
       .where(eq(platformAuditLog.reason, `support-${run}`));
-    expect(platformRow).toMatchObject({ tenantId: target.id, platformAdminId: adminId });
+    expect(platformRow).toMatchObject({
+      tenantId: target.id,
+      platformAdminId: adminId,
+      supportSessionId: opened.support_session.id,
+    });
 
     // Revocation kills the token on the next request; a second revoke is a conflict.
     await support.revoke(opened.support_session.id, adminId);
@@ -426,11 +438,68 @@ describe.skipIf(!url)("platform module (integration)", () => {
 
     const trail = await platformAudit.list({ limit: 10, entity_id: opened.support_session.id });
     expect(trail.data.map((r) => r.action).sort()).toEqual(["CREATE", "UPDATE"]);
+    expect(trail.data.every((r) => r.support_session_id === opened.support_session.id)).toBe(true);
+    // Opening and ending the session also land in the customer's own audit log.
+    const tenantTrail = await conn.db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.entityId, opened.support_session.id));
+    expect(tenantTrail.map((r) => r.action).sort()).toEqual(["CREATE", "UPDATE"]);
+    expect(
+      tenantTrail.every(
+        (r) => r.tenantId === target.id && r.supportSessionId === opened.support_session.id,
+      ),
+    ).toBe(true);
+
+    const listed = await support.list({ limit: 50, tenant_id: target.id });
+    expect(listed.data.map((s) => s.id)).toContain(opened.support_session.id);
+  });
+
+  it("401s a support token once its session has expired (the time box is absolute)", async () => {
+    const { tenant: target } = await provisioning.provisionTenant(
+      { name: "Expiring Co", slug: `expiring-${run}` },
+      adminId,
+    );
+    const opened = await support.create(
+      { tenant_id: target.id, reason: "ticket #43", scope: "READ_ONLY" },
+      adminId,
+    );
+    expect(opened.support_session.scope).toBe("READ_ONLY");
+    await expect(
+      openTenantSlot(() => jwtGuard.canActivate(bearer(opened.access_token).ctx)),
+    ).resolves.toBe(true);
+
+    // Age the row past its box (the JWT itself is still within its TTL): the row wins.
+    await conn.db
+      .update(supportSession)
+      .set({ expiresAt: new Date(Date.now() - 1_000) })
+      .where(eq(supportSession.id, opened.support_session.id));
+    await expect(
+      openTenantSlot(() => jwtGuard.canActivate(bearer(opened.access_token).ctx)),
+    ).rejects.toBeInstanceOf(UnauthenticatedError);
+  });
+
+  it("refuses an over-cap or reasonless support session", async () => {
+    const { tenant: target } = await provisioning.provisionTenant(
+      { name: "Capped Co", slug: `capped-${run}` },
+      adminId,
+    );
+    await expect(
+      support.create({ tenant_id: target.id, reason: "x", scope: "FULL", minutes: 241 }, adminId),
+    ).rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      support.create({ tenant_id: target.id, reason: " ", scope: "FULL" }, adminId),
+    ).rejects.toBeInstanceOf(ValidationError);
+    const rows = await conn.db
+      .select()
+      .from(supportSession)
+      .where(eq(supportSession.tenantId, target.id));
+    expect(rows).toEqual([]);
   });
 
   it("refuses support sessions against unknown or suspended tenants", async () => {
     await expect(
-      support.create({ tenant_id: randomUUID(), reason: "x", minutes: 5 }, adminId),
+      support.create({ tenant_id: randomUUID(), reason: "x", scope: "FULL", minutes: 5 }, adminId),
     ).rejects.toBeInstanceOf(NotFoundError);
 
     const { tenant: suspended } = await provisioning.provisionTenant(
@@ -440,7 +509,7 @@ describe.skipIf(!url)("platform module (integration)", () => {
     await provisioning.setStatus(suspended.id, { status: "READ_ONLY", reason: "unpaid" }, adminId);
     await provisioning.setStatus(suspended.id, { status: "SUSPENDED", reason: "churned" }, adminId);
     await expect(
-      support.create({ tenant_id: suspended.id, reason: "x", minutes: 5 }, adminId),
+      support.create({ tenant_id: suspended.id, reason: "x", scope: "FULL", minutes: 5 }, adminId),
     ).rejects.toBeInstanceOf(BusinessRuleError);
   });
 
