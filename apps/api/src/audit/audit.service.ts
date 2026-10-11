@@ -31,8 +31,9 @@ export interface AuditEntry {
  *
  * Support sessions (M7 design D6/D7): when the ambient tenant scope carries a support session
  * (the request authenticated with a `sup` token), the row is written to BOTH the tenant's
- * `audit_log` — tagged `actor_role = platform_support` so the customer sees support touched
- * their data — and the control-plane `platform_audit_log`, in the same transaction.
+ * `audit_log` — tagged `actor_role = platform_support` and `support_session_id` so the customer
+ * sees support touched their data — and the control-plane `platform_audit_log` (same session id),
+ * in the same transaction.
  */
 @Injectable()
 export class AuditService {
@@ -52,6 +53,7 @@ export class AuditService {
       reason: entry.reason ?? null,
       ip: entry.ip ?? null,
       userAgent: entry.userAgent ?? null,
+      supportSessionId: support?.supportSessionId ?? null,
     };
     const ex = currentExecutor(this.db);
     await ex.insert(auditLog).values(tenantId === null ? row : { ...row, tenantId });

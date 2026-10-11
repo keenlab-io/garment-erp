@@ -173,19 +173,25 @@ export type SetTenantFeatureRequest = z.infer<typeof SetTenantFeatureRequest>;
 
 /**
  * The one surface where a tenant id is a legitimate request argument — a platform
- * admin explicitly names the tenant they're opening a support session against.
+ * admin explicitly names the tenant they're opening a support session against (m8
+ * design D8). `reason` is stored verbatim and must be non-blank; `minutes` defaults to
+ * `SUPPORT_SESSION_DEFAULT_MINUTES` and is capped server-side by
+ * `SUPPORT_SESSION_MAX_MINUTES` (an over-cap request is a 400 VALIDATION_ERROR).
  */
 export const SupportSessionCreate = z.object({
   tenant_id: uuid,
-  reason: z.string().min(1),
-  minutes: z.number().int().positive().max(480),
+  reason: z.string().refine((v) => v.trim().length > 0, "A reason is required"),
+  scope: supportSessionScope,
+  minutes: z.number().int().positive().optional(),
 });
 export type SupportSessionCreate = z.infer<typeof SupportSessionCreate>;
 
 export const SupportSessionRow = z.object({
   id: uuid,
   tenant_id: uuid,
+  platform_admin_id: uuid,
   reason: z.string(),
+  scope: supportSessionScope,
   expires_at: z.string().datetime(),
   revoked_at: z.string().datetime().nullable(),
   created_at: z.string().datetime(),
@@ -223,6 +229,8 @@ export const PlatformAuditRow = z.object({
   before: z.unknown().nullable(),
   after: z.unknown().nullable(),
   correlation_id: uuid.nullable(),
+  /** The support session the row was written under (m8 task 6.2), else null. */
+  support_session_id: uuid.nullable(),
 });
 export type PlatformAuditRow = z.infer<typeof PlatformAuditRow>;
 

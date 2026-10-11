@@ -32,6 +32,7 @@ describe("AuditService support-session dual-write", () => {
     expect(inserts[0]?.table).toBe(auditLog);
     expect(inserts[0]?.values.actorRole).toBeNull();
     expect(inserts[0]?.values.tenantId).toBe(TENANT);
+    expect(inserts[0]?.values.supportSessionId).toBeNull();
   });
 
   it("leaves tenant_id to the column default outside any tenant scope", async () => {
@@ -43,7 +44,7 @@ describe("AuditService support-session dual-write", () => {
   it("dual-writes into platform_audit_log under a support session", async () => {
     const { db, inserts } = fakeDb();
     await openTenantSlot(async () => {
-      enterTenant(TENANT, "jwt", { supportSessionId: SUP, platformAdminId: ADMIN });
+      enterTenant(TENANT, "jwt", { supportSessionId: SUP, platformAdminId: ADMIN, scope: "FULL" });
       await new AuditService(db).record({
         action: "VOID",
         entityType: "invoice",
@@ -56,6 +57,7 @@ describe("AuditService support-session dual-write", () => {
       actorRole: SUPPORT_ACTOR_ROLE,
       reason: "customer asked",
       tenantId: TENANT,
+      supportSessionId: SUP,
     });
     expect(inserts[1]?.values).toMatchObject({
       platformAdminId: ADMIN,
@@ -63,6 +65,7 @@ describe("AuditService support-session dual-write", () => {
       action: "VOID",
       entityType: "invoice",
       actorRole: SUPPORT_ACTOR_ROLE,
+      supportSessionId: SUP,
     });
   });
 });

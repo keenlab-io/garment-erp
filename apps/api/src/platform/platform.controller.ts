@@ -170,6 +170,14 @@ export class PlatformController {
     });
   }
 
+  @TsRestHandler(contract.platform.listSupportSessions)
+  listSupportSessions() {
+    return tsRestHandler(contract.platform.listSupportSessions, async ({ query }) => ({
+      status: 200,
+      body: await this.supportSessions.list(query),
+    }));
+  }
+
   @TsRestHandler(contract.platform.listAudit)
   listAudit() {
     return tsRestHandler(contract.platform.listAudit, async ({ query }) => ({

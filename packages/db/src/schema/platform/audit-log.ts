@@ -7,6 +7,8 @@ import type { AuditAction } from "../enums.js";
 // Central append-only audit table (spec §1.2). Append-only is enforced at the DB
 // level by a BEFORE UPDATE OR DELETE trigger (custom migration audit_append_only),
 // not by the table definition — so immutability holds even for the table owner.
+// `support_session_id` (M8 task 6.2) is set on rows written under a platform support session, so
+// the customer can see exactly what support did (no FK: `support_session` is control-plane data).
 export const auditLog = pgTable(
   "audit_log",
   {
@@ -23,6 +25,7 @@ export const auditLog = pgTable(
     reason: text(),
     ip: inet(),
     userAgent: text(),
+    supportSessionId: uuid(),
   },
   (t) => [tenantFk(t)],
 );

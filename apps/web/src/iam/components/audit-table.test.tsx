@@ -16,6 +16,7 @@ const ENTRIES: AuditEntry[] = [
     before: { name: "Old" },
     after: { name: "New" },
     reason: null,
+    support_session_id: null,
   },
   {
     id: "a2",
@@ -28,6 +29,7 @@ const ENTRIES: AuditEntry[] = [
     before: null,
     after: null,
     reason: "Suspicious activity",
+    support_session_id: null,
   },
 ];
 

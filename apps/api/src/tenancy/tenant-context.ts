@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import type { SupportSessionScope } from "@erp/contracts";
 
 /**
  * Where the ambient tenant came from (M7 design D4): the verified `tid` claim, the
@@ -13,6 +14,11 @@ export type TenantSource = "jwt" | "host" | "job" | "system";
 export interface SupportScope {
   supportSessionId: string;
   platformAdminId: string;
+  /**
+   * M8 design D8: `READ_ONLY` makes `TenantStatusGuard` apply the read-only rules to this request
+   * whatever the tenant's actual status; `FULL` acts as the tenant super-admin.
+   */
+  scope: SupportSessionScope;
 }
 
 /** The tenant acting in the current async call tree. */

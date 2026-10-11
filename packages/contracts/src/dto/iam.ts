@@ -227,6 +227,8 @@ export const AuditEntry = z.object({
   before: z.unknown().nullable(),
   after: z.unknown().nullable(),
   reason: z.string().nullable(),
+  /** Set when a platform support session wrote the row (m8 task 6.2) — what support did, visible to the customer. */
+  support_session_id: uuid.nullable(),
 });
 export type AuditEntry = z.infer<typeof AuditEntry>;
 

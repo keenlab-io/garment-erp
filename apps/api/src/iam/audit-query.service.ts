@@ -73,6 +73,7 @@ export class AuditQueryService {
       before: r.before,
       after: r.after,
       reason: r.reason,
+      support_session_id: r.supportSessionId,
     }));
 
     return { data, next_cursor: page.next_cursor };

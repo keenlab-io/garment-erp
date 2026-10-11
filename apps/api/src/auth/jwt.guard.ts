@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import type { Request } from "express";
-import type { Permission } from "@erp/contracts";
+import type { Permission, SupportSessionScope } from "@erp/contracts";
 import { UnauthenticatedError } from "../common/errors/app-exception.js";
 import { UnitOfWork } from "../db/unit-of-work.service.js";
 import { enterTenant, isTenantId } from "../tenancy/tenant-context.js";
@@ -43,7 +43,8 @@ import { TokenService } from "./token.service.js";
  * admin must still be ACTIVE — so revocation or expiry kills the token on the next request. The
  * principal is a tenant super-admin for the session's lifetime (the only way support can act on
  * a customer's data), and the support scope rides the tenant context so every audited mutation
- * is dual-written into `platform_audit_log`.
+ * is dual-written into `platform_audit_log` and a `READ_ONLY`-scope session is held to the tenant
+ * read-only rules by `TenantStatusGuard` (M8 design D8).
  */
 @Injectable()
 export class JwtGuard implements CanActivate {
@@ -79,13 +80,16 @@ export class JwtGuard implements CanActivate {
     if (!isTenantId(claims.tid)) throw new UnauthenticatedError();
     if (claims.sup !== undefined) {
       if (!isTenantId(claims.sup)) throw new UnauthenticatedError();
-      enterTenant(claims.tid, "jwt", {
-        supportSessionId: claims.sup,
-        platformAdminId: claims.sub,
-      });
-      const supportUser = await this.uow.withTransaction(() =>
+      enterTenant(claims.tid, "jwt");
+      const { user: supportUser, scope } = await this.uow.withTransaction(() =>
         this.authenticateSupport(claims.sup as string, claims.sid, claims.tid, claims.sub),
       );
+      // Only a validated session's scope rides the tenant context (dual-ledger audit, READ_ONLY rules).
+      enterTenant(claims.tid, "jwt", {
+        supportSessionId: supportUser.supportSessionId as string,
+        platformAdminId: supportUser.id,
+        scope,
+      });
       (request as Request & { user?: AuthUser }).user = supportUser;
       return true;
     }
@@ -131,7 +135,7 @@ export class JwtGuard implements CanActivate {
     tokenId: string,
     tenantId: string,
     platformAdminId: string,
-  ): Promise<AuthUser> {
+  ): Promise<{ user: AuthUser; scope: SupportSessionScope }> {
     const row = await this.supportSessions.byId(supportSessionId);
     if (
       !row ||
@@ -145,12 +149,15 @@ export class JwtGuard implements CanActivate {
       throw new UnauthenticatedError();
     }
     return {
-      id: row.platformAdminId,
-      sessionId: row.id,
-      tenantId,
-      supportSessionId: row.id,
-      isSuperAdmin: true,
-      permissions: new Set<Permission>(),
+      user: {
+        id: row.platformAdminId,
+        sessionId: row.id,
+        tenantId,
+        supportSessionId: row.id,
+        isSuperAdmin: true,
+        permissions: new Set<Permission>(),
+      },
+      scope: row.scope,
     };
   }
 }

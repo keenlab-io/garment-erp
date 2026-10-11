@@ -222,6 +222,7 @@ describe("JwtGuard (instant revocation)", () => {
         platformAdminId: ADMIN_ID,
         tenantId: TENANT_A,
         tokenId: TOKEN_ID,
+        scope: "FULL",
         expiresAt: new Date(Date.now() + 60_000),
         revokedAt: null,
         adminActive: true,
@@ -246,10 +247,34 @@ describe("JwtGuard (instant revocation)", () => {
       expect(after).toEqual({
         tenantId: TENANT_A,
         source: "jwt",
-        support: { supportSessionId: SUP_ID, platformAdminId: ADMIN_ID },
+        support: { supportSessionId: SUP_ID, platformAdminId: ADMIN_ID, scope: "FULL" },
       });
       // The tenant user/session tables are never consulted for a support token.
       expect(lookupTenants).toEqual([]);
+    });
+
+    it("carries a READ_ONLY session's scope into the tenant context (M8 design D8)", async () => {
+      supportRecord = { ...(supportRecord as AuthSupportSessionRecord), scope: "READ_ONLY" };
+      const { ctx } = contextWith(`Bearer ${await supportToken()}`);
+      const after = await tenantContext.exit(() =>
+        openTenantSlot(async () => {
+          await guard.canActivate(ctx);
+          return currentTenant();
+        }),
+      );
+      expect(after?.support?.scope).toBe("READ_ONLY");
+    });
+
+    it("leaves no support scope in the tenant context when the session is refused", async () => {
+      supportRecord = { ...(supportRecord as AuthSupportSessionRecord), revokedAt: new Date() };
+      const { ctx } = contextWith(`Bearer ${await supportToken()}`);
+      const after = await tenantContext.exit(() =>
+        openTenantSlot(async () => {
+          await guard.canActivate(ctx).catch(() => undefined);
+          return currentTenant();
+        }),
+      );
+      expect(after?.support).toBeUndefined();
     });
 
     it.each([

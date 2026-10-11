@@ -1,4 +1,4 @@
-import type { Permission } from "@erp/contracts";
+import type { Permission, SupportSessionScope } from "@erp/contracts";
 import type { UserStatus } from "@erp/db";
 
 /** Minimal user record the guard needs to authenticate a request. */
@@ -30,6 +30,7 @@ export interface AuthSupportSessionRecord {
   platformAdminId: string;
   tenantId: string;
   tokenId: string | null;
+  scope: SupportSessionScope;
   expiresAt: Date;
   revokedAt: Date | null;
   adminActive: boolean;
