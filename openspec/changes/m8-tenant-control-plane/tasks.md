@@ -51,8 +51,8 @@ the change is picked up for implementation; M7 (`m7-tenancy-core`) must be merge
 
 ## 8. Tests — acceptance criteria from the delta specs
 
-- [ ] 8.1 Seat math: 8-seat Workshop → 9th counted user 422 with counts in details; scan-only creation unlimited; role edit that would promote exempt users 422 names them; DISABLED frees a seat
-- [ ] 8.2 Entitlements: Workshop tenant without `module.hr` → 403 on HR endpoints, nav entry absent; platform override flips it live
-- [ ] 8.3 Lifecycle: READ_ONLY tenant — payroll GET 200, report export 200, PDPA export 200, any business POST 403 `TENANT_READ_ONLY`; SUSPENDED login refused with message
-- [ ] 8.4 Platform isolation: cross-token rejection both directions; support session dual audit + time-box; purge end-state
-- [ ] 8.5 Verify: `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green from the repo root
+- [x] 8.1 Seat math: 8-seat Workshop → 9th counted user 422 with counts in details; scan-only creation unlimited; role edit that would promote exempt users 422 names them; DISABLED frees a seat
+- [x] 8.2 Entitlements: Workshop tenant without `module.hr` → 403 on HR endpoints, nav entry absent; platform override flips it live
+- [x] 8.3 Lifecycle: READ_ONLY tenant — payroll GET 200, report export 200, PDPA export 200, any business POST 403 `TENANT_READ_ONLY`; SUSPENDED login refused with message
+- [x] 8.4 Platform isolation: cross-token rejection both directions; support session dual audit + time-box; purge end-state
+- [x] 8.5 Verify: `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green from the repo root
