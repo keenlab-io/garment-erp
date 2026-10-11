@@ -231,3 +231,33 @@ describe("isModuleVisible with a Reporting & Analytics sub-route entry", () => {
     expect(isModuleVisible(salesDashboard, gate)).toBe(false);
   });
 });
+
+describe("plan entitlements (M8 §7.2)", () => {
+  const without = (...off: string[]): NavGate => ({
+    ...SUPER_ADMIN,
+    entitled: (m) => !off.includes(m),
+  });
+
+  it("hides a module the plan doesn't include, even from a super admin", () => {
+    const visible = keys(without("hr", "sales"));
+    expect(visible).not.toContain("hr");
+    expect(visible).not.toContain("sales");
+    expect(visible).toContain("inventory");
+  });
+
+  it("never gates IAM-only entries or ungated modules", () => {
+    const visible = keys(without("hr", "inventory", "production", "sales", "reporting"));
+    expect(visible).toContain("dashboard");
+    expect(visible).toContain("admin");
+  });
+
+  it("hides sub-routes of an unentitled module", () => {
+    const gate = without("hr");
+    expect(HR_ROUTES.every((r) => !isModuleVisible(r, gate))).toBe(true);
+    expect(INVENTORY_ROUTES.some((r) => isModuleVisible(r, gate))).toBe(true);
+  });
+
+  it("treats a missing entitlement check as fully entitled", () => {
+    expect(keys(SUPER_ADMIN)).toContain("hr");
+  });
+});

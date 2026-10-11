@@ -25,6 +25,7 @@ import {
   useSetUserStatusMutation,
   useUserQuery,
 } from "../../../iam/queries.js";
+import { SeatLimitAlert } from "../../../iam/components/seat-limit-alert.js";
 import { userStatusToChip } from "../../../iam/status-chips.js";
 import { AuditTable } from "../../../iam/components/audit-table.js";
 import { SessionList, type SessionRow } from "../../../iam/components/session-list.js";
@@ -115,6 +116,8 @@ export function UserDetailPage() {
         </div>
         <p className="text-sm text-text-secondary">{user.email}</p>
       </div>
+
+      <SeatLimitAlert error={setUserRoles.error ?? setUserStatus.error} />
 
       <section className="flex flex-col gap-3 rounded-lg border border-border bg-bg-surface p-5 shadow-sm">
         <h2 className="text-body-strong text-text-primary">{t("userDetail.rolesHeading")}</h2>

@@ -2,6 +2,7 @@ import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import { commonEn, commonTh, tableEn, tableTh } from "@erp/ui";
 import { shellEn, iamEn, hrEn, inventoryEn, productionEn, salesEn, reportingEn } from "./resources/en";
+import { platformEn, platformTh } from "./resources/platform";
 import { shellTh, iamTh, hrTh, inventoryTh, productionTh, salesTh, reportingTh } from "./resources/th";
 
 /** Supported locales — Thai is the default and fallback (Thai-first product). */
@@ -24,7 +25,7 @@ void i18next.use(initReactI18next).init({
   lng: readStoredLocale(),
   fallbackLng: "th",
   defaultNS: "shell",
-  ns: ["shell", "common", "table", "iam", "hr", "inventory", "production", "sales", "reporting"],
+  ns: ["shell", "common", "table", "iam", "hr", "inventory", "production", "sales", "reporting", "platform"],
   resources: {
     en: {
       shell: shellEn,
@@ -36,6 +37,7 @@ void i18next.use(initReactI18next).init({
       production: productionEn,
       sales: salesEn,
       reporting: reportingEn,
+      platform: platformEn,
     },
     th: {
       shell: shellTh,
@@ -47,6 +49,7 @@ void i18next.use(initReactI18next).init({
       production: productionTh,
       sales: salesTh,
       reporting: reportingTh,
+      platform: platformTh,
     },
   },
   interpolation: { escapeValue: false },

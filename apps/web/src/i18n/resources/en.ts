@@ -60,7 +60,7 @@ export const shellEn = {
     tenantLogoAlt: "{{name}} logo",
   },
   tenant: {
-    readOnlyBanner: "This workspace is read-only. You can view records, but changes can't be saved right now.",
+    readOnlyBanner: "This workspace is read-only because its subscription needs renewing. You can still view records and run payroll reports, but changes can't be saved until it is renewed.",
     readOnlyToastTitle: "Change not saved",
     readOnlyToastBody: "This workspace is read-only, so changes are turned off.",
   },
@@ -76,6 +76,14 @@ export const iamEn = {
     roleDetail: "Role",
     audit: "Audit log",
     import: "Import",
+  },
+  seats: {
+    limitTitle: "Seat limit reached",
+    limitBody: "{{counted}} of {{cap}} seats are in use, so this change can't be saved.",
+    limitBodyNoCounts: "Your plan has no free seats left, so this change can't be saved.",
+    exemptNote: "Scan-only floor accounts are free and aren't counted ({{exempt}} in use).",
+    wouldOccupy: "Would take a seat:",
+    upgradeHint: "Add seats or upgrade your plan to add more users.",
   },
   users: {
     title: "Users",

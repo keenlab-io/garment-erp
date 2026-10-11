@@ -20,7 +20,7 @@ import type {
   ReportingRouteDescriptor,
 } from "../nav/types";
 import { rootRoute } from "./root.route";
-import { requireModuleAccess, requireReportAccess, requireRouteAccess } from "./guards";
+import { requireModuleAccess, requireReportAccess, requireRouteAccess, requirePlatformSession } from "./guards";
 import { firstVisibleChildPath } from "../nav/filter";
 import { validateDashboardSearch, validateReportSearch } from "../reporting/search";
 import { DashboardPage } from "./routes/dashboard";
@@ -30,6 +30,10 @@ import { ReportDashboardPage } from "./routes/reporting/dashboard-detail";
 import { ReportViewerPage } from "./routes/reporting/report-viewer";
 import { ReportSchedulesPage } from "./routes/reporting/report-schedules";
 import { LoginPage, validateLoginSearch } from "./routes/login";
+import { PlatformLoginPage } from "./routes/platform/login";
+import { PlatformTenantsPage } from "./routes/platform/tenants";
+import { PlatformSupportSessionsPage } from "./routes/platform/support-sessions";
+import { isCloudMode } from "../platform/deployment";
 import { UsersListPage } from "./routes/admin/users-list";
 import { UserDetailPage } from "./routes/admin/user-detail";
 import { RolesListPage } from "./routes/admin/roles-list";
@@ -115,6 +119,7 @@ function moduleRoute(module: ModuleDescriptor) {
         const target = firstVisibleChildPath(module.key, {
           has: context.session.hasPermission,
           isSuperAdmin: context.session.isSuperAdmin,
+          entitled: context.session.isModuleEntitled,
         });
         if (target) throw redirect({ to: target });
       }
@@ -508,6 +513,41 @@ const loginRoute = createRoute({
   validateSearch: validateLoginSearch,
 });
 
+// The cloud-only platform console (M8 §7.1): a separate principal (platform_admin) with its own
+// login and token, outside the nav registry, the tenant session and the tenant chrome (`Shell`
+// renders `/platform/*` chromeless). Self-hosted builds never register these routes at all.
+const platformLoginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/platform/login",
+  component: PlatformLoginPage,
+});
+
+const platformTenantsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/platform/tenants",
+  component: PlatformTenantsPage,
+  beforeLoad: () => requirePlatformSession(),
+});
+
+const platformSupportSessionsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/platform/support-sessions",
+  component: PlatformSupportSessionsPage,
+  beforeLoad: () => requirePlatformSession(),
+});
+
+const platformIndexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/platform",
+  beforeLoad: () => {
+    throw redirect({ to: "/platform/tenants" });
+  },
+});
+
+const platformRoutes = isCloudMode()
+  ? [platformIndexRoute, platformLoginRoute, platformTenantsRoute, platformSupportSessionsRoute]
+  : [];
+
 export const routeTree = rootRoute.addChildren([
   ...MODULES.map(moduleRoute),
   ...ADMIN_ROUTES.map(adminRoute),
@@ -530,4 +570,5 @@ export const routeTree = rootRoute.addChildren([
   ...REPORTING_ROUTES.map(reportingRoute),
   reportViewerRoute,
   loginRoute,
+  ...platformRoutes,
 ]);

@@ -1,4 +1,5 @@
 import type { CommonMessages, TableMessages } from "@erp/ui";
+import type { platformEn } from "./resources/platform";
 import type { shellEn, iamEn, hrEn, inventoryEn, productionEn, salesEn, reportingEn } from "./resources/en";
 
 // i18next TS resource augmentation (M0 §7.2): a key that doesn't exist in `shell`/`common`/`table`/
@@ -18,6 +19,7 @@ declare module "i18next" {
       production: typeof productionEn;
       sales: typeof salesEn;
       reporting: typeof reportingEn;
+      platform: typeof platformEn;
     };
   }
 }

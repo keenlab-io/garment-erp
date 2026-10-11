@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { MeTenant, Permission } from "@erp/contracts";
+import type { EntitledModule, MeTenant, Permission } from "@erp/contracts";
 import { PermissionsProvider } from "@erp/ui";
 import { type AuthUser, createDevUser } from "./dev-user";
 import { api } from "../api/client.js";
@@ -12,6 +12,11 @@ export interface Session {
   /** Permission check with super-admin bypass — the single gate nav/palette/UI read. */
   hasPermission: (permission: Permission) => boolean;
   isSuperAdmin: boolean;
+  /**
+   * Whether the tenant's plan entitles a gated module. True for every module when the session
+   * carries no entitlement data (dev stub). No super-admin bypass — the plan gates everyone.
+   */
+  isModuleEntitled: (module: EntitledModule) => boolean;
   /** The signed-in user's tenant (from `/auth/me`), or null when signed out / on the dev stub. */
   tenant: MeTenant | null;
   /**
@@ -59,6 +64,8 @@ export function SessionProvider({
       isSuperAdmin: user?.isSuperAdmin ?? false,
       tenant: user?.tenant ?? null,
       hasPermission: (permission: Permission) => userHasPermission(user, permission),
+      isModuleEntitled: (module: EntitledModule) =>
+        user?.modules === undefined || user.modules.includes(module),
       signIn: (nextUser) => setUser(nextUser ?? createDevUser()),
       signOut: () => {
         // Fire the revoke while the token is still attached; clearing first would strip the

@@ -2,6 +2,7 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@erp/ui";
 import { useImportMutation } from "../../../iam/queries.js";
+import { SeatLimitAlert } from "../../../iam/components/seat-limit-alert.js";
 import { ImportValidationTable, type ImportRowResult } from "../../../iam/components/import-validation-table.js";
 
 /** The uniform error envelope (`{ code, message, details }`) a non-200 import response throws. */
@@ -73,6 +74,8 @@ export function PermissionImportPage() {
         <h1 className="font-display text-h1 font-semibold text-text-primary">{t("import.title")}</h1>
         <p className="text-sm text-text-secondary">{t("import.description")}</p>
       </div>
+
+      <SeatLimitAlert error={importMutation.error} />
 
       {importedCount !== null && (
         <Badge tone="success" className="w-fit">

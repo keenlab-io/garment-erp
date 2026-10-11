@@ -45,9 +45,9 @@ the change is picked up for implementation; M7 (`m7-tenancy-core`) must be merge
 
 ## 7. Web — `apps/web`
 
-- [ ] 7.1 Platform console route group (cloud mode only): platform login, tenant list + provision, lifecycle actions, feature overrides, support-session start/end with reason field
-- [ ] 7.2 Tenant-side surfaces: `TENANT_READ_ONLY` renewal banner (distinct from 403), seat-limit 422 rendering with counts, nav gating by entitlements from `/auth/me`
-- [ ] 7.3 Verify: `pnpm build && pnpm typecheck && pnpm lint`
+- [x] 7.1 Platform console route group (cloud mode only): platform login, tenant list + provision, lifecycle actions, feature overrides, support-session start/end with reason field
+- [x] 7.2 Tenant-side surfaces: `TENANT_READ_ONLY` renewal banner (distinct from 403), seat-limit 422 rendering with counts, nav gating by entitlements from `/auth/me`
+- [x] 7.3 Verify: `pnpm build && pnpm typecheck && pnpm lint`
 
 ## 8. Tests — acceptance criteria from the delta specs
 

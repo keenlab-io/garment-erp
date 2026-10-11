@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { commonEn, commonTh, tableEn, tableTh } from "@erp/ui";
+import { platformEn, platformTh } from "./resources/platform";
 import { shellEn, iamEn, hrEn, inventoryEn, productionEn, salesEn, reportingEn } from "./resources/en";
 import { shellTh, iamTh, hrTh, inventoryTh, productionTh, salesTh, reportingTh } from "./resources/th";
 
@@ -44,6 +45,7 @@ const NAMESPACES: Record<string, { en: MessageTree; th: MessageTree }> = {
   production: { en: productionEn, th: productionTh },
   sales: { en: salesEn, th: salesTh },
   reporting: { en: reportingEn, th: reportingTh },
+  platform: { en: platformEn, th: platformTh },
 };
 
 describe.each(Object.entries(NAMESPACES))("i18n completeness — %s namespace", (_name, { en, th }) => {

@@ -4,6 +4,7 @@ import type { Session } from "../session/session-context";
 import { isModuleVisible, type GatedEntry } from "../nav/filter";
 import type { ModuleDescriptor } from "../nav/types";
 import { REPORTS_PATH } from "../nav/reporting-paths";
+import { ensurePlatformSession } from "../platform/platform-auth";
 
 /** Redirect to the login route when there is no authenticated session. */
 export function requireSession(session: Session): void {
@@ -22,6 +23,7 @@ export function requireModuleAccess(session: Session, module: ModuleDescriptor):
   const visible = isModuleVisible(module, {
     has: session.hasPermission,
     isSuperAdmin: session.isSuperAdmin,
+    entitled: session.isModuleEntitled,
   });
   if (!visible) {
     throw redirect({ to: "/" });
@@ -39,6 +41,7 @@ export function requireRouteAccess(session: Session, access: GatedEntry): void {
   const visible = isModuleVisible(access, {
     has: session.hasPermission,
     isSuperAdmin: session.isSuperAdmin,
+    entitled: session.isModuleEntitled,
   });
   if (!visible) {
     throw redirect({ to: "/" });
@@ -62,4 +65,15 @@ export function requireReportAccess(session: Session, reportKey: string): void {
   requireRouteAccess(session, {
     permissions: [`report.${group.toLowerCase()}.view` as Permission],
   });
+}
+
+/**
+ * Guard a platform console route (M8 §7.1): needs a live platform_admin session — the in-memory
+ * token, or one silently refreshed from the tab-persisted refresh token — otherwise the visitor is
+ * sent to the platform login. Independent of the tenant session: the two principals never mix.
+ */
+export async function requirePlatformSession(): Promise<void> {
+  if (!(await ensurePlatformSession())) {
+    throw redirect({ to: "/platform/login" });
+  }
 }
