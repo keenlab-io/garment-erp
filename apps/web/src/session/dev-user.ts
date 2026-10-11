@@ -1,4 +1,4 @@
-import { PERMISSIONS, isPermission, type MeTenant, type Permission } from "@erp/contracts";
+import { PERMISSIONS, isPermission, type EntitledModule, type MeTenant, type Permission } from "@erp/contracts";
 
 /**
  * The authenticated user the shell reads. Real auth (login against the M1 IAM contract, token in
@@ -18,6 +18,12 @@ export interface AuthUser {
    * on the dev stub and test fixtures.
    */
   tenant?: MeTenant;
+  /**
+   * The plan-entitled modules and resolved feature map from `GET /auth/me` (M8 §7.2). Absent on the
+   * dev stub and test fixtures — absent means "ungated", so nav shows every permitted module.
+   */
+  modules?: EntitledModule[];
+  features?: Record<string, boolean>;
 }
 
 /**

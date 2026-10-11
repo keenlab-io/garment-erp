@@ -10,6 +10,7 @@ import {
   useRolesQuery,
   useUpdateRoleMutation,
 } from "../../../iam/queries.js";
+import { SeatLimitAlert } from "../../../iam/components/seat-limit-alert.js";
 import { PermissionMatrix } from "../../../iam/components/permission-matrix.js";
 import { CloneRoleDialog } from "./roles-list.js";
 
@@ -102,6 +103,8 @@ export function RoleDetailPage() {
         </div>
         {role.description && <p className="text-sm text-text-secondary">{role.description}</p>}
       </div>
+
+      <SeatLimitAlert error={updateRole.error} />
 
       {blockedCount !== null && (
         <div className="flex flex-col gap-2 rounded-md border border-warning bg-warning-subtle px-4 py-3 text-sm text-warning-on">

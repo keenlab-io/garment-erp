@@ -34,11 +34,11 @@ export function NavGroup({
     "sales",
     "reporting",
   ]);
-  const { hasPermission, isSuperAdmin } = useSession();
+  const { hasPermission, isSuperAdmin, isModuleEntitled } = useSession();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const visibleItems = items.filter((item) =>
-    isModuleVisible(item, { has: hasPermission, isSuperAdmin }),
+    isModuleVisible(item, { has: hasPermission, isSuperAdmin, entitled: isModuleEntitled }),
   );
 
   // Active when the current path is the module home or inside one of its (visible) children.

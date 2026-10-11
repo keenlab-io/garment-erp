@@ -1,4 +1,4 @@
-import type { Permission } from "@erp/contracts";
+import { moduleForPermission, type EntitledModule, type Permission } from "@erp/contracts";
 import type { ModuleDescriptor } from "./types";
 import { MODULE_CHILDREN } from "./registry";
 
@@ -6,6 +6,12 @@ import { MODULE_CHILDREN } from "./registry";
 export interface NavGate {
   has: (permission: Permission) => boolean;
   isSuperAdmin: boolean;
+  /**
+   * Whether the tenant's plan entitles a gated module (M8 §7.2, from `/auth/me`). Absent = every
+   * module is entitled (dev stub, tests). Unlike permissions there is no super-admin bypass: a
+   * module outside the plan is unavailable to everyone, exactly as the api enforces it.
+   */
+  entitled?: (module: EntitledModule) => boolean;
 }
 
 /** The gating fields `isModuleVisible` actually reads — satisfied by a `ModuleDescriptor` or any
@@ -16,6 +22,16 @@ export type GatedEntry = Pick<ModuleDescriptor, "permissions" | "superAdminOnly"
 /** Whether a single module (or other gated route entry) is visible to the current user. */
 export function isModuleVisible(module: GatedEntry, gate: NavGate): boolean {
   if (module.superAdminOnly) return gate.isSuperAdmin;
+  // A route whose every permission belongs to a module outside the plan is absent, even for a
+  // super admin. Permissions outside any gated module (IAM) never trip this.
+  if (gate.entitled && module.permissions && module.permissions.length > 0) {
+    const { entitled } = gate;
+    const reachable = module.permissions.some((p) => {
+      const gated = moduleForPermission(p);
+      return gated === null || entitled(gated);
+    });
+    if (!reachable) return false;
+  }
   if (gate.isSuperAdmin) return true;
   if (!module.permissions || module.permissions.length === 0) return true;
   return module.permissions.some(gate.has);

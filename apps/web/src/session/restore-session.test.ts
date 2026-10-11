@@ -77,6 +77,8 @@ describe("restoreSession", () => {
       isSuperAdmin: false,
       permissions: ["iam.user.manage"],
       tenant: { id: "t1", name: "Acme Garments", slug: "acme" },
+      modules: ["hr"],
+      features: { "module.hr": true },
     });
     // The fresh access token is now in memory and the rotated refresh token is persisted.
     expect(getAccessToken()).toBe("fresh-access");

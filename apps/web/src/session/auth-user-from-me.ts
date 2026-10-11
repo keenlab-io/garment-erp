@@ -15,5 +15,8 @@ export function authUserFromMe(me: MeResponse): AuthUser {
     permissions: me.permissions,
     // The tenant rides the token's `tid` claim server-side; the web only displays it (M7 §14.2).
     tenant: me.tenant,
+    // The tenant's resolved plan entitlements — nav hides modules the plan doesn't include (M8 §7.2).
+    modules: me.modules,
+    features: me.features,
   };
 }

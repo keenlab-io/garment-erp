@@ -27,6 +27,7 @@ import {
 import { useDensity } from "../../../density/density-context.js";
 import { useDateFormat } from "../../../i18n/use-formatters.js";
 import { useCreateUserMutation, useRolesQuery, useUsersQuery } from "../../../iam/queries.js";
+import { SeatLimitAlert } from "../../../iam/components/seat-limit-alert.js";
 import { userStatusToChip } from "../../../iam/status-chips.js";
 
 interface UserRow {
@@ -85,6 +86,7 @@ function CreateUserDrawer({ open, onOpenChange }: { open: boolean; onOpenChange:
             </DrawerTitle>
           </DrawerHeader>
           <DrawerBody className="flex flex-col gap-4">
+            <SeatLimitAlert error={createUser.error} />
             <FormField label={t("users.fieldUsername")} required>
               <Input value={username} onChange={(e) => setUsername(e.target.value)} required />
             </FormField>

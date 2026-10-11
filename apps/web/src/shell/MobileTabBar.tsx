@@ -30,8 +30,8 @@ function TabItem({ module }: { module: ModuleDescriptor }) {
  */
 export function MobileTabBar({ onOpenNav }: { onOpenNav: () => void }) {
   const { t } = useTranslation();
-  const { hasPermission, isSuperAdmin } = useSession();
-  const primary = filterNav(MODULES, { has: hasPermission, isSuperAdmin }).filter(
+  const { hasPermission, isSuperAdmin, isModuleEntitled } = useSession();
+  const primary = filterNav(MODULES, { has: hasPermission, isSuperAdmin, entitled: isModuleEntitled }).filter(
     (m) => m.section === "primary",
   );
 

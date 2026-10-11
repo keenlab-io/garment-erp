@@ -19,8 +19,8 @@ export function NavDrawer({
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const { hasPermission, isSuperAdmin } = useSession();
-  const visible = filterNav(MODULES, { has: hasPermission, isSuperAdmin });
+  const { hasPermission, isSuperAdmin, isModuleEntitled } = useSession();
+  const visible = filterNav(MODULES, { has: hasPermission, isSuperAdmin, entitled: isModuleEntitled });
   const primary = visible.filter((m) => m.section === "primary");
   const admin = visible.filter((m) => m.section === "admin");
   const close = () => onOpenChange(false);

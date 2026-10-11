@@ -36,7 +36,7 @@ describe("TenantReadOnlyBanner", () => {
     act(() => notifyTenantReadOnly());
 
     expect(
-      screen.getByText("This workspace is read-only. You can view records, but changes can't be saved right now."),
+      screen.getByText("This workspace is read-only because its subscription needs renewing. You can still view records and run payroll reports, but changes can't be saved until it is renewed."),
     ).toBeInTheDocument();
     expect(await screen.findByText("Change not saved")).toBeInTheDocument();
   });

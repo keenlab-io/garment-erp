@@ -10,6 +10,7 @@ const defaultContext: RouterContext = {
     isSuperAdmin: false,
     tenant: null,
     hasPermission: () => false,
+    isModuleEntitled: () => true,
     signIn: () => {},
     signOut: () => {},
   },

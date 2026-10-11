@@ -38,23 +38,23 @@ export function CommandPalette() {
   const { t } = useTranslation(["shell", "iam", "hr", "inventory", "production", "sales", "reporting"]);
   const { open, setOpen } = useCommandPalette();
   const navigate = useNavigate();
-  const { hasPermission, isSuperAdmin } = useSession();
-  const modules = filterNav(MODULES, { has: hasPermission, isSuperAdmin });
+  const { hasPermission, isSuperAdmin, isModuleEntitled } = useSession();
+  const modules = filterNav(MODULES, { has: hasPermission, isSuperAdmin, entitled: isModuleEntitled });
   const adminRoutes = isSuperAdmin ? ADMIN_ROUTES : [];
   const hrRoutes = HR_ROUTES.filter((entry) =>
-    isModuleVisible(entry, { has: hasPermission, isSuperAdmin }),
+    isModuleVisible(entry, { has: hasPermission, isSuperAdmin, entitled: isModuleEntitled }),
   );
   const inventoryRoutes = INVENTORY_ROUTES.filter((entry) =>
-    isModuleVisible(entry, { has: hasPermission, isSuperAdmin }),
+    isModuleVisible(entry, { has: hasPermission, isSuperAdmin, entitled: isModuleEntitled }),
   );
   const productionRoutes = PRODUCTION_ROUTES.filter((entry) =>
-    isModuleVisible(entry, { has: hasPermission, isSuperAdmin }),
+    isModuleVisible(entry, { has: hasPermission, isSuperAdmin, entitled: isModuleEntitled }),
   );
   const salesRoutes = SALES_ROUTES.filter((entry) =>
-    isModuleVisible(entry, { has: hasPermission, isSuperAdmin }),
+    isModuleVisible(entry, { has: hasPermission, isSuperAdmin, entitled: isModuleEntitled }),
   );
   const reportingRoutes = [...REPORTING_DASHBOARD_ROUTES, ...REPORTING_ROUTES].filter((entry) =>
-    isModuleVisible(entry, { has: hasPermission, isSuperAdmin }),
+    isModuleVisible(entry, { has: hasPermission, isSuperAdmin, entitled: isModuleEntitled }),
   );
 
   const go = (path: string) => {

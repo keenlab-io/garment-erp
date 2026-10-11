@@ -11,6 +11,7 @@ function sessionFor(user: AuthUser): Session {
     isSuperAdmin: user.isSuperAdmin,
     tenant: null,
     hasPermission: (p) => user.isSuperAdmin || user.permissions.includes(p),
+    isModuleEntitled: () => true,
     signIn: () => {},
     signOut: () => {},
   };
