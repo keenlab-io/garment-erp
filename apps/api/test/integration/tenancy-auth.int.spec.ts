@@ -49,6 +49,7 @@ describe.skipIf(!url)("tenant-scoped auth (integration)", () => {
         JWT_REFRESH_SECRET: "test-refresh-secret",
         JWT_ACCESS_TTL: "15m",
         JWT_REFRESH_TTL: "7d",
+        BILLING_GRACE_DAYS: 15,
       })[key],
   } as unknown as ConfigService;
 

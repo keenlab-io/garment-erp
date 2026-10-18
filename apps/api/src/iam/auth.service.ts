@@ -285,7 +285,7 @@ export class AuthService {
       .from(subscription)
       .where(and(eq(subscription.tenantId, authUser.tenantId), isNull(subscription.deletedAt)))
       .limit(1);
-    const graceDays = this.config.get<number>("BILLING_GRACE_DAYS") ?? 15;
+    const graceDays = this.config.getOrThrow<number>("BILLING_GRACE_DAYS");
 
     // The same resolution the server enforces (M8 design D2) — the web never re-derives plan defaults.
     const features = await this.entitlements.resolve(authUser.tenantId);
