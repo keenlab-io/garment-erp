@@ -3,6 +3,8 @@ import { TsRestHandler, tsRestHandler } from "@ts-rest/nest";
 import { contract } from "@erp/contracts";
 import { Public } from "../auth/decorators/public.decorator.js";
 import { UnauthenticatedError } from "../common/errors/app-exception.js";
+import { SubscriptionInvoiceService } from "./billing/subscription-invoice.service.js";
+import { SubscriptionService } from "./billing/subscription.service.js";
 import { PlatformAuditService } from "./platform-audit.service.js";
 import { PlatformAuthService, type PlatformPrincipal } from "./platform-auth.service.js";
 import { PlatformJwtGuard, type PlatformRequest } from "./platform-jwt.guard.js";
@@ -41,7 +43,8 @@ export class PlatformAuthController {
 /**
  * The control-plane surface for `contract.platform` (M7 design D6): the platform admin's own
  * session (`me`/`logout`), tenant provisioning and lifecycle, PDPA export + purge (M8 design D9),
- * `tenant_feature` overrides (M8 design D2), support sessions, and the platform audit log.
+ * `tenant_feature` overrides (M8 design D2), support sessions, vendor-side subscription billing
+ * (M9 §3 — subscriptions, invoices, mark-paid, invoice PDF), and the platform audit log.
  * `@Public()` opts out of the tenant `JwtGuard` (a platform token carries no `tid`);
  * `PlatformJwtGuard` authenticates the platform
  * admin instead, and refuses every tenant token. Registered only in `DEPLOYMENT_MODE=cloud`.
@@ -57,6 +60,8 @@ export class PlatformController {
     private readonly audit: PlatformAuditService,
     private readonly tenantData: TenantDataService,
     private readonly features: TenantFeatureService,
+    private readonly subscriptions: SubscriptionService,
+    private readonly subscriptionInvoices: SubscriptionInvoiceService,
   ) {}
 
   @TsRestHandler(contract.platform.me)
@@ -176,6 +181,85 @@ export class PlatformController {
       status: 200,
       body: await this.supportSessions.list(query),
     }));
+  }
+
+  @TsRestHandler(contract.platform.getTenantSubscription)
+  getTenantSubscription() {
+    return tsRestHandler(contract.platform.getTenantSubscription, async ({ params }) => ({
+      status: 200,
+      body: { subscription: await this.subscriptions.getForTenant(params.id) },
+    }));
+  }
+
+  @TsRestHandler(contract.platform.createSubscription)
+  createSubscription(@Req() req: PlatformRequest) {
+    return tsRestHandler(contract.platform.createSubscription, async ({ body }) => ({
+      status: 201,
+      body: { subscription: await this.subscriptions.create(body, admin(req).id) },
+    }));
+  }
+
+  @TsRestHandler(contract.platform.cancelSubscription)
+  cancelSubscription(@Req() req: PlatformRequest) {
+    return tsRestHandler(contract.platform.cancelSubscription, async ({ params, body }) => ({
+      status: 200,
+      body: {
+        subscription: await this.subscriptions.cancel(params.id, body.reason, admin(req).id),
+      },
+    }));
+  }
+
+  @TsRestHandler(contract.platform.issueSubscriptionInvoice)
+  issueSubscriptionInvoice(@Req() req: PlatformRequest) {
+    return tsRestHandler(contract.platform.issueSubscriptionInvoice, async ({ body }) => ({
+      status: 201,
+      body: { invoice: await this.subscriptionInvoices.issue(body, admin(req).id) },
+    }));
+  }
+
+  @TsRestHandler(contract.platform.listSubscriptionInvoices)
+  listSubscriptionInvoices() {
+    return tsRestHandler(contract.platform.listSubscriptionInvoices, async ({ query }) => ({
+      status: 200,
+      body: await this.subscriptionInvoices.list({
+        limit: query.limit,
+        cursor: query.cursor,
+        tenant_id: query.tenant_id,
+        subscription_id: query.subscription_id,
+        status: query["filter[status]"],
+      }),
+    }));
+  }
+
+  @TsRestHandler(contract.platform.voidSubscriptionInvoice)
+  voidSubscriptionInvoice(@Req() req: PlatformRequest) {
+    return tsRestHandler(contract.platform.voidSubscriptionInvoice, async ({ params, body }) => ({
+      status: 200,
+      body: {
+        invoice: await this.subscriptionInvoices.void(params.id, body.reason, admin(req).id),
+      },
+    }));
+  }
+
+  @TsRestHandler(contract.platform.getSubscriptionInvoicePdf)
+  getSubscriptionInvoicePdf() {
+    return tsRestHandler(contract.platform.getSubscriptionInvoicePdf, async ({ params }) => ({
+      status: 200,
+      body: await this.subscriptionInvoices.pdfUrl(params.id),
+    }));
+  }
+
+  @TsRestHandler(contract.platform.markSubscriptionInvoicePaid)
+  markSubscriptionInvoicePaid(@Req() req: PlatformRequest) {
+    return tsRestHandler(
+      contract.platform.markSubscriptionInvoicePaid,
+      async ({ params, body }) => ({
+        status: 200,
+        body: {
+          invoice: await this.subscriptionInvoices.markPaid(params.id, body, admin(req).id),
+        },
+      }),
+    );
   }
 
   @TsRestHandler(contract.platform.listAudit)

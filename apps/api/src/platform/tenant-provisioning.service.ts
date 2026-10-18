@@ -37,6 +37,22 @@ export interface ProvisionTenantInput extends TenantCreate {
   planCode?: PlanCode;
 }
 
+/** What a provisioning hook learns about the tenant that was just created. */
+export interface ProvisionedTenantInfo {
+  tenantId: string;
+  kind: TenantKind;
+  planId: string | null;
+}
+
+/**
+ * Runs inside the provisioning transaction, after the tenant row exists (M9 task 3.1 — the
+ * subscription create-at-provisioning hook). A throw rolls the whole tenant back.
+ */
+export type TenantProvisionedHook = (
+  tenant: ProvisionedTenantInfo,
+  platformAdminId: string | null,
+) => Promise<void>;
+
 /** Plan a provisioned tenant falls back to when the caller names none. */
 const DEFAULT_PLAN: PlanCode = "WORKSHOP";
 
@@ -94,12 +110,22 @@ const toItem = (r: TenantRow): TenantListItem => ({
  */
 @Injectable()
 export class TenantProvisioningService {
+  private readonly provisionedHooks: TenantProvisionedHook[] = [];
+
   constructor(
     @Inject(DB) private readonly db: Db,
     private readonly uow: UnitOfWork,
     private readonly audit: PlatformAuditService,
     private readonly passwords: PasswordService,
   ) {}
+
+  /**
+   * Register a callback run in the provisioning transaction of every new tenant. Lets a service
+   * that itself depends on this one (M9 `SubscriptionService`) join provisioning without a DI cycle.
+   */
+  onTenantProvisioned(hook: TenantProvisionedHook): void {
+    this.provisionedHooks.push(hook);
+  }
 
   async provisionTenant(
     input: ProvisionTenantInput,
@@ -157,6 +183,9 @@ export class TenantProvisioningService {
         }
 
         const created = toItem(row as TenantRow);
+        for (const hook of this.provisionedHooks) {
+          await hook({ tenantId: id, kind: created.kind, planId }, platformAdminId);
+        }
         await this.audit.append({
           action: "CREATE",
           entityType: "tenant",
@@ -239,12 +268,13 @@ export class TenantProvisioningService {
   /**
    * Move a tenant along `ACTIVE ↔ READ_ONLY ↔ SUSPENDED` (reason required; 409 on any other edge —
    * PURGING is reachable only through the purge endpoint); audited with before/after. M9's
-   * subscription expiry drives the same `ACTIVE → READ_ONLY` edge through here.
+   * subscription expiry drives the same `ACTIVE → READ_ONLY` edge through here — with a `null`
+   * admin when the time-driven dunning sweep is the actor.
    */
   async setStatus(
     id: string,
     update: TenantStatusUpdate,
-    platformAdminId: string,
+    platformAdminId: string | null,
   ): Promise<TenantListItem> {
     const reason = update.reason.trim();
     if (!reason) throw new BusinessRuleError("A reason is required for this action");

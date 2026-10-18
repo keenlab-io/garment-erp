@@ -77,6 +77,15 @@ export const envSchema = z.object({
   PROMPTPAY_ID: z.string().min(1).optional(),
   SALES_OVERDUE_SWEEP_MS: z.coerce.number().int().positive().default(86_400_000),
 
+  // Subscription billing (M9) — the VENDOR's own payee, printed on vendor-side subscription
+  // invoices (design D1/D2). Deliberately separate from the tenant-facing `PROMPTPAY_ID` above,
+  // which a subscription invoice must never use. All optional: with `PLATFORM_PROMPTPAY_ID` unset
+  // the invoice PDF omits the QR section; unset bank fields are omitted from the transfer block.
+  PLATFORM_PROMPTPAY_ID: z.string().min(1).optional(),
+  PLATFORM_BANK_NAME: z.string().min(1).optional(),
+  PLATFORM_BANK_ACCOUNT_NAME: z.string().min(1).optional(),
+  PLATFORM_BANK_ACCOUNT_NUMBER: z.string().min(1).optional(),
+
   // SMTP (M6) — outbound mail transport for scheduled report digests (design D9). The
   // `MailService` wraps `nodemailer.createTransport(SMTP_*)`; credentials are optional so a
   // dev instance can boot without a mail server (a send then fails and, on exhaustion, raises
