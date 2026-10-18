@@ -10,7 +10,7 @@ import {
   uuid,
   withErrors,
 } from "./_shared.js";
-import { TenantExportStatusResult } from "./platform.js";
+import { TenantExportStatusResult, subscriptionStatus } from "./platform.js";
 
 /**
  * M1 — Access & Identity (IAM) contract (spec §1.7). Router `iamContract` covers
@@ -71,6 +71,18 @@ export const MeTenant = z.object({
   id: uuid,
   name: z.string(),
   slug: z.string(),
+  /**
+   * The tenant's subscription term, so the shell can show the M9 grace countdown / renewal notice
+   * without a platform credential. Absent when the tenant has no (non-cancelled) subscription.
+   */
+  subscription: z
+    .object({
+      status: subscriptionStatus,
+      term_end: z.string().datetime(),
+      /** `term_end + BILLING_GRACE_DAYS` — when an `IN_GRACE` tenant becomes `READ_ONLY`. */
+      grace_ends_at: z.string().datetime(),
+    })
+    .optional(),
 });
 export type MeTenant = z.infer<typeof MeTenant>;
 

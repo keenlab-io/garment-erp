@@ -37,9 +37,9 @@ time; M7 (`m7-tenancy-core`) and M8 (`m8-tenant-control-plane`) must be merged f
 
 ## 6. Web — `apps/web`
 
-- [ ] 6.1 Platform console billing screens: subscription view, issue invoice, mark-paid form, void, quote generator with the eligibility checklist defaulting to UNDECLARED (benefit hidden until ticked)
-- [ ] 6.2 Tenant-side banner content: `IN_GRACE` countdown and `TENANT_READ_ONLY` renewal message (banner mechanism is M8's)
-- [ ] 6.3 Verify: `pnpm build && pnpm typecheck && pnpm lint`
+- [x] 6.1 Platform console billing screens: subscription view, issue invoice, mark-paid form, void, quote generator with the eligibility checklist defaulting to UNDECLARED (benefit hidden until ticked)
+- [x] 6.2 Tenant-side banner content: `IN_GRACE` countdown and `TENANT_READ_ONLY` renewal message (banner mechanism is M8's)
+- [x] 6.3 Verify: `pnpm build && pnpm typecheck && pnpm lint`
 
 ## 7. Tests — acceptance criteria from the delta specs
 

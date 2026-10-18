@@ -10,6 +10,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@erp/ui";
+import { BillingSection } from "./billing-section.js";
 import { FeaturesSection } from "./features-section.js";
 import { LifecycleSection } from "./lifecycle-section.js";
 import { SupportSection } from "./support-section.js";
@@ -42,6 +43,7 @@ export function ManageTenantDrawer({
             <DrawerBody className="flex flex-col gap-4">
               <LifecycleSection tenant={current} onChanged={setOverride} />
               <FeaturesSection tenant={current} />
+              <BillingSection tenant={current} />
               <SupportSection tenant={current} />
             </DrawerBody>
             <DrawerFooter>
