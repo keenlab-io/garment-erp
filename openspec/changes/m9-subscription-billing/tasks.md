@@ -31,9 +31,9 @@ time; M7 (`m7-tenancy-core`) and M8 (`m8-tenant-control-plane`) must be merged f
 
 ## 5. Tax-benefit quoting — `apps/api/src/platform/billing`
 
-- [ ] 5.1 `QuoteService.compute`: benefit only when both eligibility declarations true AND quote date ≤ 2027-12-31 AND vendor depa flag on; qualifying spend `min(total, 300000)`; saving shown as the 15–20% band; over-cap remainder marked non-qualifying; sunset date + rate band read from versioned config, not literals
-- [ ] 5.2 Quote PDF: list price, benefit section (eligible only), mandatory caveat block ("figures are illustrative… customer's accountant confirms") on every output; benefit section entirely absent when ineligible or post-sunset
-- [ ] 5.3 Verify: `pnpm build && pnpm typecheck && pnpm lint`
+- [x] 5.1 `QuoteService.compute`: benefit only when both eligibility declarations true AND quote date ≤ 2027-12-31 AND vendor depa flag on; qualifying spend `min(total, 300000)`; saving shown as the 15–20% band; over-cap remainder marked non-qualifying; sunset date + rate band read from versioned config, not literals
+- [x] 5.2 Quote PDF: list price, benefit section (eligible only), mandatory caveat block ("figures are illustrative… customer's accountant confirms") on every output; benefit section entirely absent when ineligible or post-sunset
+- [x] 5.3 Verify: `pnpm build && pnpm typecheck && pnpm lint`
 
 ## 6. Web — `apps/web`
 

@@ -85,6 +85,12 @@ export const envSchema = z.object({
   PLATFORM_BANK_NAME: z.string().min(1).optional(),
   PLATFORM_BANK_ACCOUNT_NAME: z.string().min(1).optional(),
   PLATFORM_BANK_ACCOUNT_NUMBER: z.string().min(1).optional(),
+  // Tax-benefit quoting (M9 design D6): whether the vendor is registered on depa's Thailand
+  // Digital Catalog. Off by default — with it off no quote ever shows the double-deduction benefit.
+  DEPA_CATALOG_REGISTERED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
   // Dunning (M9 design D3/D5): `term_end + BILLING_GRACE_DAYS` is when an unpaid subscription
   // degrades the tenant to READ_ONLY; the renewal invoice is auto-issued
   // `BILLING_RENEWAL_LEAD_DAYS` before `term_end`; `BILLING_SWEEP_MS` is the sweep cadence

@@ -3,6 +3,7 @@ import { JwtModule } from "@nestjs/jwt";
 import { workersEnabled } from "../config/app-role.js";
 import { DunningNotifier, DunningService } from "./billing/dunning.service.js";
 import { DunningWorker } from "./billing/dunning.worker.js";
+import { QuoteService } from "./billing/quote.service.js";
 import { SubscriptionInvoiceService } from "./billing/subscription-invoice.service.js";
 import { SubscriptionService } from "./billing/subscription.service.js";
 import { PlatformAuditService } from "./platform-audit.service.js";
@@ -74,6 +75,7 @@ export class PlatformModule {
         TenantFeatureService,
         SubscriptionService,
         SubscriptionInvoiceService,
+        QuoteService,
         DunningService,
         DunningNotifier,
         ...(workersEnabled() ? [TenantJobsWorker, DunningWorker] : []),

@@ -3,6 +3,7 @@ import { TsRestHandler, tsRestHandler } from "@ts-rest/nest";
 import { contract } from "@erp/contracts";
 import { Public } from "../auth/decorators/public.decorator.js";
 import { UnauthenticatedError } from "../common/errors/app-exception.js";
+import { QuoteService } from "./billing/quote.service.js";
 import { SubscriptionInvoiceService } from "./billing/subscription-invoice.service.js";
 import { SubscriptionService } from "./billing/subscription.service.js";
 import { PlatformAuditService } from "./platform-audit.service.js";
@@ -44,7 +45,7 @@ export class PlatformAuthController {
  * The control-plane surface for `contract.platform` (M7 design D6): the platform admin's own
  * session (`me`/`logout`), tenant provisioning and lifecycle, PDPA export + purge (M8 design D9),
  * `tenant_feature` overrides (M8 design D2), support sessions, vendor-side subscription billing
- * (M9 §3 — subscriptions, invoices, mark-paid, invoice PDF), and the platform audit log.
+ * (M9 §3 — subscriptions, invoices, mark-paid, invoice PDF; §5 — stateless tax-benefit quotes), and the platform audit log.
  * `@Public()` opts out of the tenant `JwtGuard` (a platform token carries no `tid`);
  * `PlatformJwtGuard` authenticates the platform
  * admin instead, and refuses every tenant token. Registered only in `DEPLOYMENT_MODE=cloud`.
@@ -62,6 +63,7 @@ export class PlatformController {
     private readonly features: TenantFeatureService,
     private readonly subscriptions: SubscriptionService,
     private readonly subscriptionInvoices: SubscriptionInvoiceService,
+    private readonly quotes: QuoteService,
   ) {}
 
   @TsRestHandler(contract.platform.me)
@@ -260,6 +262,22 @@ export class PlatformController {
         },
       }),
     );
+  }
+
+  @TsRestHandler(contract.platform.computeQuote)
+  computeQuote() {
+    return tsRestHandler(contract.platform.computeQuote, async ({ body }) => ({
+      status: 200,
+      body: this.quotes.compute(body),
+    }));
+  }
+
+  @TsRestHandler(contract.platform.getQuotePdf)
+  getQuotePdf() {
+    return tsRestHandler(contract.platform.getQuotePdf, async ({ body }) => ({
+      status: 200,
+      body: await this.quotes.pdfUrl(body),
+    }));
   }
 
   @TsRestHandler(contract.platform.listAudit)
