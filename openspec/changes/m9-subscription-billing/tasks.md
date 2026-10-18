@@ -17,10 +17,10 @@ time; M7 (`m7-tenancy-core`) and M8 (`m8-tenant-control-plane`) must be merged f
 
 ## 3. Billing services — `apps/api/src/platform/billing`
 
-- [ ] 3.1 `SubscriptionService`: create-at-provisioning hook, cancel, term-extension math (extends from previous `term_end` — D1), status transitions calling M8's lifecycle service for `READ_ONLY` entry/exit
-- [ ] 3.2 `SubscriptionInvoiceService`: issue (first-invoice `SETUP_FEE`, `UPFRONT_DISCOUNT` default `annual_fee × 2/12`, decimal helpers from `@erp/utils`), `SINV-{YYYY}-{seq}` numbering, void, mark-paid in one `UnitOfWork.withTransaction` with amount-mismatch 422 unless overridden; every mutation → `platform_audit_log`
-- [ ] 3.3 Invoice PDF (M0 `pdf/`): lines, totals ex-VAT, bank-transfer details, PromptPay QR from `PLATFORM_PROMPTPAY_ID` (never a tenant `PROMPTPAY_ID`)
-- [ ] 3.4 Verify: `pnpm build && pnpm typecheck && pnpm lint`
+- [x] 3.1 `SubscriptionService`: create-at-provisioning hook, cancel, term-extension math (extends from previous `term_end` — D1), status transitions calling M8's lifecycle service for `READ_ONLY` entry/exit
+- [x] 3.2 `SubscriptionInvoiceService`: issue (first-invoice `SETUP_FEE`, `UPFRONT_DISCOUNT` default `annual_fee × 2/12`, decimal helpers from `@erp/utils`), `SINV-{YYYY}-{seq}` numbering, void, mark-paid in one `UnitOfWork.withTransaction` with amount-mismatch 422 unless overridden; every mutation → `platform_audit_log`
+- [x] 3.3 Invoice PDF (M0 `pdf/`): lines, totals ex-VAT, bank-transfer details, PromptPay QR from `PLATFORM_PROMPTPAY_ID` (never a tenant `PROMPTPAY_ID`)
+- [x] 3.4 Verify: `pnpm build && pnpm typecheck && pnpm lint`
 
 ## 4. Dunning & degradation — `apps/api/src/platform/billing`
 

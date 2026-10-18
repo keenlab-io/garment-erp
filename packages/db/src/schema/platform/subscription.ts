@@ -26,6 +26,7 @@ export const subscription = pgTable(
     termEnd: timestamp({ withTimezone: true }).notNull(),
     status: text().$type<SubscriptionStatus>().notNull().default("ACTIVE"),
     dunningEvents: jsonb().notNull().default([]),
+    cancelledAt: timestamp({ withTimezone: true }),
     ...versionColumn,
   },
   (t) => [

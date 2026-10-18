@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { SubscriptionInvoiceService } from "./billing/subscription-invoice.service.js";
+import { SubscriptionService } from "./billing/subscription.service.js";
 import { PlatformAuthController, PlatformController } from "./platform.controller.js";
 import { deploymentMode, PlatformModule } from "./platform.module.js";
 import { SelfHostedBootstrap } from "./self-hosted-bootstrap.service.js";
@@ -26,6 +28,8 @@ describe("PlatformModule.forRoot", () => {
     ]);
     expect(mod.providers).toContain(SupportSessionService);
     expect(mod.providers).toContain(TenantDataService);
+    expect(mod.providers).toContain(SubscriptionService);
+    expect(mod.providers).toContain(SubscriptionInvoiceService);
     expect(mod.providers).not.toContain(SelfHostedBootstrap);
   });
 
@@ -36,6 +40,9 @@ describe("PlatformModule.forRoot", () => {
       expect.arrayContaining([TenantProvisioningService, SelfHostedBootstrap, TenantDataService]),
     );
     expect(mod.providers).not.toContain(SupportSessionService);
+    // Self-hosted is invoiced off-product (M9): no subscription billing is mounted.
+    expect(mod.providers).not.toContain(SubscriptionService);
+    expect(mod.providers).not.toContain(SubscriptionInvoiceService);
   });
 
   it("reads DEPLOYMENT_MODE, defaulting to cloud", () => {

@@ -1,6 +1,8 @@
 import { type DynamicModule, Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { workersEnabled } from "../config/app-role.js";
+import { SubscriptionInvoiceService } from "./billing/subscription-invoice.service.js";
+import { SubscriptionService } from "./billing/subscription.service.js";
 import { PlatformAuditService } from "./platform-audit.service.js";
 import { PlatformAuthService } from "./platform-auth.service.js";
 import { PlatformAuthController, PlatformController } from "./platform.controller.js";
@@ -28,10 +30,12 @@ export function deploymentMode(): DeploymentMode {
  * The platform control plane (M7 §6, design D6/D15). `forRoot(mode)`:
  *
  * - `cloud` — the full surface: platform-admin auth + guard, tenant provisioning/lifecycle,
- *   support sessions, `tenant_feature` overrides, and the platform audit log, served by
+ *   support sessions, `tenant_feature` overrides, M9 subscription billing, and the platform audit
+ *   log, served by
  *   `PlatformAuthController` + `PlatformController` (`contract.platform`).
  * - `self-hosted` — **no platform controllers** (no platform login surface exists to attack;
- *   `/platform/*` is a 404); only provisioning, which `SelfHostedBootstrap` uses to ensure the
+ *   `/platform/*` is a 404; no subscription billing — self-hosted is invoiced off-product); only
+ *   provisioning, which `SelfHostedBootstrap` uses to ensure the
  *   single `DEFAULT_TENANT_SLUG` tenant exists at boot.
  *
  * Both modes mount the tenant-side PDPA export (`TenantExportController`, M8 design D9) and — in
@@ -65,6 +69,8 @@ export class PlatformModule {
         SupportSessionService,
         TenantDataService,
         TenantFeatureService,
+        SubscriptionService,
+        SubscriptionInvoiceService,
         ...(workersEnabled() ? [TenantJobsWorker] : []),
       ],
     };
