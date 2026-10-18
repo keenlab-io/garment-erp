@@ -1,8 +1,13 @@
 import { z } from "zod";
 import { initContract } from "@ts-rest/core";
+import { moneyString } from "../money/index.js";
 import {
   DomainResolutionMode,
   PlanCode,
+  SubscriptionInvoiceLineKind,
+  SubscriptionInvoiceStatus,
+  SubscriptionPaymentMethod,
+  SubscriptionStatus,
   SupportSessionScope,
   TenantExportStatus,
   TenantKind,
@@ -36,6 +41,10 @@ export const domainResolutionMode = z.nativeEnum(DomainResolutionMode);
 export const planCode = z.nativeEnum(PlanCode);
 export const supportSessionScope = z.nativeEnum(SupportSessionScope);
 export const tenantExportStatus = z.nativeEnum(TenantExportStatus);
+export const subscriptionStatus = z.nativeEnum(SubscriptionStatus);
+export const subscriptionInvoiceStatus = z.nativeEnum(SubscriptionInvoiceStatus);
+export const subscriptionPaymentMethod = z.nativeEnum(SubscriptionPaymentMethod);
+export const subscriptionInvoiceLineKind = z.nativeEnum(SubscriptionInvoiceLineKind);
 
 // ── Platform auth ─────────────────────────────────────────────────────────────
 
@@ -243,6 +252,180 @@ export const PlatformAuditQuery = paginationQuery.extend({
 });
 export type PlatformAuditQuery = z.infer<typeof PlatformAuditQuery>;
 
+// ── Subscription billing (M9 — offline invoicing, no payment gateway) ───────
+
+export const Subscription = z.object({
+  id: uuid,
+  tenant_id: uuid,
+  plan_id: uuid,
+  status: subscriptionStatus,
+  /** Negotiated annual fee (VAT-exclusive). */
+  annual_fee: moneyString,
+  term_start: z.string().datetime(),
+  term_end: z.string().datetime(),
+  cancelled_at: z.string().datetime().nullable(),
+  created_at: z.string().datetime(),
+});
+export type Subscription = z.infer<typeof Subscription>;
+
+export const SubscriptionCreate = z.object({
+  tenant_id: uuid,
+  plan_id: uuid,
+  annual_fee: moneyString,
+  term_start: z.string().datetime(),
+  /** Defaults to one year after `term_start` when omitted. */
+  term_end: z.string().datetime().optional(),
+});
+export type SubscriptionCreate = z.infer<typeof SubscriptionCreate>;
+
+export const SubscriptionCancelRequest = z.object({
+  reason: z.string().refine((v) => v.trim().length > 0, "A reason is required"),
+});
+export type SubscriptionCancelRequest = z.infer<typeof SubscriptionCancelRequest>;
+
+export const SubscriptionInvoiceLine = z.object({
+  kind: subscriptionInvoiceLineKind,
+  description: z.string().min(1),
+  /** VAT-exclusive; negative for `UPFRONT_DISCOUNT`. */
+  amount: moneyString,
+});
+export type SubscriptionInvoiceLine = z.infer<typeof SubscriptionInvoiceLine>;
+
+export const SubscriptionInvoice = z.object({
+  id: uuid,
+  /** `SINV-{YYYY}-{seq}` from the control-plane sequence. */
+  number: z.string(),
+  subscription_id: uuid,
+  tenant_id: uuid,
+  status: subscriptionInvoiceStatus,
+  lines: z.array(SubscriptionInvoiceLine),
+  subtotal: moneyString,
+  vat_amount: moneyString,
+  total: moneyString,
+  issued_at: z.string().datetime(),
+  due_date: z.string().date().nullable(),
+  paid_at: z.string().datetime().nullable(),
+  payment_method: subscriptionPaymentMethod.nullable(),
+  payment_reference: z.string().nullable(),
+  paid_amount: moneyString.nullable(),
+  voided_at: z.string().datetime().nullable(),
+});
+export type SubscriptionInvoice = z.infer<typeof SubscriptionInvoice>;
+
+/**
+ * Issue an invoice for a subscription. `include_setup_fee` is honoured only on the
+ * subscription's first invoice; `upfront_discount` defaults server-side to
+ * `annual_fee × 2/12` (m9 design D7) and is editable by the admin (non-negative magnitude;
+ * rendered as a negative `UPFRONT_DISCOUNT` line).
+ */
+export const SubscriptionInvoiceIssue = z.object({
+  subscription_id: uuid,
+  setup_fee: moneyString.optional(),
+  extra_seats: z
+    .object({ seats: z.number().int().positive(), amount: moneyString })
+    .optional(),
+  upfront_discount: moneyString.optional(),
+  due_date: z.string().date().optional(),
+});
+export type SubscriptionInvoiceIssue = z.infer<typeof SubscriptionInvoiceIssue>;
+
+export const SubscriptionInvoicesQuery = paginationQuery.extend({
+  tenant_id: uuid.optional(),
+  subscription_id: uuid.optional(),
+  "filter[status]": subscriptionInvoiceStatus.optional(),
+});
+export type SubscriptionInvoicesQuery = z.infer<typeof SubscriptionInvoicesQuery>;
+
+/**
+ * Mark an invoice paid (m9 design D1). An `amount` differing from the invoice total is a 422
+ * unless `accept_partial` / `accept_over` is set explicitly.
+ */
+export const SubscriptionInvoiceMarkPaid = z.object({
+  paid_at: z.string().datetime(),
+  method: subscriptionPaymentMethod,
+  reference: z.string().min(1),
+  amount: moneyString,
+  accept_partial: z.boolean().optional(),
+  accept_over: z.boolean().optional(),
+});
+export type SubscriptionInvoiceMarkPaid = z.infer<typeof SubscriptionInvoiceMarkPaid>;
+
+export const SubscriptionInvoiceVoidRequest = z.object({
+  reason: z.string().refine((v) => v.trim().length > 0, "A reason is required"),
+});
+export type SubscriptionInvoiceVoidRequest = z.infer<typeof SubscriptionInvoiceVoidRequest>;
+
+/** Signed download URL for a rendered invoice/quote PDF. */
+export const BillingPdfUrl = z.object({ url: z.string() });
+export type BillingPdfUrl = z.infer<typeof BillingPdfUrl>;
+
+// ── Tax-benefit quoting (m9 design D6 — stateless compute) ───────────────────
+
+/** Declared by the prospect; absence or any `false` means the benefit section is omitted. */
+export const QuoteEligibility = z.object({
+  registered_capital_at_most_5m: z.boolean(),
+  annual_revenue_at_most_30m: z.boolean(),
+  declared_by: z.string().min(1),
+  declared_at: z.string().datetime(),
+});
+export type QuoteEligibility = z.infer<typeof QuoteEligibility>;
+
+export const QuoteFees = z.object({
+  annual_fee: moneyString,
+  setup_fee: moneyString.optional(),
+  upfront_discount: moneyString.optional(),
+});
+export type QuoteFees = z.infer<typeof QuoteFees>;
+
+export const QuoteComputeRequest = z.object({
+  plan: planCode,
+  fees: QuoteFees,
+  /** Contract term in years. */
+  term: z.number().int().positive(),
+  /** Quote date (defaults to today); the benefit is dead after 2027-12-31. */
+  quote_date: z.string().date().optional(),
+  prospect_name: z.string().min(1).optional(),
+  eligibility: QuoteEligibility.optional(),
+});
+export type QuoteComputeRequest = z.infer<typeof QuoteComputeRequest>;
+
+export const QuoteLine = z.object({
+  kind: subscriptionInvoiceLineKind,
+  description: z.string(),
+  amount: moneyString,
+});
+export type QuoteLine = z.infer<typeof QuoteLine>;
+
+export const QuoteMoneyRange = z.object({ min: moneyString, max: moneyString });
+export type QuoteMoneyRange = z.infer<typeof QuoteMoneyRange>;
+
+/**
+ * Present only for declared-eligible, pre-sunset quotes with the depa catalog flag on.
+ * `caveat` is always embedded and cannot be turned off.
+ */
+export const QuoteTaxBenefit = z.object({
+  qualifying_spend: moneyString,
+  non_qualifying_spend: moneyString,
+  extra_deduction: moneyString,
+  estimated_saving: QuoteMoneyRange,
+  effective_price: QuoteMoneyRange,
+  caveat: z.string().min(1),
+});
+export type QuoteTaxBenefit = z.infer<typeof QuoteTaxBenefit>;
+
+export const QuoteResult = z.object({
+  plan: planCode,
+  term: z.number().int().positive(),
+  quote_date: z.string().date(),
+  lines: z.array(QuoteLine),
+  /** First-year total, VAT-exclusive, at list. */
+  first_year_total: moneyString,
+  eligibility: QuoteEligibility.nullable(),
+  /** Absent entirely (not zeroed) when ineligible, undeclared, post-sunset, or catalog flag off. */
+  tax_benefit: QuoteTaxBenefit.optional(),
+});
+export type QuoteResult = z.infer<typeof QuoteResult>;
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export const platformContract = c.router(
@@ -384,6 +567,80 @@ export const platformContract = c.router(
       query: SupportSessionsQuery,
       responses: withErrors({ 200: paginated(SupportSessionRow) }),
       summary: "List support sessions (paginated, optional tenant filter)",
+    },
+    getTenantSubscription: {
+      method: "GET",
+      path: "/platform/tenants/:id/subscription",
+      pathParams: z.object({ id: uuid }),
+      responses: withErrors({ 200: z.object({ subscription: Subscription }) }),
+      summary: "Get a tenant's current subscription",
+    },
+    createSubscription: {
+      method: "POST",
+      path: "/platform/subscriptions",
+      body: SubscriptionCreate,
+      responses: withErrors({ 201: z.object({ subscription: Subscription }) }),
+      summary: "Create a tenant's subscription (one active per tenant; platform-audited)",
+    },
+    cancelSubscription: {
+      method: "POST",
+      path: "/platform/subscriptions/:id/cancel",
+      pathParams: z.object({ id: uuid }),
+      body: SubscriptionCancelRequest,
+      responses: withErrors({ 200: z.object({ subscription: Subscription }) }),
+      summary: "Cancel a subscription (terminal; tenant goes READ_ONLY pending export/purge)",
+    },
+    issueSubscriptionInvoice: {
+      method: "POST",
+      path: "/platform/subscription-invoices",
+      body: SubscriptionInvoiceIssue,
+      responses: withErrors({ 201: z.object({ invoice: SubscriptionInvoice }) }),
+      summary: "Issue a vendor-side subscription invoice (SINV number, typed lines)",
+    },
+    listSubscriptionInvoices: {
+      method: "GET",
+      path: "/platform/subscription-invoices",
+      query: SubscriptionInvoicesQuery,
+      responses: withErrors({ 200: paginated(SubscriptionInvoice) }),
+      summary: "List subscription invoices (paginated, optional tenant/status filter)",
+    },
+    voidSubscriptionInvoice: {
+      method: "POST",
+      path: "/platform/subscription-invoices/:id/void",
+      pathParams: z.object({ id: uuid }),
+      body: SubscriptionInvoiceVoidRequest,
+      responses: withErrors({ 200: z.object({ invoice: SubscriptionInvoice }) }),
+      summary: "Void an unpaid subscription invoice (PAID invoices are not voidable)",
+    },
+    getSubscriptionInvoicePdf: {
+      method: "GET",
+      path: "/platform/subscription-invoices/:id/pdf",
+      pathParams: z.object({ id: uuid }),
+      responses: withErrors({ 200: BillingPdfUrl }),
+      summary: "Get a signed URL for the invoice PDF (bank details + vendor PromptPay QR)",
+    },
+    markSubscriptionInvoicePaid: {
+      method: "POST",
+      path: "/platform/subscription-invoices/:id/mark-paid",
+      pathParams: z.object({ id: uuid }),
+      body: SubscriptionInvoiceMarkPaid,
+      responses: withErrors({ 200: z.object({ invoice: SubscriptionInvoice }) }),
+      summary:
+        "Record an offline payment: extends the term, restores ACTIVE (422 on amount mismatch)",
+    },
+    computeQuote: {
+      method: "POST",
+      path: "/platform/quotes/compute",
+      body: QuoteComputeRequest,
+      responses: withErrors({ 200: QuoteResult }),
+      summary: "Compute a stateless quote; tax-benefit section only for declared-eligible quotes",
+    },
+    getQuotePdf: {
+      method: "POST",
+      path: "/platform/quotes/pdf",
+      body: QuoteComputeRequest,
+      responses: withErrors({ 200: BillingPdfUrl }),
+      summary: "Render a quote to PDF (accountant caveat always embedded with benefit figures)",
     },
     listAudit: {
       method: "GET",

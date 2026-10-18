@@ -62,3 +62,40 @@ export const TenantExportStatus = {
   FAILED: "FAILED",
 } as const;
 export type TenantExportStatus = (typeof TenantExportStatus)[keyof typeof TenantExportStatus];
+
+// Subscription lifecycle (m9 design D3). The dunning sweep drives ACTIVE → IN_GRACE → EXPIRED;
+// CANCELLED is a manual terminal state. Mark-paid restores ACTIVE from any non-CANCELLED state.
+export const SubscriptionStatus = {
+  ACTIVE: "ACTIVE",
+  IN_GRACE: "IN_GRACE",
+  EXPIRED: "EXPIRED",
+  CANCELLED: "CANCELLED",
+} as const;
+export type SubscriptionStatus = (typeof SubscriptionStatus)[keyof typeof SubscriptionStatus];
+
+// Vendor-side `subscription_invoice` status (m9 design D2). PAID invoices are not voidable.
+export const SubscriptionInvoiceStatus = {
+  ISSUED: "ISSUED",
+  PAID: "PAID",
+  VOID: "VOID",
+} as const;
+export type SubscriptionInvoiceStatus =
+  (typeof SubscriptionInvoiceStatus)[keyof typeof SubscriptionInvoiceStatus];
+
+// How an offline subscription payment was received (m9 design D1) — no gateway, no cards.
+export const SubscriptionPaymentMethod = {
+  BANK_TRANSFER: "BANK_TRANSFER",
+  PROMPTPAY: "PROMPTPAY",
+} as const;
+export type SubscriptionPaymentMethod =
+  (typeof SubscriptionPaymentMethod)[keyof typeof SubscriptionPaymentMethod];
+
+// Typed line on a subscription invoice (m9 design D2/D7). UPFRONT_DISCOUNT is a negative line.
+export const SubscriptionInvoiceLineKind = {
+  ANNUAL_FEE: "ANNUAL_FEE",
+  SETUP_FEE: "SETUP_FEE",
+  EXTRA_SEATS: "EXTRA_SEATS",
+  UPFRONT_DISCOUNT: "UPFRONT_DISCOUNT",
+} as const;
+export type SubscriptionInvoiceLineKind =
+  (typeof SubscriptionInvoiceLineKind)[keyof typeof SubscriptionInvoiceLineKind];
