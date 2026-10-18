@@ -215,3 +215,15 @@ export type DomainResolutionMode = "TENANT" | "DEMO_POOL";
 // The commercial package a tenant subscribes to (`plan.code`) — seats and feature defaults
 // live on the row itself, this is just the stable code.
 export type PlanCode = "WORKSHOP" | "FACTORY" | "MULTISITE" | "SELFHOSTED";
+
+// ── M9 Subscription Billing ───────────────────────────────────────────────────
+// Duplicates of the enums in `packages/contracts/src/enums/tenancy.ts` (same no-cross-import
+// rule); the parity test keeps them in lockstep.
+export type SubscriptionStatus = "ACTIVE" | "IN_GRACE" | "EXPIRED" | "CANCELLED";
+export type SubscriptionInvoiceStatus = "ISSUED" | "PAID" | "VOID";
+export type SubscriptionPaymentMethod = "BANK_TRANSFER" | "PROMPTPAY";
+export type SubscriptionInvoiceLineKind =
+  | "ANNUAL_FEE"
+  | "SETUP_FEE"
+  | "EXTRA_SEATS"
+  | "UPFRONT_DISCOUNT";
