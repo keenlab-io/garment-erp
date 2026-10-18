@@ -5,9 +5,9 @@ time; M7 (`m7-tenancy-core`) and M8 (`m8-tenant-control-plane`) must be merged f
 
 ## 1. Contracts — `packages/contracts/src`
 
-- [ ] 1.1 Add `SubscriptionStatus` (`ACTIVE | IN_GRACE | EXPIRED | CANCELLED`), `SubscriptionInvoiceStatus` (`ISSUED | PAID | VOID`), `SubscriptionPaymentMethod` (`BANK_TRANSFER | PROMPTPAY`), `SubscriptionInvoiceLineKind` (`ANNUAL_FEE | SETUP_FEE | EXTRA_SEATS | UPFRONT_DISCOUNT`) to `enums/tenancy.ts`
-- [ ] 1.2 Grow `dto/platform.ts` billing surface: subscription read/create/cancel, invoice issue/list/void/PDF/mark-paid (`{paid_at, method, reference, amount}` — `moneyString`), quote compute (`{plan, fees, term, eligibility: {registered_capital_at_most_5m, annual_revenue_at_most_30m, declared_by, declared_at}}`) + quote PDF; all via `withErrors`, money as `moneyString`
-- [ ] 1.3 Verify: `pnpm build && pnpm typecheck && pnpm lint`
+- [x] 1.1 Add `SubscriptionStatus` (`ACTIVE | IN_GRACE | EXPIRED | CANCELLED`), `SubscriptionInvoiceStatus` (`ISSUED | PAID | VOID`), `SubscriptionPaymentMethod` (`BANK_TRANSFER | PROMPTPAY`), `SubscriptionInvoiceLineKind` (`ANNUAL_FEE | SETUP_FEE | EXTRA_SEATS | UPFRONT_DISCOUNT`) to `enums/tenancy.ts`
+- [x] 1.2 Grow `dto/platform.ts` billing surface: subscription read/create/cancel, invoice issue/list/void/PDF/mark-paid (`{paid_at, method, reference, amount}` — `moneyString`), quote compute (`{plan, fees, term, eligibility: {registered_capital_at_most_5m, annual_revenue_at_most_30m, declared_by, declared_at}}`) + quote PDF; all via `withErrors`, money as `moneyString`
+- [x] 1.3 Verify: `pnpm build && pnpm typecheck && pnpm lint`
 
 ## 2. DB schema & migration — `packages/db` + `tooling/drizzle/0014_subscription_billing.sql`
 
