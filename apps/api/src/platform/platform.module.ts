@@ -1,6 +1,8 @@
 import { type DynamicModule, Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { workersEnabled } from "../config/app-role.js";
+import { DunningNotifier, DunningService } from "./billing/dunning.service.js";
+import { DunningWorker } from "./billing/dunning.worker.js";
 import { SubscriptionInvoiceService } from "./billing/subscription-invoice.service.js";
 import { SubscriptionService } from "./billing/subscription.service.js";
 import { PlatformAuditService } from "./platform-audit.service.js";
@@ -39,7 +41,8 @@ export function deploymentMode(): DeploymentMode {
  *   single `DEFAULT_TENANT_SLUG` tenant exists at boot.
  *
  * Both modes mount the tenant-side PDPA export (`TenantExportController`, M8 design D9) and — in
- * worker processes — the `tenant`-queue `TenantJobsWorker`.
+ * worker processes — the `tenant`-queue `TenantJobsWorker`; cloud worker processes also run the
+ * `billing`-queue `DunningWorker` (M9 design D5).
  */
 @Module({})
 export class PlatformModule {
@@ -71,7 +74,9 @@ export class PlatformModule {
         TenantFeatureService,
         SubscriptionService,
         SubscriptionInvoiceService,
-        ...(workersEnabled() ? [TenantJobsWorker] : []),
+        DunningService,
+        DunningNotifier,
+        ...(workersEnabled() ? [TenantJobsWorker, DunningWorker] : []),
       ],
     };
   }

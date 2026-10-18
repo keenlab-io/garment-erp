@@ -108,7 +108,16 @@ export class SubscriptionInvoiceService {
     private readonly config: ConfigService,
   ) {}
 
-  async issue(input: SubscriptionInvoiceIssue, platformAdminId: string): Promise<SubscriptionInvoice> {
+  /**
+   * Issue an invoice. `platformAdminId` is `null` when the dunning sweep auto-issues a renewal
+   * (design D5); `opts.renewal` then forces renewal lines + period (never a `SETUP_FEE`, bills the
+   * year from `term_end`) even if the subscription was never invoiced before.
+   */
+  async issue(
+    input: SubscriptionInvoiceIssue,
+    platformAdminId: string | null,
+    opts: { renewal?: boolean } = {},
+  ): Promise<SubscriptionInvoice> {
     return this.uow.withTransaction(async (tx) => {
       const sub = await this.subscriptions.lock(tx, input.subscription_id);
       if (sub.status === "CANCELLED") {
@@ -124,7 +133,7 @@ export class SubscriptionInvoiceService {
           ),
         )
         .limit(1);
-      const isFirstInvoice = !prior;
+      const isFirstInvoice = !prior && !opts.renewal;
 
       const lines = buildInvoiceLines({
         annualFee: sub.annualFee,
