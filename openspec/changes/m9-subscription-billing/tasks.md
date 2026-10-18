@@ -43,8 +43,8 @@ time; M7 (`m7-tenancy-core`) and M8 (`m8-tenant-control-plane`) must be merged f
 
 ## 7. Tests — acceptance criteria from the delta specs
 
-- [ ] 7.1 Term math: mark-paid extends from previous `term_end`; late payment does not shorten the next term; partial amount 422s without the override flag
-- [ ] 7.2 Degradation: past `term_end` → IN_GRACE, tenant fully writable; past grace → tenant READ_ONLY — payroll GET 200, PDPA export 200, business POST 403 `TENANT_READ_ONLY`; mark-paid → ACTIVE again
-- [ ] 7.3 Dunning: renewal invoice auto-issued once at the lead window; reminder set fires exactly once per touchpoint across sweep restarts
-- [ ] 7.4 Quoting: eligible Factory quote ≈฿280k shows the after-benefit range + caveat; `annual_revenue_at_most_30m = false` → no benefit section; quote dated 2028-01-01 → no benefit section; ฿400k spend shows benefit on ฿300k only
-- [ ] 7.5 Verify: `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green from the repo root
+- [x] 7.1 Term math: mark-paid extends from previous `term_end`; late payment does not shorten the next term; partial amount 422s without the override flag
+- [x] 7.2 Degradation: past `term_end` → IN_GRACE, tenant fully writable; past grace → tenant READ_ONLY — payroll GET 200, PDPA export 200, business POST 403 `TENANT_READ_ONLY`; mark-paid → ACTIVE again
+- [x] 7.3 Dunning: renewal invoice auto-issued once at the lead window; reminder set fires exactly once per touchpoint across sweep restarts
+- [x] 7.4 Quoting: eligible Factory quote ≈฿280k shows the after-benefit range + caveat; `annual_revenue_at_most_30m = false` → no benefit section; quote dated 2028-01-01 → no benefit section; ฿400k spend shows benefit on ฿300k only
+- [x] 7.5 Verify: `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green from the repo root
