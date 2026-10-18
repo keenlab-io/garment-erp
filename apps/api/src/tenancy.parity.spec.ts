@@ -7,7 +7,7 @@ import { schema } from "@erp/db";
  * Control-plane / global-catalog tables that legitimately carry no `tenant_id` (M7 design D16).
  * Append-only by nature — adding a name here is a reviewed decision that a table is NOT tenant
  * data. `tenant_feature` is deliberately NOT here — it carries `tenant_id` and RLS like any
- * business table (M8 design D2). m9 will add `subscription` / `subscription_invoice`.
+ * business table (M8 design D2).
  */
 const TENANT_EXEMPT: ReadonlySet<string> = new Set([
   "tenant",
@@ -18,6 +18,8 @@ const TENANT_EXEMPT: ReadonlySet<string> = new Set([
   "permission", // the global permission catalog mirror
   "plan", // M8 commercial plan catalog (design D10)
   "platform_session", // M8 platform-admin sessions (design D7)
+  "subscription", // M9 vendor-side billing (design D2)
+  "subscription_invoice", // M9 vendor-side invoices (design D2)
 ]);
 
 const tables = (Object.values(schema) as unknown[])

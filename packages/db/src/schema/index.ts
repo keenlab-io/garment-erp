@@ -4,6 +4,8 @@ export * from "./enums.js";
 export * from "./platform/plan.js";
 export * from "./platform/tenant.js";
 export * from "./platform/tenant-feature.js";
+export * from "./platform/subscription.js";
+export * from "./platform/subscription-invoice.js";
 export * from "./platform/platform-admin.js";
 export * from "./platform/platform-audit-log.js";
 export * from "./platform/users.js";

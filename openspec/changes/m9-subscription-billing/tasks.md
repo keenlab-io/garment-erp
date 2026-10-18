@@ -11,8 +11,8 @@ time; M7 (`m7-tenancy-core`) and M8 (`m8-tenant-control-plane`) must be merged f
 
 ## 2. DB schema & migration — `packages/db` + `tooling/drizzle/0014_subscription_billing.sql`
 
-- [ ] 2.1 Add `schema/platform/subscription.ts` (tenant FK unique-active, plan FK, `annual_fee` money, `term_start`/`term_end`, status, `dunning_events` jsonb) and `schema/platform/subscription-invoice.ts` (number, `lines` jsonb, totals, status, paid fields); pricing range columns on `plan`
-- [ ] 2.2 Hand-author `0014_subscription_billing.sql` incl. the `SINV` control-plane sequence; both tables `TENANT_EXEMPT` (no RLS) — extend M7's `tenancy.parity.spec.ts` allowlist
+- [x] 2.1 Add `schema/platform/subscription.ts` (tenant FK unique-active, plan FK, `annual_fee` money, `term_start`/`term_end`, status, `dunning_events` jsonb) and `schema/platform/subscription-invoice.ts` (number, `lines` jsonb, totals, status, paid fields); pricing range columns on `plan`
+- [x] 2.2 Hand-author `0014_subscription_billing.sql` incl. the `SINV` control-plane sequence; both tables `TENANT_EXEMPT` (no RLS) — extend M7's `tenancy.parity.spec.ts` allowlist
 - [ ] 2.3 Verify: migrate clean on fresh DB; parity spec green
 
 ## 3. Billing services — `apps/api/src/platform/billing`
