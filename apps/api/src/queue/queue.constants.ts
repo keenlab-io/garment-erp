@@ -14,6 +14,9 @@ export const QUEUES = {
   // Tenant control plane (M8 design D9): the PDPA export and the purge. Its own queue with one
   // dispatcher worker, so nothing else competes for these jobs.
   tenant: "tenant",
+  // Subscription billing (M9 design D5): the control-plane `billing.dunning` sweep. Its own queue
+  // with one worker, so the sweep tick never lands on a worker that ignores its name.
+  billing: "billing",
   default: "default",
 } as const;
 

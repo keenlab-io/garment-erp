@@ -24,10 +24,10 @@ time; M7 (`m7-tenancy-core`) and M8 (`m8-tenant-control-plane`) must be merged f
 
 ## 4. Dunning & degradation — `apps/api/src/platform/billing`
 
-- [ ] 4.1 `billing.dunning` repeatable sweep (`BILLING_SWEEP_MS`): auto-issue renewal at `term_end − BILLING_RENEWAL_LEAD_DAYS`; reminders T−30/T−14/T−7/T0, weekly in grace, once on READ_ONLY entry; persist touches in `dunning_events` for idempotence; skip `CANCELLED`
-- [ ] 4.2 Transitions: `ACTIVE → IN_GRACE` at `term_end`, `IN_GRACE → EXPIRED` at `term_end + BILLING_GRACE_DAYS` → M8 tenant `READ_ONLY`; never auto-`SUSPENDED`; mark-paid restores `ACTIVE` + tenant status
-- [ ] 4.3 Env schema additions: `PLATFORM_PROMPTPAY_ID`, `BILLING_GRACE_DAYS`, `BILLING_RENEWAL_LEAD_DAYS`, `BILLING_SWEEP_MS`
-- [ ] 4.4 Verify: sweep idempotent across restarts (no duplicate reminders/invoices)
+- [x] 4.1 `billing.dunning` repeatable sweep (`BILLING_SWEEP_MS`): auto-issue renewal at `term_end − BILLING_RENEWAL_LEAD_DAYS`; reminders T−30/T−14/T−7/T0, weekly in grace, once on READ_ONLY entry; persist touches in `dunning_events` for idempotence; skip `CANCELLED`
+- [x] 4.2 Transitions: `ACTIVE → IN_GRACE` at `term_end`, `IN_GRACE → EXPIRED` at `term_end + BILLING_GRACE_DAYS` → M8 tenant `READ_ONLY`; never auto-`SUSPENDED`; mark-paid restores `ACTIVE` + tenant status
+- [x] 4.3 Env schema additions: `PLATFORM_PROMPTPAY_ID`, `BILLING_GRACE_DAYS`, `BILLING_RENEWAL_LEAD_DAYS`, `BILLING_SWEEP_MS`
+- [x] 4.4 Verify: sweep idempotent across restarts (no duplicate reminders/invoices)
 
 ## 5. Tax-benefit quoting — `apps/api/src/platform/billing`
 

@@ -85,6 +85,13 @@ export const envSchema = z.object({
   PLATFORM_BANK_NAME: z.string().min(1).optional(),
   PLATFORM_BANK_ACCOUNT_NAME: z.string().min(1).optional(),
   PLATFORM_BANK_ACCOUNT_NUMBER: z.string().min(1).optional(),
+  // Dunning (M9 design D3/D5): `term_end + BILLING_GRACE_DAYS` is when an unpaid subscription
+  // degrades the tenant to READ_ONLY; the renewal invoice is auto-issued
+  // `BILLING_RENEWAL_LEAD_DAYS` before `term_end`; `BILLING_SWEEP_MS` is the sweep cadence
+  // (hourly by default — the touchpoints are day-granular, so a tick lands each on its day).
+  BILLING_GRACE_DAYS: z.coerce.number().int().min(0).default(15),
+  BILLING_RENEWAL_LEAD_DAYS: z.coerce.number().int().min(0).default(45),
+  BILLING_SWEEP_MS: z.coerce.number().int().positive().default(3_600_000),
 
   // SMTP (M6) — outbound mail transport for scheduled report digests (design D9). The
   // `MailService` wraps `nodemailer.createTransport(SMTP_*)`; credentials are optional so a

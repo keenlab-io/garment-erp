@@ -11,6 +11,7 @@ export const PLATFORM_JOBS: ReadonlySet<string> = new Set([
   "sales.overdue.sweep", // SALES_OVERDUE_JOB
   "hr.probation.scan", // PROBATION_SCAN_JOB
   "reporting.mv-refresh", // MV_REFRESH_JOB (the fallback refresh spans every tenant's rows)
+  "billing.dunning", // BILLING_DUNNING_JOB (control-plane sweep over exempt subscription rows)
 ]);
 
 /** The slice of a BullMQ `Job` this helper reads. */
