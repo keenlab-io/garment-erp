@@ -1,5 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { PlatformLoginBody, SupportSessionsQuery, TenantsQuery } from "@erp/contracts";
+import type {
+  PlatformLoginBody,
+  SubscriptionInvoicesQuery,
+  SupportSessionsQuery,
+  TenantsQuery,
+} from "@erp/contracts";
 import { platformApi } from "./platform-client.js";
 import { clearPlatformTokens, setPlatformTokens } from "./platform-token-store.js";
 
@@ -126,4 +131,70 @@ export function useRevokeSupportSessionMutation() {
       void queryClient.invalidateQueries({ queryKey: platformKeys.sessionsAll() });
     },
   });
+}
+
+// ── M9 subscription billing ──────────────────────────────────────────────────
+
+export const billingKeys = {
+  subscription: (tenantId: string) => [...platformKeys.all, "subscription", tenantId] as const,
+  invoicesAll: () => [...platformKeys.all, "subscription-invoices"] as const,
+  invoices: (query: Partial<SubscriptionInvoicesQuery>) => [...billingKeys.invoicesAll(), query] as const,
+};
+
+/** The tenant's subscription; a 404 simply means it has none yet (rendered as an empty state). */
+export function useTenantSubscriptionQuery(tenantId: string) {
+  return platformApi.platform.getTenantSubscription.useQuery(
+    billingKeys.subscription(tenantId),
+    { params: { id: tenantId } },
+    { queryKey: billingKeys.subscription(tenantId), retry: false },
+  );
+}
+
+export function useCreateSubscriptionMutation() {
+  const queryClient = useQueryClient();
+  return platformApi.platform.createSubscription.useMutation({
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: platformKeys.all });
+    },
+  });
+}
+
+export function useSubscriptionInvoicesQuery(query: Partial<SubscriptionInvoicesQuery>) {
+  return platformApi.platform.listSubscriptionInvoices.useQuery(billingKeys.invoices(query), { query });
+}
+
+function invalidateBilling(queryClient: ReturnType<typeof useQueryClient>) {
+  // Mark-paid moves the term, status and tenant lifecycle, so refresh all of them.
+  void queryClient.invalidateQueries({ queryKey: billingKeys.invoicesAll() });
+  void queryClient.invalidateQueries({ queryKey: [...platformKeys.all, "subscription"] });
+  void queryClient.invalidateQueries({ queryKey: platformKeys.tenantsAll() });
+}
+
+export function useIssueSubscriptionInvoiceMutation() {
+  const queryClient = useQueryClient();
+  return platformApi.platform.issueSubscriptionInvoice.useMutation({
+    onSuccess: () => invalidateBilling(queryClient),
+  });
+}
+
+export function useMarkInvoicePaidMutation() {
+  const queryClient = useQueryClient();
+  return platformApi.platform.markSubscriptionInvoicePaid.useMutation({
+    onSuccess: () => invalidateBilling(queryClient),
+  });
+}
+
+export function useVoidInvoiceMutation() {
+  const queryClient = useQueryClient();
+  return platformApi.platform.voidSubscriptionInvoice.useMutation({
+    onSuccess: () => invalidateBilling(queryClient),
+  });
+}
+
+export function useComputeQuoteMutation() {
+  return platformApi.platform.computeQuote.useMutation();
+}
+
+export function useQuotePdfMutation() {
+  return platformApi.platform.getQuotePdf.useMutation();
 }

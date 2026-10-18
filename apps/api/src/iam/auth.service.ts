@@ -5,12 +5,14 @@ import { and, eq, isNull } from "drizzle-orm";
 import {
   role,
   session,
+  subscription,
   tenant,
   user,
   userRole,
   type Db,
 } from "@erp/db";
 import { entitledModules, type MeResponse, type TokenPair } from "@erp/contracts";
+import { graceEnd } from "../platform/billing/dunning-schedule.js";
 import { PasswordService } from "../auth/password.service.js";
 import { TokenService } from "../auth/token.service.js";
 import type { AuthUser } from "../auth/auth-user.js";
@@ -277,6 +279,14 @@ export class AuthService {
       ? []
       : [...(await this.resolver.resolve(authUser.id))];
 
+    // M9: the term the shell turns into the grace countdown. Control-plane table, no RLS.
+    const [sub] = await ex
+      .select({ status: subscription.status, termEnd: subscription.termEnd })
+      .from(subscription)
+      .where(and(eq(subscription.tenantId, authUser.tenantId), isNull(subscription.deletedAt)))
+      .limit(1);
+    const graceDays = this.config.getOrThrow<number>("BILLING_GRACE_DAYS");
+
     // The same resolution the server enforces (M8 design D2) — the web never re-derives plan defaults.
     const features = await this.entitlements.resolve(authUser.tenantId);
 
@@ -289,7 +299,18 @@ export class AuthService {
         is_super_admin: u.isSuperAdmin,
         employee_id: u.employeeId,
       },
-      tenant: t,
+      tenant: {
+        ...t,
+        ...(sub && sub.status !== "CANCELLED"
+          ? {
+              subscription: {
+                status: sub.status,
+                term_end: sub.termEnd.toISOString(),
+                grace_ends_at: graceEnd(sub.termEnd, graceDays).toISOString(),
+              },
+            }
+          : {}),
+      },
       roles,
       permissions,
       features: { ...features },

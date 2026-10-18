@@ -32,6 +32,7 @@ import { ReportSchedulesPage } from "./routes/reporting/report-schedules";
 import { LoginPage, validateLoginSearch } from "./routes/login";
 import { PlatformLoginPage } from "./routes/platform/login";
 import { PlatformTenantsPage } from "./routes/platform/tenants";
+import { PlatformQuotesPage } from "./routes/platform/quotes";
 import { PlatformSupportSessionsPage } from "./routes/platform/support-sessions";
 import { isCloudMode } from "../platform/deployment";
 import { UsersListPage } from "./routes/admin/users-list";
@@ -536,6 +537,13 @@ const platformSupportSessionsRoute = createRoute({
   beforeLoad: () => requirePlatformSession(),
 });
 
+const platformQuotesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/platform/quotes",
+  component: PlatformQuotesPage,
+  beforeLoad: () => requirePlatformSession(),
+});
+
 const platformIndexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/platform",
@@ -545,7 +553,7 @@ const platformIndexRoute = createRoute({
 });
 
 const platformRoutes = isCloudMode()
-  ? [platformIndexRoute, platformLoginRoute, platformTenantsRoute, platformSupportSessionsRoute]
+  ? [platformIndexRoute, platformLoginRoute, platformTenantsRoute, platformQuotesRoute, platformSupportSessionsRoute]
   : [];
 
 export const routeTree = rootRoute.addChildren([

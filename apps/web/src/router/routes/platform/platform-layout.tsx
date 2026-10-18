@@ -34,6 +34,9 @@ export function PlatformLayout({ children }: { children: React.ReactNode }) {
           <Link to="/platform/tenants" className="text-text-link" activeProps={{ className: "font-semibold" }}>
             {t("nav.tenants")}
           </Link>
+          <Link to="/platform/quotes" className="text-text-link" activeProps={{ className: "font-semibold" }}>
+            {t("nav.quotes")}
+          </Link>
           <Link
             to="/platform/support-sessions"
             className="text-text-link"

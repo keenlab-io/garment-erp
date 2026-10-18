@@ -60,7 +60,9 @@ export const shellEn = {
     tenantLogoAlt: "{{name}} logo",
   },
   tenant: {
-    readOnlyBanner: "This workspace is read-only because its subscription needs renewing. You can still view records and run payroll reports, but changes can't be saved until it is renewed.",
+    readOnlyBanner: "This workspace is read-only because its subscription needs renewing. You can still view records and run payroll reports, but changes can't be saved until it is renewed. Ask your administrator to pay the renewal invoice to restore full access.",
+    graceBanner: "Your subscription term has ended. Renew by {{date}} ({{days}} days left) to avoid the workspace going read-only. Everything keeps working until then.",
+    graceBannerLastDay: "Your subscription term has ended. Renew today to avoid the workspace going read-only.",
     readOnlyToastTitle: "Change not saved",
     readOnlyToastBody: "This workspace is read-only, so changes are turned off.",
   },
