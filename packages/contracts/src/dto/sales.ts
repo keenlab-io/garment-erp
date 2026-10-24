@@ -201,6 +201,8 @@ export type VoidDocumentRequest = z.infer<typeof VoidDocumentRequest>;
 export const PromptPayQr = z.object({
   payload: z.string(),
   png_base64: z.string(),
+  /** True for demo-tenant QRs — a non-payable placeholder (m10). Absent on the wire = false. */
+  demo: z.boolean().default(false),
 });
 export type PromptPayQr = z.infer<typeof PromptPayQr>;
 

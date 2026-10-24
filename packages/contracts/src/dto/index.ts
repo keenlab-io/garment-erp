@@ -1,6 +1,7 @@
 import type { AppRouter } from "@ts-rest/core";
 import { initContract } from "@ts-rest/core";
 import { API_PREFIX, withErrors } from "./_shared.js";
+import { demoContract } from "./demo.js";
 import { healthContract } from "./health.js";
 import { iamContract } from "./iam.js";
 import { inventoryContract } from "./inventory.js";
@@ -12,6 +13,7 @@ import { reportingContract } from "./reporting.js";
 import { salesContract } from "./sales.js";
 
 export * from "./_shared.js";
+export * from "./demo.js";
 export * from "./health.js";
 export * from "./iam.js";
 export * from "./inventory.js";
@@ -42,6 +44,7 @@ const publicTenantContext = c.query({
  * `TRouter extends AppRouter` generic bound `c.router`/`initQueryClient` check.
  */
 interface RootContract extends AppRouter {
+  demo: typeof demoContract;
   health: typeof healthContract;
   iam: typeof iamContract;
   inventory: typeof inventoryContract;
@@ -55,6 +58,7 @@ interface RootContract extends AppRouter {
 
 /** Root contract — both api and web build from this single object. */
 export const contract: RootContract = c.router({
+  demo: demoContract,
   health: healthContract,
   iam: iamContract,
   inventory: inventoryContract,

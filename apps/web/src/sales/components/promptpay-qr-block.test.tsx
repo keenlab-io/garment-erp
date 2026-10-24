@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PromptPayQrBlock } from "./promptpay-qr-block";
 
-const SAMPLE_QR = { payload: "00020101021129370016A00000067701011101...", png_base64: "iVBORw0KGgo=" };
+const SAMPLE_QR = { payload: "00020101021129370016A00000067701011101...", png_base64: "iVBORw0KGgo=", demo: false };
 
 describe("PromptPayQrBlock", () => {
   it("shows the empty state before the invoice is issued", () => {

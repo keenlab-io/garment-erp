@@ -99,3 +99,12 @@ export const SubscriptionInvoiceLineKind = {
 } as const;
 export type SubscriptionInvoiceLineKind =
   (typeof SubscriptionInvoiceLineKind)[keyof typeof SubscriptionInvoiceLineKind];
+
+// How a user authenticated (m10 design D8). PASSWORD is the existing credential login;
+// GOOGLE is the OIDC seam the public demo uses (a guest never creates a password) and
+// that paying tenants may opt into later.
+export const AuthProvider = {
+  PASSWORD: "PASSWORD",
+  GOOGLE: "GOOGLE",
+} as const;
+export type AuthProvider = (typeof AuthProvider)[keyof typeof AuthProvider];

@@ -47,6 +47,6 @@ export class PromptPayService {
     const amount = toDecimal(inv.grandTotal).minus(toDecimal(inv.whtAmount)).toNumber();
     const payload = generatePayload(promptpayId, { amount });
     const png = await QRCode.toBuffer(payload, { type: "png" });
-    return { payload, png_base64: png.toString("base64") };
+    return { payload, png_base64: png.toString("base64"), demo: false };
   }
 }

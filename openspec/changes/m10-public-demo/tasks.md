@@ -7,10 +7,10 @@
 
 ## 1. Contracts — `packages/contracts/src`
 
-- [ ] 1.1 Extend `enums/tenancy.ts` — add `AuthProvider` (`PASSWORD | GOOGLE`) as const object + type
-- [ ] 1.2 Add `dto/demo.ts` — zod schemas: `DemoStatus` (`{ available, busy }` for the landing page), `DemoEntryState` (post-callback: `{ notice_ack_required, lead_opt_in }`), `DemoEndResponse`; OIDC route shapes (`OidcStartQuery`, `OidcCallbackQuery`); `PromptPayQr` gains a `demo: boolean` flag (default false — non-breaking)
-- [ ] 1.3 Build `demoContract = c.router({...}, { pathPrefix: API_PREFIX })` — `GET /demo/status` (public), `POST /demo/end` (authenticated; logout + purge trigger), OIDC `GET /auth/oidc/google/start` / `GET /auth/oidc/google/callback` (public); every route via `withErrors(...)`; register `demo: demoContract` on the root `contract` in `dto/index.ts`
-- [ ] 1.4 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 1.1 Extend `enums/tenancy.ts` — add `AuthProvider` (`PASSWORD | GOOGLE`) as const object + type
+- [x] 1.2 Add `dto/demo.ts` — zod schemas: `DemoStatus` (`{ available, busy }` for the landing page), `DemoEntryState` (post-callback: `{ notice_ack_required, lead_opt_in }`), `DemoEndResponse`; OIDC route shapes (`OidcStartQuery`, `OidcCallbackQuery`); `PromptPayQr` gains a `demo: boolean` flag (default false — non-breaking)
+- [x] 1.3 Build `demoContract = c.router({...}, { pathPrefix: API_PREFIX })` — `GET /demo/status` (public), `POST /demo/end` (authenticated; logout + purge trigger), OIDC `GET /auth/oidc/google/start` / `GET /auth/oidc/google/callback` (public); every route via `withErrors(...)`; register `demo: demoContract` on the root `contract` in `dto/index.ts`
+- [x] 1.4 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 2. DB schema, migration & demo seed — `packages/db/src`
 
