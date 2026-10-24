@@ -19,6 +19,7 @@ import { HealthController } from "./health/health.controller.js";
 import { HrModule } from "./hr/hr.module.js";
 import { IamModule } from "./iam/iam.module.js";
 import { InventoryModule } from "./inventory/inventory.module.js";
+import { LineModule } from "./line/line.module.js";
 import { PdfModule } from "./pdf/pdf.module.js";
 import { EntitlementsModule } from "./platform/entitlements.module.js";
 import { PlatformModule } from "./platform/platform.module.js";
@@ -67,6 +68,7 @@ import { TenantTransactionInterceptor } from "./tenancy/tenant-transaction.inter
     QueueModule,
     StorageModule,
     PdfModule,
+    LineModule,
     RealtimeModule,
     // The control plane (M7 §6): the full `/platform/*` surface in DEPLOYMENT_MODE=cloud; in
     // self-hosted only the boot-time "ensure the single default tenant" provisioning.

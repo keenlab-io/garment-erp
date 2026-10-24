@@ -12,20 +12,22 @@ import { DemoGuardService } from "./demo-guard.service.js";
 import { DemoJobsWorker } from "./demo-jobs.worker.js";
 import { DemoProvisioningService } from "./demo-provisioning.service.js";
 import { DemoPurgeService } from "./demo-purge.service.js";
+import { DemoSinkService } from "./demo-sink.service.js";
 import { DemoSessionService } from "./demo-session.service.js";
 import { DemoStore } from "./demo-store.service.js";
 import { DemoSweepService } from "./demo-sweep.service.js";
 
 /**
  * The public demo tier (M10 §4). Global, so its seams reach the modules that consume them
- * without importing this one: `DemoGuardService` (the §5 egress seams), `DEMO_PROVISIONER` (the
+ * without importing this one: `DemoGuardService` + `DemoSinkService` (the §5 egress seams), `DEMO_PROVISIONER` (the
  * OIDC callback's new-guest path) and `LOGOUT_HOOK` (sandbox sign-out purges). `forRoot(mode)`:
  *
  * - `cloud` — the full surface: `GET /demo/status` + `POST /demo/end`, sandbox provisioning (rate
  *   limits, cap), the purge, the activity stamp, and — in worker processes — the `demo`-queue
  *   `DemoJobsWorker` (purge + idle sweep).
  * - `self-hosted` — no demo endpoint, job or provisioner at all (spec "Self-hosted has no demo
- *   pool"); only `DemoGuardService`, which answers `false` for the single customer tenant.
+ *   pool"); only the egress seams — `DemoGuardService`, which answers `false` for the single
+ *   customer tenant, and the `DemoSinkService` it never routes to.
  */
 @Module({})
 export class DemoModule {
@@ -34,8 +36,8 @@ export class DemoModule {
       return {
         module: DemoModule,
         global: true,
-        providers: [DemoGuardService],
-        exports: [DemoGuardService],
+        providers: [DemoGuardService, DemoSinkService],
+        exports: [DemoGuardService, DemoSinkService],
       };
     }
     return {
@@ -45,6 +47,7 @@ export class DemoModule {
       controllers: [DemoStatusController, DemoController],
       providers: [
         DemoGuardService,
+        DemoSinkService,
         DemoStore,
         PlatformAuditService,
         DemoProvisioningService,
@@ -56,7 +59,7 @@ export class DemoModule {
         { provide: APP_INTERCEPTOR, useClass: DemoActivityInterceptor },
         ...(workersEnabled() ? [DemoJobsWorker] : []),
       ],
-      exports: [DemoGuardService, DEMO_PROVISIONER, LOGOUT_HOOK],
+      exports: [DemoGuardService, DemoSinkService, DEMO_PROVISIONER, LOGOUT_HOOK],
     };
   }
 }

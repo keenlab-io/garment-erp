@@ -45,12 +45,12 @@
 
 ## 5. Guardrail hooks — egress seams
 
-- [ ] 5.1 `reporting/mail.service.ts` + `mail.worker.ts` — consult `DemoGuardService`; sandbox mail is recorded (sink log + audit) and never handed to the nodemailer transport; job completes normally
-- [ ] 5.2 LINE producer path (`QUEUES.line`) — sandbox sends recorded and returned for in-app rendering labelled "demo — not delivered"; no LINE API call; works with no LINE credentials configured
-- [ ] 5.3 `sales/etax.service.ts` — `submit` throws 422 `BusinessRuleError` for sandboxes before enqueueing
-- [ ] 5.4 `sales/promptpay.service.ts` — sandbox path builds the payload from the fixed dummy payee, never reads `PROMPTPAY_ID`, returns `demo: true`, works with `PROMPTPAY_ID` unset
-- [ ] 5.5 `pdf/pdf.service.ts` — inject the diagonal `DEMO` watermark into every page when the rendering tenant is a sandbox (tenant known via `withTenantJob` / `tenantContext`)
-- [ ] 5.6 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 5.1 `reporting/mail.service.ts` + `mail.worker.ts` — consult `DemoGuardService`; sandbox mail is recorded (sink log + audit) and never handed to the nodemailer transport; job completes normally
+- [x] 5.2 LINE producer path (`QUEUES.line`) — sandbox sends recorded and returned for in-app rendering labelled "demo — not delivered"; no LINE API call; works with no LINE credentials configured
+- [x] 5.3 `sales/etax.service.ts` — `submit` throws 422 `BusinessRuleError` for sandboxes before enqueueing
+- [x] 5.4 `sales/promptpay.service.ts` — sandbox path builds the payload from the fixed dummy payee, never reads `PROMPTPAY_ID`, returns `demo: true`, works with `PROMPTPAY_ID` unset
+- [x] 5.5 `pdf/pdf.service.ts` — inject the diagonal `DEMO` watermark into every page when the rendering tenant is a sandbox (tenant known via `withTenantJob` / `tenantContext`)
+- [x] 5.6 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 6. Guest web surface — `apps/web/src`
 

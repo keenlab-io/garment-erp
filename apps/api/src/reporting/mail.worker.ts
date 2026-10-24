@@ -1,5 +1,7 @@
 import { Processor } from "@nestjs/bullmq";
 import type { Job } from "bullmq";
+import { DemoGuardService } from "../demo/demo-guard.service.js";
+import { DemoSinkService } from "../demo/demo-sink.service.js";
 import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
 import { BaseWorker } from "../queue/base.worker.js";
@@ -32,6 +34,10 @@ export interface ReportEmailJob extends TenantJobData {
  * backoff); on the **final** attempt it raises a `ReportDigestFailed` in-app alert before
  * rethrowing so the job dead-letters. Idempotent: re-sending an already-delivered digest is
  * acceptable (design D12).
+ *
+ * Demo guardrail (M10 task 5.1): for a `DEMO_SANDBOX` job the message is recorded by
+ * `DemoSinkService` — attachments by storage key, never fetched — and the job completes normally
+ * without touching `MailService`'s transport (which also guards itself, for any other caller).
  */
 @Processor(QUEUES.email)
 export class EmailWorker extends BaseWorker<ReportEmailJob, { sent: true }> {
@@ -39,6 +45,8 @@ export class EmailWorker extends BaseWorker<ReportEmailJob, { sent: true }> {
     private readonly mail: MailService,
     private readonly storage: StorageService,
     private readonly events: EventBusService,
+    private readonly guard: DemoGuardService,
+    private readonly sink: DemoSinkService,
   ) {
     super();
   }
@@ -46,6 +54,16 @@ export class EmailWorker extends BaseWorker<ReportEmailJob, { sent: true }> {
   async handle(job: Job<ReportEmailJob>): Promise<{ sent: true }> {
     if (job.name !== REPORT_EMAIL_JOB) return { sent: true };
     const data = job.data;
+    if (await this.guard.isDemoSandbox()) {
+      await this.sink.record({
+        channel: "email",
+        to: data.to,
+        subject: data.subject,
+        text: data.text,
+        attachments: data.attachments?.map((a) => a.storage_key),
+      });
+      return { sent: true };
+    }
     try {
       const attachments = await Promise.all(
         (data.attachments ?? []).map(async (a) => ({

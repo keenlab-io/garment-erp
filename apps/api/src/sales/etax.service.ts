@@ -3,9 +3,10 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { eq } from "drizzle-orm";
 import { invoice, type Db } from "@erp/db";
-import { NotFoundError } from "../common/errors/app-exception.js";
+import { BusinessRuleError, NotFoundError } from "../common/errors/app-exception.js";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
+import { DemoGuardService } from "../demo/demo-guard.service.js";
 import { QUEUES } from "../queue/queue.constants.js";
 import { StorageService } from "../storage/storage.service.js";
 import { tenantJobData, type TenantJobData } from "../tenancy/with-tenant-job.js";
@@ -23,6 +24,9 @@ export interface SalesEtaxJob extends TenantJobData {
  * is not a real Revenue-Department filing — the confirmed XSD is pending (design OQ).
  *
  * Tenancy (M7 §12.2): the XML key is relative; `StorageService` lands it under `tenants/{tid}/`.
+ *
+ * Demo guardrail (M10 task 5.3, design D7): `submit` refuses a `DEMO_SANDBOX` tenant with a 422
+ * **before** enqueueing, so no e-Tax XML is ever generated or stored for a sandbox.
  */
 @Injectable()
 export class EtaxService {
@@ -30,10 +34,14 @@ export class EtaxService {
     @Inject(DB) private readonly db: Db,
     @InjectQueue(QUEUES.pdf) private readonly queue: Queue,
     private readonly storage: StorageService,
+    private readonly guard: DemoGuardService,
   ) {}
 
   /** Enqueue an e-Tax submission; returns the job id for the 202 poll. */
   async submit(invoiceId: string): Promise<{ job_id: string }> {
+    if (await this.guard.isDemoSandbox()) {
+      throw new BusinessRuleError("e-Tax submission is disabled in the demo");
+    }
     const ex = currentExecutor(this.db);
     const [row] = await ex
       .select({ id: invoice.id })

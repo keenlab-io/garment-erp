@@ -2,6 +2,7 @@ import type { ConfigService } from "@nestjs/config";
 import type { Queue } from "bullmq";
 import type { Db } from "@erp/db";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { DemoGuardService } from "../demo/demo-guard.service.js";
 import type { PdfService } from "../pdf/pdf.service.js";
 import { StorageService } from "../storage/storage.service.js";
 import { runWithTenant } from "../tenancy/tenant-context.js";
@@ -55,7 +56,7 @@ function makeServices() {
     renderJpeg: () => Promise.resolve(Buffer.from("jpg")),
   } as unknown as PdfService;
   const exports = new ExportService(db, {} as Queue, pdf, storage);
-  const etax = new EtaxService(db, {} as Queue, storage);
+  const etax = new EtaxService(db, {} as Queue, storage, {} as DemoGuardService);
   return { storage, send, exports, etax };
 }
 
