@@ -252,16 +252,30 @@ describe.skipIf(!url)("demo sandbox provisioning & purge (integration)", () => {
     );
   });
 
-  it("isolates two guests' sandboxes under RLS (7.3)", async () => {
-    const a = await provisionGuest(`iso-a-${randomUUID()}@gmail.com`);
-    const b = await provisionGuest(`iso-b-${randomUUID()}@gmail.com`);
-    expect(a).not.toBe(b);
-    const seenFromA = await runWithTenant(a, "system", () =>
-      uow.withTransaction((tx) => tx.select({ tid: workOrder.tenantId }).from(workOrder)),
-    );
-    expect(seenFromA.length).toBeGreaterThan(0);
-    expect(seenFromA.every((r) => r.tid === a)).toBe(true);
-  });
+  it.skipIf(!process.env.DATABASE_URL_TEST_APP)(
+    "isolates two guests' sandboxes under RLS (7.3)",
+    async () => {
+      const a = await provisionGuest(`iso-a-${randomUUID()}@gmail.com`);
+      const b = await provisionGuest(`iso-b-${randomUUID()}@gmail.com`);
+      expect(a).not.toBe(b);
+      // As the runtime role (RLS enforced): each guest sees only their own factory.
+      const app = createDb(process.env.DATABASE_URL_TEST_APP as string, { max: 1 });
+      try {
+        const seenBy = (tid: string) =>
+          app.db.transaction(async (tx) => {
+            await tx.execute(sql`SELECT set_config('app.tenant_id', ${tid}, true)`);
+            return tx.select({ tid: workOrder.tenantId }).from(workOrder);
+          });
+        const [fromA, fromB] = [await seenBy(a), await seenBy(b)];
+        expect(fromA.length).toBeGreaterThan(0);
+        expect(fromA.every((r) => r.tid === a)).toBe(true);
+        expect(fromB.length).toBeGreaterThan(0);
+        expect(fromB.every((r) => r.tid === b)).toBe(true);
+      } finally {
+        await app.queryClient.end();
+      }
+    },
+  );
 
   it("finishes a purge that died mid-way when retried (7.5)", async () => {
     const tid = await provisionGuest(`kill-${randomUUID()}@gmail.com`);
