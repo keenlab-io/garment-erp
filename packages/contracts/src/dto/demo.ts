@@ -24,6 +24,12 @@ export const DemoEntryState = z.object({
 });
 export type DemoEntryState = z.infer<typeof DemoEntryState>;
 
+/** `POST /demo/entry` body — the guest's PDPA lead opt-in choice from the entry screen. */
+export const DemoEntryBody = z.object({
+  lead_opt_in: z.boolean(),
+});
+export type DemoEntryBody = z.infer<typeof DemoEntryBody>;
+
 /** Result of ending the guest's session (logout + purge trigger). */
 export const DemoEndResponse = z.object({
   ended: z.boolean(),
@@ -58,6 +64,13 @@ export const demoContract = c.router(
       path: "/demo/status",
       responses: withErrors({ 200: DemoStatus }),
       summary: "Public demo landing status (sandbox availability)",
+    },
+    entry: {
+      method: "POST",
+      path: "/demo/entry",
+      body: DemoEntryBody,
+      responses: withErrors({ 200: DemoEntryState }),
+      summary: "Record the guest's PDPA lead opt-in when they enter the demo",
     },
     end: {
       method: "POST",

@@ -7,6 +7,7 @@ import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { MobileTabBar } from "./MobileTabBar";
 import { NavDrawer } from "./NavDrawer";
+import { DemoBanner } from "../demo/DemoBanner";
 import { TenantGraceBanner } from "./TenantGraceBanner";
 import { TenantReadOnlyBanner } from "./TenantReadOnlyBanner";
 
@@ -19,6 +20,7 @@ function ChromeLayout() {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar onOpenNav={() => setNavOpen(true)} />
+        <DemoBanner />
         <TenantGraceBanner />
         <TenantReadOnlyBanner />
         <main className="flex-1 overflow-auto p-4 md:p-6">
@@ -48,6 +50,7 @@ export function AppChrome() {
   if (kioskLockdown) {
     return (
       <main id="shell" className="h-screen overflow-auto bg-bg-app p-4 text-text-primary md:p-6">
+        <DemoBanner />
         <TenantGraceBanner />
         <TenantReadOnlyBanner />
         <Outlet />

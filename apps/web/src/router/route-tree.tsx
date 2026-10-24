@@ -30,6 +30,8 @@ import { ReportDashboardPage } from "./routes/reporting/dashboard-detail";
 import { ReportViewerPage } from "./routes/reporting/report-viewer";
 import { ReportSchedulesPage } from "./routes/reporting/report-schedules";
 import { LoginPage, validateLoginSearch } from "./routes/login";
+import { DemoLandingPage } from "../demo/DemoLandingPage";
+import { DemoCompletePage } from "../demo/DemoCompletePage";
 import { PlatformLoginPage } from "./routes/platform/login";
 import { PlatformTenantsPage } from "./routes/platform/tenants";
 import { PlatformQuotesPage } from "./routes/platform/quotes";
@@ -514,6 +516,22 @@ const loginRoute = createRoute({
   validateSearch: validateLoginSearch,
 });
 
+// The public demo surface (M10 §6): the landing page and the OIDC completion/entry screen. Both are
+// unguarded and outside the nav registry — a guest has no session until they enter the demo.
+const demoLandingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/demo",
+  component: DemoLandingPage,
+  staticData: { title: "demo.landingTitle" },
+});
+
+const demoCompleteRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/auth/oidc/complete",
+  component: DemoCompletePage,
+  staticData: { title: "demo.entryTitle" },
+});
+
 // The cloud-only platform console (M8 §7.1): a separate principal (platform_admin) with its own
 // login and token, outside the nav registry, the tenant session and the tenant chrome (`Shell`
 // renders `/platform/*` chromeless). Self-hosted builds never register these routes at all.
@@ -578,5 +596,7 @@ export const routeTree = rootRoute.addChildren([
   ...REPORTING_ROUTES.map(reportingRoute),
   reportViewerRoute,
   loginRoute,
+  demoLandingRoute,
+  demoCompleteRoute,
   ...platformRoutes,
 ]);

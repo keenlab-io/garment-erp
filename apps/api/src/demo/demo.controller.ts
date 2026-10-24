@@ -7,6 +7,8 @@ import type { AuthUser } from "../auth/auth-user.js";
 import { CurrentUser } from "../auth/decorators/current-user.decorator.js";
 import { Public } from "../auth/decorators/public.decorator.js";
 import { TenantResolutionService, normalizeHost } from "../tenancy/tenant-resolution.service.js";
+import { BusinessRuleError } from "../common/errors/app-exception.js";
+import { DemoGuardService } from "./demo-guard.service.js";
 import { DemoProvisioningService } from "./demo-provisioning.service.js";
 import { DemoSessionService } from "./demo-session.service.js";
 
@@ -46,7 +48,29 @@ export class DemoStatusController {
  */
 @Controller()
 export class DemoController {
-  constructor(private readonly sessions: DemoSessionService) {}
+  constructor(
+    private readonly sessions: DemoSessionService,
+    private readonly provisioning: DemoProvisioningService,
+    private readonly guard: DemoGuardService,
+  ) {}
+
+  /** `POST /demo/entry` — stores the entry screen's unchecked-by-default PDPA opt-in (design D6). */
+  @TsRestHandler(contract.demo.entry)
+  entry(@CurrentUser() user: AuthUser) {
+    return tsRestHandler(contract.demo.entry, async ({ body }) => {
+      if (
+        user.supportSessionId !== undefined ||
+        (await this.guard.kindOf(user.tenantId)) !== "DEMO_SANDBOX"
+      ) {
+        throw new BusinessRuleError("Only a demo sandbox session can enter the demo");
+      }
+      await this.provisioning.setLeadOptIn(user.tenantId, body.lead_opt_in);
+      return {
+        status: 200 as const,
+        body: { notice_ack_required: false, lead_opt_in: body.lead_opt_in },
+      };
+    });
+  }
 
   @TsRestHandler(contract.demo.end)
   end(@CurrentUser() user: AuthUser) {
