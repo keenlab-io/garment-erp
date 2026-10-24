@@ -11,6 +11,10 @@ export const ErrorCode = {
   IDEMPOTENT_REPLAY: "IDEMPOTENT_REPLAY",
   // M7: the caller's tenant is READ_ONLY — reads work, mutations are refused (403).
   TENANT_READ_ONLY: "TENANT_READ_ONLY",
+  // M10: too many demo sandboxes created from this IP / email in the window (429).
+  RATE_LIMITED: "RATE_LIMITED",
+  // M10: the demo pool is at its concurrent-sandbox cap — "busy, try again shortly" (503).
+  SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
   INTERNAL: "INTERNAL",
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

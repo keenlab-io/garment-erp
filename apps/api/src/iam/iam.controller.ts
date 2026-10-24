@@ -1,5 +1,7 @@
 import {
   Controller,
+  Inject,
+  Optional,
   UploadedFile,
   UseInterceptors,
 } from "@nestjs/common";
@@ -14,6 +16,7 @@ import { SeatService } from "../platform/seat.service.js";
 import { AuthService } from "./auth.service.js";
 import { AuditQueryService } from "./audit-query.service.js";
 import { ImportService } from "./import.service.js";
+import { LOGOUT_HOOK, type LogoutHook } from "./logout-hook.js";
 import { PermissionService } from "./permission.service.js";
 import { RoleService } from "./role.service.js";
 import { UserService } from "./user.service.js";
@@ -41,6 +44,8 @@ export class IamController {
     private readonly imports: ImportService,
     private readonly audit: AuditQueryService,
     private readonly seats: SeatService,
+    // M10: signing out of a demo sandbox purges it (bound by the demo module; cloud only).
+    @Optional() @Inject(LOGOUT_HOOK) private readonly logoutHook?: LogoutHook,
   ) {}
 
   // ── Session ───────────────────────────────────────────────────────────────
@@ -49,6 +54,7 @@ export class IamController {
   logout(@CurrentUser() user: AuthUser) {
     return tsRestHandler(contract.iam.logout, async () => {
       await this.auth.logout(user.sessionId);
+      await this.logoutHook?.afterLogout(user);
       return { status: 204, body: undefined };
     });
   }
