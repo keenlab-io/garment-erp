@@ -1,7 +1,7 @@
 import argon2 from "argon2";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { DEFAULT_TENANT_ID, DEFAULT_TENANT_SLUG } from "../base-columns.js";
-import { createDb, type Tx } from "../client.js";
+import { createDb, type Db, type Tx } from "../client.js";
 import {
   customer,
   item,
@@ -12,7 +12,9 @@ import {
   role,
   rolePermission,
   sku,
+  authIdentity,
   tenant,
+  tenantDomain,
   uom,
   user,
   userRole,
@@ -23,6 +25,7 @@ import {
   type ItemType,
   type PlanCode,
 } from "../schema/index.js";
+import { seedDemoTenant } from "./demo/seed-demo-tenant.js";
 import { BASE_SEQUENCES, BASE_UOMS, seedTenantDefaults } from "./tenant-defaults.js";
 
 // The M8 plan catalog (design D10): seat counts from the GTM doc, seeded by migration/seed and
@@ -425,6 +428,60 @@ async function seedTestData(db: Tx, tenantId: string) {
     });
 }
 
+// One PASSWORD `auth_identity` per user of the tenant (subject = username). Idempotent.
+async function backfillPasswordIdentities(db: Tx, tenantId: string) {
+  const users = await db
+    .select({ id: user.id, username: user.username, email: user.email })
+    .from(user)
+    .where(eq(user.tenantId, tenantId));
+  if (users.length === 0) return;
+  await db
+    .insert(authIdentity)
+    .values(
+      users.map((u) => ({
+        tenantId,
+        userId: u.id,
+        provider: "PASSWORD" as const,
+        subject: u.username,
+        email: u.email,
+      })),
+    )
+    .onConflictDoNothing();
+}
+
+const DEMO_TEMPLATE_SLUG = "demo-template";
+
+async function seedDemoBootstrap(db: Db, demoHost: string) {
+  await db
+    .insert(tenant)
+    .values({ slug: DEMO_TEMPLATE_SLUG, name: "Demo Template", kind: "DEMO_TEMPLATE", status: "ACTIVE" })
+    .onConflictDoNothing();
+  const [templateTenant] = await db
+    .select({ id: tenant.id, planId: tenant.planId })
+    .from(tenant)
+    .where(eq(tenant.slug, DEMO_TEMPLATE_SLUG));
+  if (!templateTenant) throw new Error("Demo template tenant could not be created");
+
+  if (!templateTenant.planId) {
+    const [factoryPlan] = await db.select({ id: plan.id }).from(plan).where(eq(plan.code, "FACTORY"));
+    if (factoryPlan) {
+      await db.update(tenant).set({ planId: factoryPlan.id }).where(eq(tenant.id, templateTenant.id));
+    }
+  }
+
+  // `tenant_domain.tenant_id` is NOT NULL; for a DEMO_POOL host it points at the template
+  // tenant (the pool resolver ignores it and provisions a sandbox per guest).
+  await db
+    .insert(tenantDomain)
+    .values({ hostname: demoHost, tenantId: templateTenant.id, resolutionMode: "DEMO_POOL" })
+    .onConflictDoNothing();
+
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select set_config('app.tenant_id', ${templateTenant.id}, true)`);
+    await seedDemoTenant(tx, templateTenant.id);
+  });
+}
+
 async function main() {
   // Migrations and seed run with owner credentials (`erp_owner`); the runtime connects as the
   // RLS-bound `erp_app`. Falls back to DATABASE_URL where there is only one role (M7 D2).
@@ -528,13 +585,27 @@ async function main() {
         })
         .onConflictDoNothing();
 
+      // Every user has a PASSWORD identity (M10 design D8; migration 0022 backfills the same
+      // for pre-existing rows). Seeded here so a fresh DB matches a migrated one.
+      await backfillPasswordIdentities(tx, tenantId);
+
       // Personas + sample master data are opt-in — see seedTestData's header. Off by default
       // so the documented production bootstrap (infra/k8s/README.md step 6) stays
       // bootstrap-only.
       if (SEED_TEST_DATA) {
         await seedTestData(tx, tenantId);
+        await backfillPasswordIdentities(tx, tenantId);
       }
     });
+
+    // Public demo bootstrap (M10 design D3/D2): when `DEMO_HOST` is set, register it as a
+    // DEMO_POOL `tenant_domain` and stand up the DEMO_TEMPLATE tenant (the platform admin's
+    // curation copy of the demo factory, seeded by the same `seedDemoTenant` sandboxes use).
+    // Unset (self-hosted, plain dev) ⇒ no demo surface at all. Idempotent.
+    const demoHost = process.env.DEMO_HOST?.trim();
+    if (demoHost) {
+      await seedDemoBootstrap(db, demoHost);
+    }
 
     console.log(
       `Seed complete: permission catalog + plan catalog + platform admin + tenant "${tenantSlug}" ` +
