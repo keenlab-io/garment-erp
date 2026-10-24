@@ -54,12 +54,12 @@
 
 ## 6. Guest web surface — `apps/web/src`
 
-- [ ] 6.1 Demo landing route (demo host): product blurb, availability from `GET /demo/status` (busy → friendly 503 message), "Continue with Google" → `/auth/oidc/google/start`; prominent deletion notice
-- [ ] 6.2 Post-callback entry screen: repeat the deletion notice, unchecked PDPA lead opt-in checkbox, "Enter the demo" — then token storage via the existing `api/token-store` + `session-context` flow (`src/session/`)
-- [ ] 6.3 Persistent demo-mode banner inside the shell for sandbox sessions ("demo factory — deleted at sign-out") + "End demo & delete my data" action calling `POST /demo/end` then clearing tokens
-- [ ] 6.4 Sunk-message rendering: LINE/email demo sends shown with the "demo — not delivered" label; PromptPay QR labelled "demo — do not pay" when `demo: true`
-- [ ] 6.5 `th` + `en` strings for all of the above in the i18n namespaces (th default)
-- [ ] 6.6 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 6.1 Demo landing route (demo host): product blurb, availability from `GET /demo/status` (busy → friendly 503 message), "Continue with Google" → `/auth/oidc/google/start`; prominent deletion notice
+- [x] 6.2 Post-callback entry screen: repeat the deletion notice, unchecked PDPA lead opt-in checkbox, "Enter the demo" — then token storage via the existing `api/token-store` + `session-context` flow (`src/session/`)
+- [x] 6.3 Persistent demo-mode banner inside the shell for sandbox sessions ("demo factory — deleted at sign-out") + "End demo & delete my data" action calling `POST /demo/end` then clearing tokens
+- [x] 6.4 Sunk-message rendering: LINE/email demo sends shown with the "demo — not delivered" label; PromptPay QR labelled "demo — do not pay" when `demo: true`
+- [x] 6.5 `th` + `en` strings for all of the above in the i18n namespaces (th default)
+- [x] 6.6 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 7. Tests (spec acceptance criteria)
 

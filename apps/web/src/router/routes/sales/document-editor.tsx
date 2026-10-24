@@ -360,6 +360,7 @@ function DocumentEditorScreen({ id }: { id: string }) {
                     scanHint: t("documentEditor.promptPayScanHint"),
                     refLabel: t("documentEditor.promptPayRef"),
                     empty: t("documentEditor.promptPayEmpty"),
+                    demoLabel: t("demo.qrLabel", { ns: "shell" }),
                   }}
                 />
               )}

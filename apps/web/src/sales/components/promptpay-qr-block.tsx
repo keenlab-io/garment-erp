@@ -6,6 +6,8 @@ export interface PromptPayQrBlockLabels {
   scanHint: string;
   refLabel: string;
   empty: string;
+  /** Shown when the QR is a demo-tenant placeholder (`qr.demo`). */
+  demoLabel: string;
 }
 
 const defaultLabels: PromptPayQrBlockLabels = {
@@ -13,6 +15,7 @@ const defaultLabels: PromptPayQrBlockLabels = {
   scanHint: "Scan to pay",
   refLabel: "Ref",
   empty: "Issue the invoice to generate a PromptPay QR",
+  demoLabel: "demo — do not pay",
 };
 
 export interface PromptPayQrBlockProps {
@@ -49,7 +52,11 @@ export function PromptPayQrBlock({ qr, loading = false, amount, labels: labelsPr
             height={160}
             className="rounded-md border border-border"
           />
-          <p className="text-caption text-text-muted">{labels.scanHint}</p>
+          {qr.demo ? (
+            <p className="text-caption font-semibold text-danger">{labels.demoLabel}</p>
+          ) : (
+            <p className="text-caption text-text-muted">{labels.scanHint}</p>
+          )}
           {amount && <MoneyCell value={amount} className="text-body-strong" />}
           <p className="break-all font-mono text-mono text-caption text-text-muted">
             {labels.refLabel}: {qr.payload}
