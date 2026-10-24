@@ -121,6 +121,8 @@ export const envSchema = z.object({
   // error envelope and never redirect to Google, so self-hosted / dev boots need neither.
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+  // Test seam: points the code flow at a stub IdP (e2e). Unset in every real deployment.
+  GOOGLE_OIDC_BASE_URL: z.string().url().optional(),
 
   // Public demo tier (M10). `DEMO_HOST` is the demo pool's hostname (its `tenant_domain` row
   // carries `resolution_mode = DEMO_POOL`); unset, there is no demo surface. The rest bound the

@@ -55,6 +55,7 @@ Override targets with `E2E_BASE_URL` (app, default `http://localhost:5173`) and
 | `tests/storybook/data-table.spec.ts` | TC-CMP-01..08 — sort, cursor pagination, bulk select, presets, keyboard nav, density, empty/error |
 | `tests/storybook/primitives.spec.ts` | TC-CMP-09/10, 22–26 — InkChip, FormField ARIA, Money/Qty cells, PermissionButton, MaskedValue |
 | `tests/storybook/dialogs-and-inputs.spec.ts` | TC-CMP-11..21 — confirm/guarded dialogs, combobox, select, wizard, scan, toast |
+| `tests/demo.spec.ts` | TC-DEMO-01 — M10 public demo: landing → stub Google sign-in → notice/opt-in → seeded factory → end demo → fresh factory (self-skips without `E2E_DEMO_BASE_URL`; see header for the cloud + stub-IdP stack) |
 | `fixtures/auth.ts` | `login()` (locale-independent selectors) + English/light state |
 | `fixtures/personas.ts` | named permission personas → `@erp/contracts` catalog, `personaCredentials()`/`personaStatePath()` |
 | `fixtures/routes.ts` | leaf route list mirrored from `apps/web/src/nav/registry.ts` |

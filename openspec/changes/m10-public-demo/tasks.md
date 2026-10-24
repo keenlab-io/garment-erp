@@ -63,15 +63,15 @@
 
 ## 7. Tests (spec acceptance criteria)
 
-- [ ] 7.1 OIDC: tampered/expired/cross-tenant `state` ⇒ 401, no exchange; unknown identity on `allow_self_signup = false` tenant ⇒ 403, zero rows created; known identity ⇒ standard token pair with correct `tid`
-- [ ] 7.2 Password login resolves via `auth_identity` `PASSWORD`; OIDC-only guest ⇒ 401 on `/auth/login`; backfill gives every pre-m10 user a `PASSWORD` row
-- [ ] 7.3 Provisioning: first sign-in creates tenant + seed + guest + identity atomically (seed failure ⇒ nothing visible, no token); two guests ⇒ two isolated sandboxes (cross-tenant read blocked by RLS); returning guest resumes
-- [ ] 7.4 Seed dataset assertions: WOs mid-production with scans and ≥1 delayed step; completed payroll run; invoices in all five states; every module opens without error in a fresh sandbox
-- [ ] 7.5 Purge: full-completeness check (no rows for `tenant_id`, empty S3 prefix, identity/user/tenant gone, audit row present); kill-mid-purge then retry completes; duplicate triggers collapse on the deduped job id; non-sandbox tenant ⇒ refused, nothing deleted; missing tenant ⇒ no-op success
-- [ ] 7.6 Sweep: idle sandbox purged after `DEMO_SANDBOX_IDLE_MINUTES`; active session untouched; stuck-`PURGING` re-enqueued
-- [ ] 7.7 Guardrail integration suite (one test per requirement): no SMTP transport call, no LINE API call, e-Tax 422 with no job, QR payload contains dummy payee and not `PROMPTPAY_ID`, watermark on every rendered page, 429 past the IP/email limits, 503 at the cap with no overshoot under concurrent callbacks
-- [ ] 7.8 PDPA: default purge leaves no trace of the email anywhere; opt-in purge writes exactly one `demo_lead` + audit row
-- [ ] 7.9 Playwright demo flow (`e2e/`): landing → Google sign-in (stub IdP) → notice + opt-in screen → order tracking, job costing, LINE demo-send visible → end demo → sandbox gone, re-sign-in gets a fresh factory
+- [x] 7.1 OIDC: tampered/expired/cross-tenant `state` ⇒ 401, no exchange; unknown identity on `allow_self_signup = false` tenant ⇒ 403, zero rows created; known identity ⇒ standard token pair with correct `tid`
+- [x] 7.2 Password login resolves via `auth_identity` `PASSWORD`; OIDC-only guest ⇒ 401 on `/auth/login`; backfill gives every pre-m10 user a `PASSWORD` row
+- [x] 7.3 Provisioning: first sign-in creates tenant + seed + guest + identity atomically (seed failure ⇒ nothing visible, no token); two guests ⇒ two isolated sandboxes (cross-tenant read blocked by RLS); returning guest resumes
+- [x] 7.4 Seed dataset assertions: WOs mid-production with scans and ≥1 delayed step; completed payroll run; invoices in all five states; every module opens without error in a fresh sandbox
+- [x] 7.5 Purge: full-completeness check (no rows for `tenant_id`, empty S3 prefix, identity/user/tenant gone, audit row present); kill-mid-purge then retry completes; duplicate triggers collapse on the deduped job id; non-sandbox tenant ⇒ refused, nothing deleted; missing tenant ⇒ no-op success
+- [x] 7.6 Sweep: idle sandbox purged after `DEMO_SANDBOX_IDLE_MINUTES`; active session untouched; stuck-`PURGING` re-enqueued
+- [x] 7.7 Guardrail integration suite (one test per requirement): no SMTP transport call, no LINE API call, e-Tax 422 with no job, QR payload contains dummy payee and not `PROMPTPAY_ID`, watermark on every rendered page, 429 past the IP/email limits, 503 at the cap with no overshoot under concurrent callbacks
+- [x] 7.8 PDPA: default purge leaves no trace of the email anywhere; opt-in purge writes exactly one `demo_lead` + audit row
+- [x] 7.9 Playwright demo flow (`e2e/`): landing → Google sign-in (stub IdP) → notice + opt-in screen → order tracking, job costing, LINE demo-send visible → end demo → sandbox gone, re-sign-in gets a fresh factory
 
 ## 8. Verification
 
