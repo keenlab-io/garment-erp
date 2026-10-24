@@ -13,6 +13,13 @@ export function moduleFeatureKey(module: EntitledModule): `module.${EntitledModu
   return `module.${module}`;
 }
 
+/**
+ * The feature key that lets a tenant's existing users sign in with Google (m10
+ * `oidc-authentication`). Off unless a platform admin enables it; it never enables self-signup —
+ * that is `tenant.allow_self_signup`, set only on demo sandboxes.
+ */
+export const GOOGLE_LOGIN_FEATURE_KEY = "auth.google";
+
 /** Permission-code prefix → gated module. `iam.*` is absent: IAM is never gated. */
 const MODULE_BY_PREFIX: Readonly<Record<string, EntitledModule>> = {
   hr: "hr",

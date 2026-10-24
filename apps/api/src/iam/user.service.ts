@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
+  authIdentity,
   role,
   session,
   user,
@@ -130,8 +131,16 @@ export class UserService {
             createdBy: actor.id,
             updatedBy: actor.id,
           })
-          .returning({ id: user.id });
+          .returning({ id: user.id, tenantId: user.tenantId });
         if (!row) throw new StateConflictError("User could not be created");
+        // Password login resolves through this identity (M10 design D8).
+        await currentExecutor(this.db).insert(authIdentity).values({
+          tenantId: row.tenantId,
+          userId: row.id,
+          provider: "PASSWORD",
+          subject: input.username,
+          email: input.email,
+        });
         await this.assignRoles(row.id, input.role_ids);
         return row;
       });

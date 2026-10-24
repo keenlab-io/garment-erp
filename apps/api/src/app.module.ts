@@ -3,6 +3,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { API_PREFIX } from "@erp/contracts";
 import { AuditModule } from "./audit/audit.module.js";
 import { AuthModule } from "./auth/auth.module.js";
+import { OidcModule } from "./auth/oidc/oidc.module.js";
 import { JwtGuard } from "./auth/jwt.guard.js";
 import { PERMISSION_RESOLVER } from "./auth/auth.tokens.js";
 import { RolePermissionResolver } from "./iam/role-permission.resolver.js";
@@ -53,6 +54,8 @@ import { TenantTransactionInterceptor } from "./tenancy/tenant-transaction.inter
     // IamModule supplies the real PERMISSION_RESOLVER (RolePermissionResolver). Import order
     // alone is NOT enough to rebind it for the global guard — see the provider below.
     IamModule,
+    // Google OIDC sign-in (M10 §3) — refuses every request unless GOOGLE_OAUTH_* are set.
+    OidcModule,
     InventoryModule,
     HrModule,
     ProductionModule,

@@ -25,12 +25,12 @@
 
 ## 3. OIDC auth — `apps/api/src/auth/oidc`
 
-- [ ] 3.1 Add `openid-client` to `apps/api` runtime deps (or record the minimal-fetch decision in design OQ1 and implement JWKS verification directly)
-- [ ] 3.2 Extend `config/env.schema.ts` — `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` (optional; OIDC endpoints refuse when unset), `DEMO_HOST` (optional), `DEMO_MAX_CONCURRENT_SANDBOXES` (default 25), `DEMO_SANDBOX_IDLE_MINUTES` (default 60), `DEMO_SWEEP_INTERVAL_MS` (default 300000), `DEMO_SIGNUP_RATE_PER_IP` (default 3), `DEMO_SIGNUP_RATE_PER_EMAIL` (default 2)
-- [ ] 3.3 `OidcService` — build the Google authorize URL (PKCE S256 + signed short-TTL `state` binding the resolved tenant/demo-pool + nonce), exchange the code, verify the ID token (JWKS, `iss`/`aud`/`exp`/`nonce`), return `{ sub, email, email_verified, name }`
-- [ ] 3.4 `OidcController` (`@Public()` class-level, ts-rest handlers for `contract.demo`'s OIDC routes) — `/start` refuses when the resolved tenant doesn't enable Google login or OIDC is unconfigured; `/callback` verifies state, then branches: identity match → sign-in; no match + `allow_self_signup` → create user+identity (or hand to `DemoProvisioningService` on the demo pool); no match otherwise → 403, nothing created
-- [ ] 3.5 `AuthService.login` — resolve the caller via the `(tenant_id, PASSWORD, username)` `auth_identity` row; refuse OIDC-only users (no `PASSWORD` row) with 401 before any hash check; update `auth_identity.last_login_at` alongside `user.last_login_at`
-- [ ] 3.6 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 3.1 Add `openid-client` to `apps/api` runtime deps (or record the minimal-fetch decision in design OQ1 and implement JWKS verification directly)
+- [x] 3.2 Extend `config/env.schema.ts` — `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` (optional; OIDC endpoints refuse when unset), `DEMO_HOST` (optional), `DEMO_MAX_CONCURRENT_SANDBOXES` (default 25), `DEMO_SANDBOX_IDLE_MINUTES` (default 60), `DEMO_SWEEP_INTERVAL_MS` (default 300000), `DEMO_SIGNUP_RATE_PER_IP` (default 3), `DEMO_SIGNUP_RATE_PER_EMAIL` (default 2)
+- [x] 3.3 `OidcService` — build the Google authorize URL (PKCE S256 + signed short-TTL `state` binding the resolved tenant/demo-pool + nonce), exchange the code, verify the ID token (JWKS, `iss`/`aud`/`exp`/`nonce`), return `{ sub, email, email_verified, name }`
+- [x] 3.4 `OidcController` (`@Public()` class-level, ts-rest handlers for `contract.demo`'s OIDC routes) — `/start` refuses when the resolved tenant doesn't enable Google login or OIDC is unconfigured; `/callback` verifies state, then branches: identity match → sign-in; no match + `allow_self_signup` → create user+identity (or hand to `DemoProvisioningService` on the demo pool); no match otherwise → 403, nothing created
+- [x] 3.5 `AuthService.login` — resolve the caller via the `(tenant_id, PASSWORD, username)` `auth_identity` row; refuse OIDC-only users (no `PASSWORD` row) with 401 before any hash check; update `auth_identity.last_login_at` alongside `user.last_login_at`
+- [x] 3.6 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 4. Demo module — `apps/api/src/demo`
 

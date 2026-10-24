@@ -8,6 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_TENANT_ID,
   auditLog,
+  authIdentity,
   createDb,
   permission,
   PERMISSION_CODES,
@@ -92,8 +93,16 @@ describe.skipIf(!url)("IAM services (integration)", () => {
         isSuperAdmin: opts.isSuperAdmin ?? false,
         permissionsVersion: 1,
       })
-      .returning({ id: user.id });
-    return (row as { id: string }).id;
+      .returning({ id: user.id, tenantId: user.tenantId });
+    const created = row as { id: string; tenantId: string };
+    // Password login resolves through the PASSWORD identity (M10 design D8).
+    await conn.db.insert(authIdentity).values({
+      tenantId: created.tenantId,
+      userId: created.id,
+      provider: "PASSWORD",
+      subject: opts.username,
+    });
+    return created.id;
   }
 
   async function version(userId: string): Promise<number> {
@@ -133,6 +142,7 @@ describe.skipIf(!url)("IAM services (integration)", () => {
       events,
       resolver,
       new EntitlementsService(conn.db),
+      new SeatService(conn.db),
     );
     const seats = new SeatService(conn.db);
     roleService = new RoleService(conn.db, passwords, uow, events, seats);

@@ -4,12 +4,16 @@ import { EventEmitter2 } from "@nestjs/event-emitter";
 import { JwtService } from "@nestjs/jwt";
 import type { ConfigService } from "@nestjs/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DEFAULT_TENANT_ID, createDb, session, tenant, user } from "@erp/db";
+import { DEFAULT_TENANT_ID, authIdentity, createDb, session, tenant, user } from "@erp/db";
 import type { AuthUser } from "../../src/auth/auth-user.js";
 import { assertPermissions } from "../../src/auth/authz.js";
 import { PasswordService } from "../../src/auth/password.service.js";
 import { TokenService } from "../../src/auth/token.service.js";
-import { NotFoundError, UnauthenticatedError } from "../../src/common/errors/app-exception.js";
+import {
+  ForbiddenError,
+  NotFoundError,
+  UnauthenticatedError,
+} from "../../src/common/errors/app-exception.js";
 import { UnitOfWork } from "../../src/db/unit-of-work.service.js";
 import { AuditService } from "../../src/audit/audit.service.js";
 import { AuditSubscriber } from "../../src/audit/audit.subscriber.js";
@@ -71,7 +75,12 @@ describe.skipIf(!url)("tenant-scoped auth (integration)", () => {
         permissionsVersion: 1,
       })
       .returning({ id: user.id });
-    return (row as { id: string }).id;
+    const id = (row as { id: string }).id;
+    // Password login resolves through the PASSWORD identity (M10 design D8).
+    await conn.db
+      .insert(authIdentity)
+      .values({ tenantId, userId: id, provider: "PASSWORD", subject: username });
+    return id;
   }
 
   /** Log in as if the request arrived on `tenantId`'s hostname (the middleware's scope). */
@@ -96,6 +105,7 @@ describe.skipIf(!url)("tenant-scoped auth (integration)", () => {
       events,
       new RolePermissionResolver(conn.db),
       new EntitlementsService(conn.db),
+      new SeatService(conn.db),
     );
     userService = new UserService(conn.db, passwords, uow, events, new SeatService(conn.db));
 
@@ -141,6 +151,101 @@ describe.skipIf(!url)("tenant-scoped auth (integration)", () => {
     await createUser(TENANT_A, onlyA, "pw");
     await expect(loginOn(TENANT_B, onlyA, "pw")).rejects.toBeInstanceOf(UnauthenticatedError);
     await expect(loginOn(TENANT_A, onlyA, "pw")).resolves.toHaveProperty("access_token");
+  });
+
+  describe("M10 auth_identity sign-in paths", () => {
+    /** A user with only a GOOGLE identity — what a demo guest / OIDC signup looks like. */
+    async function createGoogleUser(tenantId: string, username: string, sub: string) {
+      const [row] = await conn.db
+        .insert(user)
+        .values({
+          tenantId,
+          username,
+          email: `${username}@gmail.test`,
+          passwordHash: await passwords.hash("unused"),
+          status: "ACTIVE",
+          permissionsVersion: 1,
+        })
+        .returning({ id: user.id });
+      const id = (row as { id: string }).id;
+      await conn.db
+        .insert(authIdentity)
+        .values({ tenantId, userId: id, provider: "GOOGLE", subject: sub });
+      return id;
+    }
+
+    it("password login refuses an OIDC-only account before any hash check", async () => {
+      const guest = name("guest");
+      await createGoogleUser(TENANT_B, guest, `sub-${guest}`);
+      // Even the hash's real password: there is no PASSWORD identity to sign in through.
+      await expect(loginOn(TENANT_B, guest, "unused")).rejects.toBeInstanceOf(
+        UnauthenticatedError,
+      );
+      const [row] = await conn.db
+        .select({ failed: user.failedLoginCount })
+        .from(user)
+        .where(eq(user.username, guest));
+      expect(row?.failed).toBe(0);
+    });
+
+    it("password login stamps last_login_at on the PASSWORD identity", async () => {
+      const u = name("stamp");
+      const id = await createUser(TENANT_A, u, "pw");
+      await loginOn(TENANT_A, u, "pw");
+      const [ident] = await conn.db
+        .select({ lastLoginAt: authIdentity.lastLoginAt })
+        .from(authIdentity)
+        .where(eq(authIdentity.userId, id));
+      expect(ident?.lastLoginAt).toBeInstanceOf(Date);
+    });
+
+    it("a known Google identity signs in with the standard token pair for its tenant", async () => {
+      const g = name("known");
+      const id = await createGoogleUser(TENANT_B, g, `sub-${g}`);
+      const pair = await authService.signInWithIdentity(TENANT_B, "GOOGLE", `sub-${g}`);
+      expect(pair).not.toBeNull();
+      expect(await tokens.verifyAccess((pair as { access_token: string }).access_token)).toMatchObject({
+        sub: id,
+        tid: TENANT_B,
+      });
+      // The same subject is unknown in another tenant.
+      await expect(authService.signInWithIdentity(TENANT_A, "GOOGLE", `sub-${g}`)).resolves.toBeNull();
+    });
+
+    it("self-signup is refused (403, nothing created) unless allow_self_signup is on", async () => {
+      const email = `${name("walkin")}@gmail.test`;
+      const sub = `sub-${name("walkin")}`;
+      await expect(
+        authService.signUpWithGoogle(TENANT_B, { sub, email }),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+      expect(await conn.db.select({ id: user.id }).from(user).where(eq(user.email, email))).toEqual(
+        [],
+      );
+      expect(
+        await conn.db
+          .select({ id: authIdentity.id })
+          .from(authIdentity)
+          .where(eq(authIdentity.subject, sub)),
+      ).toEqual([]);
+
+      await conn.db.update(tenant).set({ allowSelfSignup: true }).where(eq(tenant.id, TENANT_B));
+      try {
+        const pair = await authService.signUpWithGoogle(TENANT_B, { sub, email });
+        const claims = await tokens.verifyAccess(pair.access_token);
+        expect(claims.tid).toBe(TENANT_B);
+        const [ident] = await conn.db
+          .select({ userId: authIdentity.userId, provider: authIdentity.provider })
+          .from(authIdentity)
+          .where(eq(authIdentity.subject, sub));
+        expect(ident).toEqual({ userId: claims.sub, provider: "GOOGLE" });
+        // OIDC-only: the new account cannot use password login.
+        await expect(loginOn(TENANT_B, email, "anything")).rejects.toBeInstanceOf(
+          UnauthenticatedError,
+        );
+      } finally {
+        await conn.db.update(tenant).set({ allowSelfSignup: false }).where(eq(tenant.id, TENANT_B));
+      }
+    });
   });
 
   it("lockout does not cross tenants", async () => {
