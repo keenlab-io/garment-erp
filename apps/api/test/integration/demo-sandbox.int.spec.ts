@@ -3,11 +3,25 @@ import type { ConfigService } from "@nestjs/config";
 import type { Queue } from "bullmq";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { authIdentity, createDb, demoLead, platformAuditLog, tenant, user } from "@erp/db";
+import {
+  authIdentity,
+  createDb,
+  demoLead,
+  invoice,
+  payrollRun,
+  platformAuditLog,
+  productionScan,
+  tenant,
+  user,
+  workOrder,
+  workOrderStep,
+} from "@erp/db";
 import { PasswordService } from "../../src/auth/password.service.js";
 import { ServiceUnavailableError } from "../../src/common/errors/app-exception.js";
 import { UnitOfWork } from "../../src/db/unit-of-work.service.js";
 import { DemoProvisioningService } from "../../src/demo/demo-provisioning.service.js";
+import { demoPurgeJobId } from "../../src/demo/demo.constants.js";
+import { DemoSweepService } from "../../src/demo/demo-sweep.service.js";
 import { DemoPurgeService } from "../../src/demo/demo-purge.service.js";
 import { demoPurgePlan } from "../../src/demo/demo-purge-plan.js";
 import type { DemoSignupSlot, DemoStore } from "../../src/demo/demo-store.service.js";
@@ -60,6 +74,7 @@ describe.skipIf(!url)("demo sandbox provisioning & purge (integration)", () => {
   let provisioning: DemoProvisioningService;
   let purge: DemoPurgeService;
   let storage: MemoryStorage;
+  let queue: FakeQueue;
   const created: string[] = [];
   const env: Record<string, number> = {
     DEMO_SIGNUP_RATE_PER_IP: 100,
@@ -96,6 +111,7 @@ describe.skipIf(!url)("demo sandbox provisioning & purge (integration)", () => {
     } as unknown as DemoStore;
     const config = { get: (k: string) => env[k] } as unknown as ConfigService;
     storage = new MemoryStorage();
+    queue = new FakeQueue();
     provisioning = new DemoProvisioningService(
       conn.db,
       uow,
@@ -111,7 +127,7 @@ describe.skipIf(!url)("demo sandbox provisioning & purge (integration)", () => {
       audit,
       storage as unknown as StorageService,
       store,
-      new FakeQueue() as unknown as Queue,
+      queue as unknown as Queue,
     );
   });
 
@@ -204,6 +220,106 @@ describe.skipIf(!url)("demo sandbox provisioning & purge (integration)", () => {
     const leads = await conn.db.select().from(demoLead).where(eq(demoLead.email, email));
     expect(leads).toHaveLength(1);
     expect(leads[0]?.name).toBe("คุณทดสอบ");
+  });
+
+  it("seeds a factory that tells the demo story (7.4)", async () => {
+    const tid = await provisionGuest(`seed-${randomUUID()}@gmail.com`);
+    await runWithTenant(tid, "system", () =>
+      uow.withTransaction(async (tx) => {
+        const steps = await tx.select().from(workOrderStep).where(eq(workOrderStep.tenantId, tid));
+        const scans = await tx.select().from(productionScan).where(eq(productionScan.tenantId, tid));
+        const orders = await tx.select().from(workOrder).where(eq(workOrder.tenantId, tid));
+        expect(orders.some((w) => w.status === "IN_PROGRESS")).toBe(true);
+        expect(scans.length).toBeGreaterThan(0);
+        // A delayed step: running (or finished) for longer than its standard time.
+        const now = Date.now();
+        expect(
+          steps.some(
+            (s) =>
+              s.startedAt !== null &&
+              (s.finishedAt?.getTime() ?? now) - s.startedAt.getTime() > s.standardTimeMin * 60_000,
+          ),
+        ).toBe(true);
+        const runs = await tx.select().from(payrollRun).where(eq(payrollRun.tenantId, tid));
+        expect(runs.some((r) => r.status === "PAID")).toBe(true);
+        const states = new Set(
+          (await tx.select().from(invoice).where(eq(invoice.tenantId, tid))).map((i) => i.status),
+        );
+        for (const st of ["DRAFT", "ISSUED", "PARTIALLY_PAID", "PAID", "OVERDUE"]) {
+          expect(states.has(st as never)).toBe(true);
+        }
+      }),
+    );
+  });
+
+  it.skipIf(!process.env.DATABASE_URL_TEST_APP)(
+    "isolates two guests' sandboxes under RLS (7.3)",
+    async () => {
+      const a = await provisionGuest(`iso-a-${randomUUID()}@gmail.com`);
+      const b = await provisionGuest(`iso-b-${randomUUID()}@gmail.com`);
+      expect(a).not.toBe(b);
+      // As the runtime role (RLS enforced): each guest sees only their own factory.
+      const app = createDb(process.env.DATABASE_URL_TEST_APP as string, { max: 1 });
+      try {
+        const seenBy = (tid: string) =>
+          app.db.transaction(async (tx) => {
+            await tx.execute(sql`SELECT set_config('app.tenant_id', ${tid}, true)`);
+            return tx.select({ tid: workOrder.tenantId }).from(workOrder);
+          });
+        const [fromA, fromB] = [await seenBy(a), await seenBy(b)];
+        expect(fromA.length).toBeGreaterThan(0);
+        expect(fromA.every((r) => r.tid === a)).toBe(true);
+        expect(fromB.length).toBeGreaterThan(0);
+        expect(fromB.every((r) => r.tid === b)).toBe(true);
+      } finally {
+        await app.queryClient.end();
+      }
+    },
+  );
+
+  it("finishes a purge that died mid-way when retried (7.5)", async () => {
+    const tid = await provisionGuest(`kill-${randomUUID()}@gmail.com`);
+    await runWithTenant(tid, "job", () => storage.put("files/f.pdf", "%PDF"));
+    await purge.beginPurge(tid, "SIGN_OUT");
+    // Kill the worker at the object-store step: business rows are already gone by then.
+    const real = storage.deleteTenantObjects.bind(storage);
+    storage.deleteTenantObjects = async () => {
+      throw new Error("worker killed");
+    };
+    await expect(runWithTenant(tid, "job", () => purge.runPurge("SIGN_OUT"))).rejects.toThrow(
+      "worker killed",
+    );
+    storage.deleteTenantObjects = real;
+    expect((await conn.db.select().from(tenant).where(eq(tenant.id, tid)))[0]?.status).toBe("PURGING");
+
+    await expect(runWithTenant(tid, "job", () => purge.runPurge("RETRY"))).resolves.toEqual({
+      purged: true,
+    });
+    expect(await rowsFor(tid)).toEqual({});
+    expect(await conn.db.select().from(tenant).where(eq(tenant.id, tid))).toEqual([]);
+  });
+
+  it("the sweep purges an abandoned sandbox and re-enqueues a stuck purge (7.6)", async () => {
+    const abandoned = await provisionGuest(`idle-${randomUUID()}@gmail.com`);
+    const stuck = await provisionGuest(`stuck-${randomUUID()}@gmail.com`);
+    await purge.beginPurge(stuck, "SIGN_OUT");
+    queue.jobs.clear(); // the purge job was lost
+
+    const sweep = new DemoSweepService(
+      conn.db,
+      uow,
+      purge,
+      { lastActivity: async () => null } as unknown as DemoStore,
+      { get: (k: string) => (k === "DEMO_SANDBOX_IDLE_MINUTES" ? 60 : undefined) } as unknown as ConfigService,
+    );
+    const result = await sweep.sweep();
+    expect(result.failed).toBe(0);
+    const status = async (tid: string) =>
+      (await conn.db.select().from(tenant).where(eq(tenant.id, tid)))[0]?.status;
+    expect(await status(abandoned)).toBe("PURGING");
+    expect(queue.jobs.has(demoPurgeJobId(stuck))).toBe(true);
+    expect(queue.jobs.has(demoPurgeJobId(abandoned))).toBe(true);
+    expect(await status(stuck)).toBe("PURGING");
   });
 
   it("holds the concurrent cap under simultaneous first sign-ins", async () => {

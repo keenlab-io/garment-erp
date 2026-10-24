@@ -102,7 +102,7 @@ export class DemoSweepService {
         tx
           .select({
             lastSessionAt: max(session.createdAt),
-            live: sql<number>`count(*) filter (where ${session.revokedAt} is null and ${session.expiresAt} > ${now})`,
+            live: sql<number>`count(*) filter (where ${session.revokedAt} is null and ${session.expiresAt} > ${now.toISOString()}::timestamptz)`,
           })
           .from(session)
           .where(eq(session.tenantId, tenantId)),

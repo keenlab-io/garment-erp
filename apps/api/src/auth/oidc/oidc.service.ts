@@ -77,6 +77,21 @@ export class OidcService {
     private readonly jwt: JwtService,
   ) {}
 
+  /**
+   * Google's endpoints — or, when `GOOGLE_OIDC_BASE_URL` is set, a stub IdP's (`/authorize`,
+   * `/token`, `/jwks`). A test seam for the Playwright demo flow; never set in production.
+   */
+  private endpoints(): Record<"authorizationEndpoint" | "tokenEndpoint" | "jwksUri", string> {
+    const base = this.config.get<string>("GOOGLE_OIDC_BASE_URL");
+    if (!base) return GOOGLE_OIDC;
+    const root = base.replace(/\/+$/, "");
+    return {
+      authorizationEndpoint: `${root}/authorize`,
+      tokenEndpoint: `${root}/token`,
+      jwksUri: `${root}/jwks`,
+    };
+  }
+
   /** Both OAuth client settings present — otherwise every OIDC endpoint refuses. */
   isConfigured(): boolean {
     return Boolean(this.clientId() && this.clientSecret());
@@ -119,7 +134,7 @@ export class OidcService {
       { secret, audience: FLOW_AUDIENCE, jwtid: jti, expiresIn: OIDC_FLOW_TTL_SECONDS },
     );
 
-    const url = new URL(GOOGLE_OIDC.authorizationEndpoint);
+    const url = new URL(this.endpoints().authorizationEndpoint);
     url.search = new URLSearchParams({
       client_id: this.clientId() as string,
       redirect_uri: redirectUri,
@@ -183,7 +198,7 @@ export class OidcService {
   /** Exchange the authorization code (with the PKCE verifier) and verify the ID token. */
   async exchange(code: string, flow: VerifiedFlow, redirectUri: string): Promise<OidcIdentity> {
     this.assertConfigured();
-    const res = await this.httpFetch(GOOGLE_OIDC.tokenEndpoint, {
+    const res = await this.httpFetch(this.endpoints().tokenEndpoint, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -230,7 +245,7 @@ export class OidcService {
     if (!force && this.jwks && Date.now() - this.jwks.fetchedAt < JWKS_TTL_MS) {
       return this.jwks.keys;
     }
-    const res = await this.httpFetch(GOOGLE_OIDC.jwksUri, { method: "GET" });
+    const res = await this.httpFetch(this.endpoints().jwksUri, { method: "GET" });
     if (!res.ok) throw new UnauthenticatedError("Google sign-in failed");
     const body = (await res.json()) as { keys?: unknown };
     const keys = Array.isArray(body.keys) ? (body.keys as Jwk[]) : [];
