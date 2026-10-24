@@ -75,7 +75,7 @@
 
 ## 8. Verification
 
-- [ ] 8.1 `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green from the repo root
-- [ ] 8.2 `pnpm db:migrate && pnpm db:seed` clean on a fresh DB; migration re-runs are idempotent; `enums.parity` + `tenancy.parity` + purge-order specs green
+- [x] 8.1 `pnpm build && pnpm typecheck && pnpm lint && pnpm test` green from the repo root
+- [x] 8.2 `pnpm db:migrate && pnpm db:seed` clean on a fresh DB; migration re-runs are idempotent; `enums.parity` + `tenancy.parity` + purge-order specs green
 - [ ] 8.3 Live-stack drive: boot cloud mode with a `DEMO_POOL` domain row, complete a real Google sign-in on `DEMO_HOST`, run the fifteen-minute demo path, sign out, confirm the purge emptied rows + S3 and the audit row exists
-- [ ] 8.4 Confirm self-hosted mode (`DEPLOYMENT_MODE=self-hosted`) boots with all demo env unset and exposes no demo endpoint
+- [x] 8.4 Confirm self-hosted mode (`DEPLOYMENT_MODE=self-hosted`) boots with all demo env unset and exposes no demo endpoint
