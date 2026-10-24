@@ -2,6 +2,7 @@ import { describe, expectTypeOf, it } from "vitest";
 import type {
   AllocMethod as ContractAllocMethod,
   AuditAction as ContractAuditAction,
+  AuthProvider as ContractAuthProvider,
   CashAdvanceStatus as ContractCashAdvanceStatus,
   CostingMethod as ContractCostingMethod,
   DomainResolutionMode as ContractDomainResolutionMode,
@@ -42,6 +43,7 @@ import type {
 import type {
   AllocMethod as DbAllocMethod,
   AuditAction as DbAuditAction,
+  AuthProvider as DbAuthProvider,
   CashAdvanceStatus as DbCashAdvanceStatus,
   CostingMethod as DbCostingMethod,
   DomainResolutionMode as DbDomainResolutionMode,
@@ -222,6 +224,10 @@ describe("enum parity: @erp/contracts <-> @erp/db", () => {
 
   it("TenantKind unions are identical", () => {
     expectTypeOf<ContractTenantKind>().toEqualTypeOf<DbTenantKind>();
+  });
+
+  it("AuthProvider unions are identical", () => {
+    expectTypeOf<ContractAuthProvider>().toEqualTypeOf<DbAuthProvider>();
   });
 
   it("TenantStatus unions are identical", () => {

@@ -9,6 +9,8 @@ export * from "./platform/subscription-invoice.js";
 export * from "./platform/platform-admin.js";
 export * from "./platform/platform-audit-log.js";
 export * from "./platform/users.js";
+export * from "./platform/auth-identity.js";
+export * from "./platform/demo-lead.js";
 export * from "./platform/sessions.js";
 export * from "./platform/audit-log.js";
 export * from "./platform/document-sequence.js";

@@ -1,4 +1,4 @@
-import { foreignKey, integer, pgTable, text, uuid, type PgColumn } from "drizzle-orm/pg-core";
+import { boolean, foreignKey, integer, pgTable, text, uuid, type PgColumn } from "drizzle-orm/pg-core";
 import { auditColumns, citext, versionColumn } from "../../base-columns.js";
 import type { DomainResolutionMode, TenantKind, TenantStatus } from "../enums.js";
 import { plan } from "./plan.js";
@@ -18,6 +18,9 @@ export const tenant = pgTable("tenant", {
   status: text().$type<TenantStatus>().notNull().default("ACTIVE"),
   planId: uuid().references(() => plan.id),
   extraSeats: integer().notNull().default(0),
+  // M10 design D5: the OIDC callback creates an unknown user only when this is true (demo
+  // sandboxes). Fails closed per tenant — false for every CUSTOMER tenant, m8 never sets it.
+  allowSelfSignup: boolean().notNull().default(false),
   ...versionColumn,
 });
 

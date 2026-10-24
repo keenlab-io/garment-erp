@@ -6,3 +6,4 @@ export * from "./base-columns.js";
 export * from "./schema/index.js";
 export * as schema from "./schema/index.js";
 export * from "./seed/tenant-defaults.js";
+export * from "./seed/demo/seed-demo-tenant.js";

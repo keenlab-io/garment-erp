@@ -14,14 +14,14 @@
 
 ## 2. DB schema, migration & demo seed — `packages/db/src`
 
-- [ ] 2.1 Add `AuthProvider` to `schema/enums.ts` (duplicated from contracts; keep `apps/api/src/enums.parity.spec.ts` green)
-- [ ] 2.2 Add `schema/platform/auth-identity.ts` — `auth_identity` (`tenantId`, `userId` FK → `user` `ON DELETE CASCADE`, `provider`, `subject` citext, `email` citext nullable, `lastLoginAt`, audit columns; unique `(tenant_id, provider, subject)`); re-export from `schema/index.ts`
-- [ ] 2.3 Add `allow_self_signup boolean NOT NULL DEFAULT false` to the m7 `tenant` table; add `demo_lead` (control-plane: `email` citext, `name`, `consentedAt`, audit columns)
-- [ ] 2.4 Register `auth_identity` and `demo_lead` in the m7 `tenancy.parity.spec.ts` `TENANT_EXEMPT` allowlist with a comment citing design D8
-- [ ] 2.5 Hand-author `tooling/drizzle/0015_public_demo.sql` (renumber to the next free slot if m9 landed one) — `auth_identity` + unique index, `tenant.allow_self_signup`, `demo_lead`, and the backfill inserting one `PASSWORD` `auth_identity` row per existing `user` (`subject` = username)
-- [ ] 2.6 Add `seed/demo/seed-demo-tenant.ts` exporting `seedDemoTenant(tenantId)` — deterministic FK-ordered insert of the Thai demo factory: Thai-named customers, item catalogue + SKUs + stock lots, routing templates, work orders mid-production with `production_scan` history (≥1 delayed step), employees + a completed `payroll_run` + `salary_record`s, quotations + invoices in draft/issued/partially-paid/paid/overdue with `payment` rows, per-tenant `document_sequence` + config rows (`sso_config`, `tax_bracket`, `advance_policy`, `document_template`)
-- [ ] 2.7 Seed (dev/cloud bootstrap) the `tenant_domain` row for `DEMO_HOST` with `resolution_mode = DEMO_POOL`, and the `DEMO_TEMPLATE` tenant running the same `seedDemoTenant` for curation
-- [ ] 2.8 Verify: `pnpm build && pnpm typecheck && pnpm lint` green; `pnpm db:migrate && pnpm db:seed` clean on a fresh DB; `seedDemoTenant` runs green against a scratch tenant
+- [x] 2.1 Add `AuthProvider` to `schema/enums.ts` (duplicated from contracts; keep `apps/api/src/enums.parity.spec.ts` green)
+- [x] 2.2 Add `schema/platform/auth-identity.ts` — `auth_identity` (`tenantId`, `userId` FK → `user` `ON DELETE CASCADE`, `provider`, `subject` citext, `email` citext nullable, `lastLoginAt`, audit columns; unique `(tenant_id, provider, subject)`); re-export from `schema/index.ts`
+- [x] 2.3 Add `allow_self_signup boolean NOT NULL DEFAULT false` to the m7 `tenant` table; add `demo_lead` (control-plane: `email` citext, `name`, `consentedAt`, audit columns)
+- [x] 2.4 Register `auth_identity` and `demo_lead` in the m7 `tenancy.parity.spec.ts` `TENANT_EXEMPT` allowlist with a comment citing design D8
+- [x] 2.5 Hand-author `tooling/drizzle/0015_public_demo.sql` (renumber to the next free slot if m9 landed one) — `auth_identity` + unique index, `tenant.allow_self_signup`, `demo_lead`, and the backfill inserting one `PASSWORD` `auth_identity` row per existing `user` (`subject` = username)
+- [x] 2.6 Add `seed/demo/seed-demo-tenant.ts` exporting `seedDemoTenant(tenantId)` — deterministic FK-ordered insert of the Thai demo factory: Thai-named customers, item catalogue + SKUs + stock lots, routing templates, work orders mid-production with `production_scan` history (≥1 delayed step), employees + a completed `payroll_run` + `salary_record`s, quotations + invoices in draft/issued/partially-paid/paid/overdue with `payment` rows, per-tenant `document_sequence` + config rows (`sso_config`, `tax_bracket`, `advance_policy`, `document_template`)
+- [x] 2.7 Seed (dev/cloud bootstrap) the `tenant_domain` row for `DEMO_HOST` with `resolution_mode = DEMO_POOL`, and the `DEMO_TEMPLATE` tenant running the same `seedDemoTenant` for curation
+- [x] 2.8 Verify: `pnpm build && pnpm typecheck && pnpm lint` green; `pnpm db:migrate && pnpm db:seed` clean on a fresh DB; `seedDemoTenant` runs green against a scratch tenant
 
 ## 3. OIDC auth — `apps/api/src/auth/oidc`
 

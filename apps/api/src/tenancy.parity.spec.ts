@@ -20,6 +20,10 @@ const TENANT_EXEMPT: ReadonlySet<string> = new Set([
   "platform_session", // M8 platform-admin sessions (design D7)
   "subscription", // M9 vendor-side billing (design D2)
   "subscription_invoice", // M9 vendor-side invoices (design D2)
+  // M10 design D8: carries tenant_id as data but no RLS — the demo-pool OIDC callback resolves a
+  // Google `sub` across DEMO_SANDBOX tenants before any tenant context exists; auth layer only.
+  "auth_identity",
+  "demo_lead", // M10 control-plane lead capture (design D6) — outlives the purged sandbox
 ]);
 
 const tables = (Object.values(schema) as unknown[])

@@ -227,3 +227,10 @@ export type SubscriptionInvoiceLineKind =
   | "SETUP_FEE"
   | "EXTRA_SEATS"
   | "UPFRONT_DISCOUNT";
+
+// ── M10 Public Demo ───────────────────────────────────────────────────────────
+// Duplicates `AuthProvider` in `packages/contracts/src/enums/tenancy.ts` (same
+// no-cross-import rule as above); the parity test keeps them in lockstep.
+
+// How a user authenticated (m10 design D8): the existing credential login or the Google OIDC seam.
+export type AuthProvider = "PASSWORD" | "GOOGLE";
