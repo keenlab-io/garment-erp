@@ -34,14 +34,14 @@
 
 ## 4. Demo module — `apps/api/src/demo`
 
-- [ ] 4.1 `DemoGuardService` — `isDemoSandbox()`: `currentTenantId()` → tenant `kind` (short-TTL in-process cache keyed by tenant id); exported for the egress seams
-- [ ] 4.2 `DemoProvisioningService` — rate-limit check (Redis `INCR`+TTL per IP / per email hash), race-safe concurrent-cap check (advisory lock), then one `uow.withTransaction`: `tenant` (`DEMO_SANDBOX`, `ACTIVE`, `allow_self_signup = true`) → `seedDemoTenant(tenantId)` → guest `user` (`isSuperAdmin`, no password) → `auth_identity` (`GOOGLE`) → `tenant_feature` demo-path defaults → `platform_audit_log` row; issue tokens via `TokenService`; store the lead opt-in flag on the tenant
-- [ ] 4.3 `DemoPurgeService` + `demo.purge` worker (`default` queue, job id `demo.purge:{tenantId}`, `DEFAULT_JOB_OPTIONS`) — hard-assert `kind = DEMO_SANDBOX` inside the purge tx; revoke sessions; delete rows in reverse-FK order under the tenant's RLS context; delete the `tenants/{tid}/` S3 prefix via `StorageService`; capture `demo_lead` iff opted-in; delete `auth_identity` → guest `user` → `tenant`; `platform_audit_log` row (counts, never the email on the default path); every step idempotent, missing-tenant job completes as no-op
-- [ ] 4.4 Static purge-order spec — derive/verify the reverse-FK delete order from `@erp/db` FK metadata (pattern: `tenancy.parity.spec.ts`); build fails when a tenant-scoped table is missing from the order
-- [ ] 4.5 `DemoSweepService` — repeatable `demo.idle-sweep` every `DEMO_SWEEP_INTERVAL_MS` (cloud + worker role only): idle/expired sandboxes → `PURGING` + enqueue purge; `PURGING` tenants with no live job → re-enqueue
-- [ ] 4.6 Sign-out path — `POST /demo/end` (and logout on a sandbox session): revoke sessions, `status = PURGING`, enqueue `demo.purge` after commit; `PURGING` tenants refused by the tenancy guard
-- [ ] 4.7 `DemoModule` wired into `app.module.ts`; ts-rest handlers for `GET /demo/status` (cap-aware availability) and `POST /demo/end`
-- [ ] 4.8 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
+- [x] 4.1 `DemoGuardService` — `isDemoSandbox()`: `currentTenantId()` → tenant `kind` (short-TTL in-process cache keyed by tenant id); exported for the egress seams
+- [x] 4.2 `DemoProvisioningService` — rate-limit check (Redis `INCR`+TTL per IP / per email hash), race-safe concurrent-cap check (advisory lock), then one `uow.withTransaction`: `tenant` (`DEMO_SANDBOX`, `ACTIVE`, `allow_self_signup = true`) → `seedDemoTenant(tenantId)` → guest `user` (`isSuperAdmin`, no password) → `auth_identity` (`GOOGLE`) → `tenant_feature` demo-path defaults → `platform_audit_log` row; issue tokens via `TokenService`; store the lead opt-in flag on the tenant
+- [x] 4.3 `DemoPurgeService` + `demo.purge` worker (`default` queue, job id `demo.purge:{tenantId}`, `DEFAULT_JOB_OPTIONS`) — hard-assert `kind = DEMO_SANDBOX` inside the purge tx; revoke sessions; delete rows in reverse-FK order under the tenant's RLS context; delete the `tenants/{tid}/` S3 prefix via `StorageService`; capture `demo_lead` iff opted-in; delete `auth_identity` → guest `user` → `tenant`; `platform_audit_log` row (counts, never the email on the default path); every step idempotent, missing-tenant job completes as no-op
+- [x] 4.4 Static purge-order spec — derive/verify the reverse-FK delete order from `@erp/db` FK metadata (pattern: `tenancy.parity.spec.ts`); build fails when a tenant-scoped table is missing from the order
+- [x] 4.5 `DemoSweepService` — repeatable `demo.idle-sweep` every `DEMO_SWEEP_INTERVAL_MS` (cloud + worker role only): idle/expired sandboxes → `PURGING` + enqueue purge; `PURGING` tenants with no live job → re-enqueue
+- [x] 4.6 Sign-out path — `POST /demo/end` (and logout on a sandbox session): revoke sessions, `status = PURGING`, enqueue `demo.purge` after commit; `PURGING` tenants refused by the tenancy guard
+- [x] 4.7 `DemoModule` wired into `app.module.ts`; ts-rest handlers for `GET /demo/status` (cap-aware availability) and `POST /demo/end`
+- [x] 4.8 Verify: `pnpm build && pnpm typecheck && pnpm lint` green
 
 ## 5. Guardrail hooks — egress seams
 

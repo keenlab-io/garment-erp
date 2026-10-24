@@ -1,4 +1,13 @@
-import { boolean, foreignKey, integer, pgTable, text, uuid, type PgColumn } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  foreignKey,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  type PgColumn,
+} from "drizzle-orm/pg-core";
 import { auditColumns, citext, versionColumn } from "../../base-columns.js";
 import type { DomainResolutionMode, TenantKind, TenantStatus } from "../enums.js";
 import { plan } from "./plan.js";
@@ -21,6 +30,11 @@ export const tenant = pgTable("tenant", {
   // M10 design D5: the OIDC callback creates an unknown user only when this is true (demo
   // sandboxes). Fails closed per tenant — false for every CUSTOMER tenant, m8 never sets it.
   allowSelfSignup: boolean().notNull().default(false),
+  // M10 design D6 — DEMO_SANDBOX only. The guest's PDPA lead opt-in (null = never consented, the
+  // default) and their Google display name; the purge copies `{ email, name, consented_at }` into
+  // `demo_lead` iff consent is set, then deletes this row with everything else.
+  demoLeadConsentedAt: timestamp({ withTimezone: true }),
+  demoGuestName: text(),
   ...versionColumn,
 });
 

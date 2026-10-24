@@ -13,6 +13,7 @@ import { IdempotencyInterceptor } from "./common/idempotency/idempotency.interce
 import { IdempotencyModule } from "./common/idempotency/idempotency.module.js";
 import { ConfigModule } from "./config/config.module.js";
 import { DbModule } from "./db/db.module.js";
+import { DemoModule } from "./demo/demo.module.js";
 import { EventsModule } from "./events/events.module.js";
 import { HealthController } from "./health/health.controller.js";
 import { HrModule } from "./hr/hr.module.js";
@@ -70,6 +71,9 @@ import { TenantTransactionInterceptor } from "./tenancy/tenant-transaction.inter
     // The control plane (M7 §6): the full `/platform/*` surface in DEPLOYMENT_MODE=cloud; in
     // self-hosted only the boot-time "ensure the single default tenant" provisioning.
     PlatformModule.forRoot(),
+    // The public demo tier (M10 §4) — sandbox provisioning/purge/sweep in cloud mode; in
+    // self-hosted only the `DemoGuardService` egress seam (always "not a sandbox").
+    DemoModule.forRoot(),
   ],
   controllers: [HealthController],
   providers: [

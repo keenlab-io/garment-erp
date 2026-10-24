@@ -271,3 +271,40 @@ remaining sandboxes, then revert — `auth_identity` rows for password users are
    exemption a reviewable four-line function instead of a table-wide hole. Resolve before
    implementation; if adopted, D8.2 and the `oidc-authentication` requirement both change,
    and `auth_identity` leaves the `TENANT_EXEMPT` allowlist (task 2.4).
+
+## Implementation notes (§4 demo module)
+
+Recorded while implementing `apps/api/src/demo/` — deviations from the task text and the
+reasons:
+
+- **Own `demo` queue, not `default`.** `default` already has competing `@Processor`s
+  (production monitor + sales overdue), so a `demo.purge` job could land on a worker that
+  ignores its name and complete as a silent no-op. `QUEUES.demo` has one dispatcher
+  (`DemoJobsWorker`) for `demo.purge` and the repeatable `demo.idle-sweep` (a `PLATFORM_JOBS`
+  tick), like M8's `tenant` and M9's `billing` queues.
+- **Job id `demo.purge.{tenantId}`, not `demo.purge:{tenantId}`.** BullMQ rejects custom job
+  ids containing `:`. Dedup semantics are unchanged.
+- **Lead opt-in lives on the sandbox's `tenant` row.** Migration
+  `0023_demo_lead_consent.sql` adds `tenant.demo_lead_consented_at` (null = no consent) and
+  `tenant.demo_guest_name`; both die with the row. `DemoProvisioningService.setLeadOptIn` is the
+  writer. The contract has no route that records the entry-screen checkbox yet — §6.2 adds it.
+- **Purge order.** The order is the reverse of M8's `tenantTablesInFkOrder`. The
+  `auth_identity` → `user` tail is split off so the lead capture can still read the guest's
+  email. `user.employee_id` (the one FK from the tail into the bulk phase) is nulled first.
+  `demo-purge-plan.spec.ts` fails the build on a missing table or on a new unlisted tail FK.
+  The lead capture clears the consent in its own transaction, so a retry never captures twice.
+  The `DEMO_SANDBOX` assertion is re-run inside every purge transaction.
+- **Idle activity.** A token refresh never touches the `session` row, so the sweep can't tell
+  activity from sessions alone. `DemoActivityInterceptor` stamps `demo:activity:{tid}` in Redis
+  (at most once a minute per sandbox per process). The sweep's last-seen time is the newest of:
+  sandbox creation, the newest session, and that stamp. A sandbox with no live session is
+  purged right away (`SESSIONS_ENDED`).
+- **429 / 503.** `ErrorCode` gains `RATE_LIMITED` (429) and `SERVICE_UNAVAILABLE` (503) for the
+  signup rate limits and the concurrent cap (`RateLimitedError`, `ServiceUnavailableError`).
+  Rate-limit slots of attempts that create nothing (refused, at the cap, rolled back) are given
+  back.
+- **Feature defaults.** A sandbox gets the `FACTORY` plan (like `DEMO_TEMPLATE`) plus explicit
+  `tenant_feature` rows turning every module on, so a guided demo can toggle any of them.
+- **Sign-out.** `POST /auth/logout` on a sandbox purges it through the optional `LOGOUT_HOOK`
+  seam. A platform support session signing out never does. A PURGING tenant is already
+  refused by `TenantStatusGuard` (403).

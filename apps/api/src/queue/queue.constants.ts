@@ -17,6 +17,10 @@ export const QUEUES = {
   // Subscription billing (M9 design D5): the control-plane `billing.dunning` sweep. Its own queue
   // with one worker, so the sweep tick never lands on a worker that ignores its name.
   billing: "billing",
+  // Public demo (M10 §4): the `demo.purge` jobs and the `demo.idle-sweep` tick. Its own queue with
+  // one dispatcher worker — `default` already has competing processors, which would let a purge
+  // land on a worker that ignores its name and complete as a silent no-op.
+  demo: "demo",
   default: "default",
 } as const;
 

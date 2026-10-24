@@ -70,3 +70,17 @@ export class TenantReadOnlyError extends AppException {
     super(ErrorCode.TENANT_READ_ONLY, message, details);
   }
 }
+
+/** Too many requests in the window (M10 demo sandbox creation per IP / email): 429. */
+export class RateLimitedError extends AppException {
+  constructor(message = "Too many requests — try again later", details: ErrorDetail[] = []) {
+    super(ErrorCode.RATE_LIMITED, message, details);
+  }
+}
+
+/** A capacity limit is reached (M10 demo pool at its sandbox cap): 503, retry shortly. */
+export class ServiceUnavailableError extends AppException {
+  constructor(message = "Service temporarily unavailable", details: ErrorDetail[] = []) {
+    super(ErrorCode.SERVICE_UNAVAILABLE, message, details);
+  }
+}

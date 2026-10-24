@@ -22,6 +22,8 @@ const CODE_STATUS: Record<ErrorCode, number> = {
   REAUTH_REQUIRED: HttpStatus.UNAUTHORIZED,
   IDEMPOTENT_REPLAY: HttpStatus.OK,
   TENANT_READ_ONLY: HttpStatus.FORBIDDEN,
+  RATE_LIMITED: HttpStatus.TOO_MANY_REQUESTS,
+  SERVICE_UNAVAILABLE: HttpStatus.SERVICE_UNAVAILABLE,
   INTERNAL: HttpStatus.INTERNAL_SERVER_ERROR,
 };
 
@@ -33,6 +35,8 @@ const STATUS_CODE: Record<number, ErrorCode> = {
   404: ErrorCode.NOT_FOUND,
   409: ErrorCode.STATE_CONFLICT,
   422: ErrorCode.BUSINESS_RULE,
+  429: ErrorCode.RATE_LIMITED,
+  503: ErrorCode.SERVICE_UNAVAILABLE,
 };
 
 interface ErrorBody {
