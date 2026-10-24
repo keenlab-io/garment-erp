@@ -32,6 +32,7 @@ import { UserService } from "./user.service.js";
   ],
   // RolePermissionResolver is exported as well as the token: AppModule re-provides the token in
   // its OWN injector so the `APP_GUARD` JwtGuard picks up the real resolver (see app.module.ts).
-  exports: [PERMISSION_RESOLVER, RolePermissionResolver],
+  // AuthService is exported for the M10 OIDC module — every sign-in method shares its sessions.
+  exports: [PERMISSION_RESOLVER, RolePermissionResolver, AuthService],
 })
 export class IamModule {}

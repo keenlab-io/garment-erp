@@ -116,6 +116,23 @@ export const envSchema = z.object({
   // `REFRESH … CONCURRENTLY` per view (design D10 / mv-refresh spec). Default 5s.
   MV_REFRESH_DEBOUNCE_MS: z.coerce.number().int().positive().default(5_000),
 
+  // Google OIDC (M10 design D5/D8) — the OAuth client the `auth/oidc` code flow signs in with.
+  // Optional: with either unset the `/auth/oidc/google/*` endpoints refuse with the uniform
+  // error envelope and never redirect to Google, so self-hosted / dev boots need neither.
+  GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+
+  // Public demo tier (M10). `DEMO_HOST` is the demo pool's hostname (its `tenant_domain` row
+  // carries `resolution_mode = DEMO_POOL`); unset, there is no demo surface. The rest bound the
+  // pool: the hard cap on live sandboxes, the idle backstop before a sandbox is purged, the sweep
+  // cadence (default 5 min), and sandbox-creation rate limits per client IP / per email.
+  DEMO_HOST: z.string().min(1).optional(),
+  DEMO_MAX_CONCURRENT_SANDBOXES: z.coerce.number().int().positive().default(25),
+  DEMO_SANDBOX_IDLE_MINUTES: z.coerce.number().int().positive().default(60),
+  DEMO_SWEEP_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
+  DEMO_SIGNUP_RATE_PER_IP: z.coerce.number().int().positive().default(3),
+  DEMO_SIGNUP_RATE_PER_EMAIL: z.coerce.number().int().positive().default(2),
+
   // Object storage (S3 / MinIO). `S3_FORCE_PATH_STYLE` must be true for MinIO.
   S3_ENDPOINT: z.string().url(),
   S3_REGION: z.string().min(1).default("us-east-1"),

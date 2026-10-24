@@ -238,6 +238,18 @@ remaining sandboxes, then revert — `auth_identity` rows for password users are
 1. **Google OIDC client library** — `openid-client` (heavier, correct-by-default) vs a
    minimal fetch against Google's token endpoint + JWKS (Google's discovery document is
    stable). Default assumption: `openid-client`.
+   **Resolved (task 3.1): minimal fetch, no new dependency.** `apps/api/src/auth/oidc/` pins
+   Google's authorization/token/JWKS endpoints, verifies the RS256 ID token with `node:crypto`
+   (`createPublicKey({ format: "jwk" })` + `verify`), and checks `iss`/`aud`(+`azp`)/`exp`/
+   `nonce` itself (`google-oidc.ts`, unit-tested against a generated key pair). One IdP with a
+   stable discovery document did not justify `openid-client`'s ESM-only v6 + `jose` footprint;
+   JWKS is cached for an hour and refetched once on an unknown `kid` (key rotation). PKCE S256;
+   the verifier rides an HttpOnly `SameSite=Lax` flow cookie (never the URL Google sees), and
+   `state` is an HS256 JWT (10-minute TTL, key derived from `JWT_ACCESS_SECRET`, own audience)
+   binding the resolved tenant/demo pool, host, nonce, and `return_to`. Per-tenant Google login
+   is the `auth.google` feature key (`GOOGLE_LOGIN_FEATURE_KEY`); the demo pool always offers it.
+   Success redirects to the web's `OIDC_WEB_COMPLETE_PATH` with the token pair in the URL
+   fragment.
 2. **Sandbox lifetime ceiling** — is there a *maximum* age (e.g. 24h) even for an active
    guest, or only the idle rule? Assumed: idle-only, cap via `DEMO_SANDBOX_IDLE_MINUTES`
    (default 60), since an engaged prospect should never be cut off mid-demo.

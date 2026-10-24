@@ -30,6 +30,13 @@ export const DemoEndResponse = z.object({
 });
 export type DemoEndResponse = z.infer<typeof DemoEndResponse>;
 
+/**
+ * The web route the OIDC callback redirects the browser to on success. The token pair rides in
+ * the URL **fragment** (never sent to a server): `access_token`, `refresh_token`, `expires_in`,
+ * `return_to`, and `demo=1` when the sign-in landed in a demo sandbox.
+ */
+export const OIDC_WEB_COMPLETE_PATH = "/auth/oidc/complete";
+
 /** `GET /auth/oidc/google/start` — optional same-origin path to land on after sign-in. */
 export const OidcStartQuery = z.object({
   return_to: z.string().optional(),

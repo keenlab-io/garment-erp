@@ -1,8 +1,9 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { and, eq, isNull } from "drizzle-orm";
 import {
+  authIdentity,
   role,
   session,
   subscription,
@@ -11,18 +12,28 @@ import {
   userRole,
   type Db,
 } from "@erp/db";
-import { entitledModules, type MeResponse, type TokenPair } from "@erp/contracts";
+import {
+  entitledModules,
+  type AuthProvider,
+  type MeResponse,
+  type TokenPair,
+} from "@erp/contracts";
 import { graceEnd } from "../platform/billing/dunning-schedule.js";
 import { PasswordService } from "../auth/password.service.js";
 import { TokenService } from "../auth/token.service.js";
 import type { AuthUser } from "../auth/auth-user.js";
-import { UnauthenticatedError } from "../common/errors/app-exception.js";
+import {
+  ForbiddenError,
+  StateConflictError,
+  UnauthenticatedError,
+} from "../common/errors/app-exception.js";
 import { DB } from "../db/db.tokens.js";
 import { currentExecutor } from "../db/tx-context.js";
 import { UnitOfWork } from "../db/unit-of-work.service.js";
 import { EventBusService } from "../events/event-bus.service.js";
 import { makeEvent } from "../events/domain-event.js";
 import { EntitlementsService } from "../platform/entitlements.service.js";
+import { SeatService } from "../platform/seat.service.js";
 import {
   currentTenant,
   isTenantId,
@@ -45,6 +56,10 @@ import {
  * Tenancy (M7 design D5/D10): login resolves credentials by `(tenant_id, username)` against
  * the host-resolved tenant, so lockout counters are per tenant account; tokens carry `tid` and
  * the session row carries the tenant. Every read/write runs in a tenant transaction.
+ *
+ * M10 (design D8): every sign-in method resolves the caller through an `auth_identity` row —
+ * password login through `(tenant_id, PASSWORD, username)`, Google through
+ * `(tenant_id, GOOGLE, sub)` — and every method lands in the same `issueSession`.
  */
 
 @Injectable()
@@ -58,6 +73,7 @@ export class AuthService {
     private readonly events: EventBusService,
     private readonly resolver: RolePermissionResolver,
     private readonly entitlements: EntitlementsService,
+    private readonly seats: SeatService,
   ) {}
 
   /**
@@ -84,22 +100,34 @@ export class AuthService {
     password: string,
   ): Promise<TokenPair> {
     const row = await this.uow.withTransaction(async () => {
+      // Resolve through the PASSWORD identity (M10 design D8); the hash stays on `user`.
       const [found] = await currentExecutor(this.db)
         .select({
           id: user.id,
+          identityId: authIdentity.id,
           status: user.status,
           passwordHash: user.passwordHash,
           permissionsVersion: user.permissionsVersion,
           failedLoginCount: user.failedLoginCount,
           lockedUntil: user.lockedUntil,
         })
-        .from(user)
-        .where(and(eq(user.tenantId, tenantId), eq(user.username, username)))
+        .from(authIdentity)
+        .innerJoin(user, eq(user.id, authIdentity.userId))
+        .where(
+          and(
+            eq(authIdentity.tenantId, tenantId),
+            eq(authIdentity.provider, "PASSWORD"),
+            eq(authIdentity.subject, username),
+            eq(user.tenantId, tenantId),
+          ),
+        )
         .limit(1);
       return found;
     });
 
-    // Unknown username — same generic failure as a bad password (no user enumeration).
+    // Unknown username, or an OIDC-only account with no PASSWORD identity (a demo guest) — the
+    // same generic failure as a bad password (no user enumeration), refused before any hash
+    // check, so no lockout counter moves for a credential that does not exist.
     if (!row) throw new UnauthenticatedError("Invalid credentials");
 
     const now = Date.now();
@@ -136,26 +164,147 @@ export class AuthService {
         .update(user)
         .set({ failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date(now) })
         .where(eq(user.id, row.id));
+      await ex
+        .update(authIdentity)
+        .set({ lastLoginAt: new Date(now) })
+        .where(eq(authIdentity.id, row.identityId));
 
-      const pair = await this.issueSession(tenantId, row.id, row.permissionsVersion);
-
-      await this.events.publishInTransaction(
-        makeEvent({
-          event: "iam.user.logged_in",
-          actorUserId: row.id,
-          payload: {
-            audit: {
-              action: "LOGIN" as const,
-              entityType: "user",
-              entityId: row.id,
-              actorUserId: row.id,
-            },
-          },
-        }),
-      );
-
-      return pair;
+      return this.completeSignIn(tenantId, row.id, row.permissionsVersion);
     });
+  }
+
+  /**
+   * Sign in the user behind an already-verified external identity (M10 `oidc-authentication`):
+   * the Google ID token proved `(tenant_id, GOOGLE, sub)`, so only the password check is skipped
+   * — the user must still be ACTIVE and not locked, and the session/tokens/`UserLoggedIn` are the
+   * exact ones password login produces. `null` when no such identity exists in the tenant.
+   */
+  async signInWithIdentity(
+    tenantId: string,
+    provider: AuthProvider,
+    subject: string,
+  ): Promise<TokenPair | null> {
+    return runWithTenant(tenantId, "host", () =>
+      this.uow.withTransaction(async () => {
+        const ex = currentExecutor(this.db);
+        const [row] = await ex
+          .select({
+            id: user.id,
+            identityId: authIdentity.id,
+            status: user.status,
+            lockedUntil: user.lockedUntil,
+            permissionsVersion: user.permissionsVersion,
+          })
+          .from(authIdentity)
+          .innerJoin(user, eq(user.id, authIdentity.userId))
+          .where(
+            and(
+              eq(authIdentity.tenantId, tenantId),
+              eq(authIdentity.provider, provider),
+              eq(authIdentity.subject, subject),
+              eq(user.tenantId, tenantId),
+            ),
+          )
+          .limit(1);
+        if (!row) return null;
+
+        const now = Date.now();
+        if (row.status !== "ACTIVE") throw new UnauthenticatedError("Account is not active");
+        if (isLocked(row.lockedUntil, now)) {
+          throw new UnauthenticatedError("Account is temporarily locked");
+        }
+
+        await ex.update(user).set({ lastLoginAt: new Date(now) }).where(eq(user.id, row.id));
+        await ex
+          .update(authIdentity)
+          .set({ lastLoginAt: new Date(now) })
+          .where(eq(authIdentity.id, row.identityId));
+
+        return this.completeSignIn(tenantId, row.id, row.permissionsVersion);
+      }),
+    );
+  }
+
+  /**
+   * Self-service signup through a verified Google identity (M10 design D5): creates an ACTIVE
+   * user + its `GOOGLE` identity in `tenantId` and signs it in — **only** when the tenant's
+   * `allow_self_signup` is true (re-read here, inside the transaction); otherwise 403 and nothing
+   * is written. `tenantId` is always the host-resolved tenant bound into the OIDC `state`. The
+   * account has no PASSWORD identity, so password login refuses it; its `password_hash` (NOT
+   * NULL) is a hash of random bytes nobody knows.
+   */
+  async signUpWithGoogle(
+    tenantId: string,
+    identity: { sub: string; email: string },
+  ): Promise<TokenPair> {
+    const unusableHash = await this.passwords.hash(randomBytes(32).toString("base64url"));
+    return runWithTenant(tenantId, "host", () =>
+      this.uow.withTransaction(async () => {
+        const ex = currentExecutor(this.db);
+        const [t] = await ex
+          .select({ allowSelfSignup: tenant.allowSelfSignup })
+          .from(tenant)
+          .where(eq(tenant.id, tenantId))
+          .limit(1);
+        if (!t?.allowSelfSignup) {
+          throw new ForbiddenError("This organisation does not allow self-service sign-up");
+        }
+
+        const created = await this.seats.withSeatCheck(async () => {
+          const [row] = await ex
+            .insert(user)
+            .values({
+              tenantId,
+              username: identity.email,
+              email: identity.email,
+              passwordHash: unusableHash,
+              status: "ACTIVE",
+            })
+            .onConflictDoNothing()
+            .returning({ id: user.id, permissionsVersion: user.permissionsVersion });
+          // The email is already a (password) account here — never silently link to it.
+          if (!row) throw new StateConflictError("An account with this email already exists");
+          await ex.insert(authIdentity).values({
+            tenantId,
+            userId: row.id,
+            provider: "GOOGLE",
+            subject: identity.sub,
+            email: identity.email,
+            lastLoginAt: new Date(),
+          });
+          return row;
+        });
+
+        await ex.update(user).set({ lastLoginAt: new Date() }).where(eq(user.id, created.id));
+        return this.completeSignIn(tenantId, created.id, created.permissionsVersion);
+      }),
+    );
+  }
+
+  /** Issue the session + token pair and emit `UserLoggedIn` — shared by every sign-in method. */
+  private async completeSignIn(
+    tenantId: string,
+    userId: string,
+    permissionsVersion: number,
+  ): Promise<TokenPair> {
+    const pair = await this.issueSession(tenantId, userId, permissionsVersion);
+
+    await this.events.publishInTransaction(
+      makeEvent({
+        event: "iam.user.logged_in",
+        actorUserId: userId,
+        payload: {
+          audit: {
+            action: "LOGIN" as const,
+            entityType: "user",
+            entityId: userId,
+            actorUserId: userId,
+          },
+        },
+      }),
+    );
+
+    return pair;
   }
 
   /**

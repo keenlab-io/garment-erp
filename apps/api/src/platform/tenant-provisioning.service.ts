@@ -1,7 +1,15 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { plan, seedTenantDefaults, tenant, tenantDomain, user, type Db } from "@erp/db";
+import {
+  authIdentity,
+  plan,
+  seedTenantDefaults,
+  tenant,
+  tenantDomain,
+  user,
+  type Db,
+} from "@erp/db";
 import type {
   PlanCode,
   ProvisionedTenantAdmin,
@@ -174,8 +182,17 @@ export class TenantProvisioningService {
               isSuperAdmin: true,
             })
             .returning({ id: user.id });
+          const adminId = (created as { id: string }).id;
+          // The admin signs in with the temp password — via its PASSWORD identity (M10 D8).
+          await tx.insert(authIdentity).values({
+            tenantId: id,
+            userId: adminId,
+            provider: "PASSWORD",
+            subject: adminEmail,
+            email: adminEmail,
+          });
           admin = {
-            id: (created as { id: string }).id,
+            id: adminId,
             username: adminEmail,
             email: adminEmail,
             temp_password: tempPassword,
