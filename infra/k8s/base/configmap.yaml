@@ -8,10 +8,18 @@ metadata:
   namespace: erp
 data:
   NODE_ENV: "production"
-  # One factory per deployment today: every hostname resolves to the default tenant and the
-  # platform control plane is off. Login no longer falls back to the default tenant for an
-  # unmapped host (M7 task 7.9), so switch to "cloud" only after adding `tenant_domain` rows.
-  DEPLOYMENT_MODE: "self-hosted"
+  # Multi-tenant SaaS: the tenant is resolved from the Host header via `tenant_domain`, and the
+  # platform control plane (/platform), subscription billing and the public demo are on. Login
+  # does not fall back to the default tenant for an unmapped host (M7 task 7.9), so the deploy
+  # workflow's "Map the production hostname" step maps PUBLIC_HOST before any pod rolls. New
+  # tenants get their hostname from `POST /platform/tenants` (its `domain` field).
+  DEPLOYMENT_MODE: "cloud"
+  # The demo pool hostname (M10 D3). Read only by the seed, which creates the DEMO_TEMPLATE
+  # tenant and its DEMO_POOL `tenant_domain` row — see "Cloud go-live" in infra/k8s/README.md.
+  DEMO_HOST: "garment-erp-demo.keenlab.io"
+  # Nginx Proxy Manager and the in-pod nginx each append to X-Forwarded-For (the Tailscale
+  # proxy between them is L4 and adds nothing), so the client is two hops back.
+  TRUST_PROXY_HOPS: "2"
   S3_ENDPOINT: "http://erp-minio:9000"
   S3_BUCKET: "erp"
   S3_FORCE_PATH_STYLE: "true"

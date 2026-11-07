@@ -33,8 +33,10 @@ spec:
               value: erp
             - name: POSTGRES_PASSWORD
               valueFrom:
+                # erp-db-owner, not erp-secrets: the superuser password must never be in the
+                # secret the app pods load wholesale (see "Render secrets" in deploy.yml).
                 secretKeyRef:
-                  name: erp-secrets
+                  name: erp-db-owner
                   key: POSTGRES_PASSWORD
             # Subdirectory, not the volume root: the mounted PVC root may contain a
             # lost+found directory, which initdb refuses to run against.
