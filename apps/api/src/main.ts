@@ -24,6 +24,11 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
 
+  // Resolve `req.ip` from X-Forwarded-For across exactly the configured proxy hops (see
+  // TRUST_PROXY_HOPS in env.schema.ts). Left at Express's default (trust nothing) when 0.
+  const trustProxyHops = config.get<number>("TRUST_PROXY_HOPS") ?? 0;
+  if (trustProxyHops > 0) app.set("trust proxy", trustProxyHops);
+
   // Socket.IO over Redis pub/sub, in EVERY role. `erp-api` needs it to broadcast across
   // replicas; `erp-worker` needs it because its monitor sweep emits step-delay events from a
   // pod with no connected browsers. Must be attached before `listen()` creates the server.

@@ -193,6 +193,72 @@ either a decision or a credential.
    The operator runs with `PROXY_TAGS=tag:k8s`, so the tailnet ACL grant that lets the NPM
    node reach the proxy on :80 must target `tag:k8s`.
 
+## Cloud go-live (multi-tenant + public demo)
+
+`erp-config` runs `DEPLOYMENT_MODE=cloud`: the tenant is resolved from the `Host` header via
+`tenant_domain`, `/platform` (control plane + subscription billing) is live, and the public
+demo is served on `DEMO_HOST`. Two invariants carry the switch:
+
+- **The api connects as `erp_app`, never the superuser.** A superuser bypasses RLS even under
+  `FORCE ROW LEVEL SECURITY`, so tenant isolation only holds when `DATABASE_URL` is the
+  NOBYPASSRLS runtime role. The deploy refuses to render secrets without
+  `PROD_DB_APP_PASSWORD`; the migrate Job (connected as the owner) applies it to `erp_app`.
+- **Every served hostname has a `tenant_domain` row.** Password login on an unmapped host is
+  refused. The deploy's "Map the production hostname" step maps `PUBLIC_HOST` to the default
+  tenant before any pod rolls; tenants created later get theirs from `POST /platform/tenants`.
+  There is no API to add a hostname to an *existing* tenant — that is a manual `INSERT`.
+
+Once per cluster, in this order:
+
+1. **Set `PROD_DB_APP_PASSWORD`** (and, recommended, `PROD_JWT_PLATFORM_SECRET`) in the
+   `production` environment *before* merging the cloud switch — the deploy fails fast without
+   the former.
+2. **Google OAuth client** (Google Cloud Console → Credentials → *Web application*). Authorized
+   redirect URI: `https://garment-erp-demo.keenlab.io/api/v1/auth/oidc/google/callback` —
+   plus the same path on every tenant host that enables the `auth.google` feature. Scopes
+   `openid email profile`; publish the consent screen (guests are external users). Store the
+   pair as `PROD_GOOGLE_OAUTH_CLIENT_ID` / `PROD_GOOGLE_OAUTH_CLIENT_SECRET`. Never set
+   `GOOGLE_OIDC_BASE_URL` — it is an e2e stub seam.
+3. **DNS + Nginx Proxy Manager for the demo host.** `garment-erp-demo.keenlab.io` gets a
+   proxy host pointing at the *same* upstream (`http://garment-erp.tail0b8c39.ts.net:80`),
+   Websockets Support on, its own TLS cert. NPM must pass the original `Host` (its default) —
+   that is what the api resolves the tenant from, and what the OIDC callback URL is built from.
+4. **Deploy** (merge, or `workflow_dispatch`) and re-run the deploy if secrets changed after.
+5. **Seed the control plane + demo template** — idempotent; creates the plans if missing, the
+   first platform admin, the `demo-template` tenant and the `DEMO_POOL` row for `DEMO_HOST`
+   (already in `erp-config`, so the pod has it). Pass the admin credentials inline so they never
+   default to `changeme`, and keep the leading space so the shell skips history:
+
+   ```bash
+    kubectl -n erp exec deploy/erp-api -- env \
+     SEED_PLATFORM_ADMIN_EMAIL='ops@keenlab.io' \
+     SEED_PLATFORM_ADMIN_PASSWORD="$(openssl rand -base64 24)" \
+     node packages/db/dist/seed/seed.js
+   ```
+
+   Record the generated password first (or substitute your own). Re-seeding never resets an
+   existing admin's password (`onConflictDoNothing`).
+6. **Verify.**
+   - `https://garment-erp.keenlab.io/login` shows the default tenant's branding and existing
+     users can sign in.
+   - `https://garment-erp.keenlab.io/platform` accepts the platform admin.
+   - `https://garment-erp-demo.keenlab.io/api/v1/demo/status` reports enabled; drive
+     `https://garment-erp-demo.keenlab.io/demo` through a real Google sign-in (M10 task 8.3).
+     Guests should be linked to `/demo` — `/` on the demo host redirects to `/login`.
+   - Check `req.ip` is the client, not nginx — the per-IP signup limit keys on it. After that
+     demo signup, `kubectl -n erp exec sts/erp-redis -- redis-cli --scan --pattern 'demo:rl:ip:*'`
+     must show your public IP. A 10.x/100.x address means `TRUST_PROXY_HOPS` does not match
+     the X-Forwarded-For chain (NPM → in-pod nginx = 2), and every guest shares one limit.
+
+**Rollback.** The demo alone: `DELETE FROM tenant_domain WHERE resolution_mode='DEMO_POOL'`
+and the idle sweep purges live sandboxes. All of cloud mode: set `DEPLOYMENT_MODE` back to
+`self-hosted` and redeploy — the `tenant_domain` rows are inert there.
+
+**Known cloud gaps.** Presigned download URLs (tenant PDPA export, documents) are signed for
+the in-cluster `S3_ENDPOINT` (`http://erp-minio:9000`), which a browser cannot reach — exports
+complete but their download link does not open outside the cluster. Needs a public MinIO
+endpoint or an api-side download proxy.
+
 ### GitHub secrets
 
 | Secret | Purpose |
@@ -200,7 +266,10 @@ either a decision or a credential.
 | `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` | Tailscale OAuth client for the ephemeral CI node |
 | `KUBE_CONFIG` | base64 kubeconfig pointing at the apiserver over the tailnet |
 | `GHCR_PULL_TOKEN` | PAT with `read:packages`, used for the in-cluster pull secret |
-| `PROD_POSTGRES_PASSWORD` | single source for the DB password and `DATABASE_URL` |
+| `PROD_POSTGRES_PASSWORD` | bootstrap superuser `erp` — Postgres itself and `DATABASE_OWNER_URL` (migrate + seed only) |
+| `PROD_DB_APP_PASSWORD` | **required** — runtime role `erp_app` (`DATABASE_URL`); the migrate Job sets it on the role. URL-safe characters only (e.g. `openssl rand -hex 24`) — it is embedded in a URL unescaped |
+| `PROD_JWT_PLATFORM_SECRET` | optional, recommended — signs platform-admin tokens; unset falls back to `JWT_ACCESS_SECRET` (audience-separated) |
+| `PROD_GOOGLE_OAUTH_CLIENT_ID`, `PROD_GOOGLE_OAUTH_CLIENT_SECRET` | optional — Google sign-in; both unset switches the public demo's sign-in off |
 | `PROD_JWT_ACCESS_SECRET`, `PROD_JWT_REFRESH_SECRET` | token signing |
 | `PROD_ENCRYPTION_KEY` | 64 hex chars — PII (national ID) encryption |
 | `PROD_S3_ACCESS_KEY`, `PROD_S3_SECRET_KEY` | app credentials for MinIO |

@@ -53,8 +53,8 @@ spec:
             readOnlyRootFilesystem: true
             capabilities:
               drop: [ALL]
-          # migrate.ts reads DATABASE_URL and nothing else, but envFrom keeps this in step
-          # with the app if that ever changes.
+          # migrate.ts connects with DATABASE_OWNER_URL (the superuser) and sets erp_app's
+          # login password from DATABASE_APP_PASSWORD — both come from erp-secrets.
           envFrom:
             - secretRef:
                 name: erp-secrets

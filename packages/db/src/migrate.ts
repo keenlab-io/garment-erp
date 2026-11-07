@@ -17,6 +17,21 @@ async function main() {
   try {
     await migrate(db, { migrationsFolder });
     console.log(`Migrations applied from ${migrationsFolder}`);
+
+    // Production has no infra/postgres/init: 0012 creates `erp_app` without a password, so it
+    // cannot log in and the API would otherwise have to connect as the superuser, which
+    // bypasses RLS even under FORCE. The deploy passes the runtime role's password here; it is
+    // applied after the migrations (which guarantee the role exists) and before any pod rolls.
+    // ALTER ROLE takes no bind parameters, so the value travels as a transaction-local GUC and
+    // is quoted server-side with %L. Re-running with the same value is a no-op in effect.
+    const appPassword = process.env.DATABASE_APP_PASSWORD;
+    if (appPassword) {
+      await queryClient.begin(async (tx) => {
+        await tx`select set_config('erp.app_password', ${appPassword}, true)`;
+        await tx`do $$ begin execute format('ALTER ROLE erp_app WITH LOGIN PASSWORD %L', current_setting('erp.app_password')); end $$`;
+      });
+      console.log("erp_app login password set");
+    }
   } finally {
     await queryClient.end();
   }

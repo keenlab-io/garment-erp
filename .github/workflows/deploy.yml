@@ -22,6 +22,10 @@ env:
   # VERIFIED 2026-08-08: all 34 nodes report `architecture: amd64`.
   PLATFORM: linux/amd64
   NAMESPACE: erp
+  # The production hostname. In DEPLOYMENT_MODE=cloud the api resolves the tenant from the Host
+  # header via `tenant_domain`, so this name must map to the default tenant BEFORE a cloud-mode
+  # pod serves — see "Map the production hostname". Also the public-ingress smoke target.
+  PUBLIC_HOST: garment-erp.keenlab.io
 
 jobs:
   # The full release gate — lint, typecheck, unit tests, build, integration, manifests.
@@ -225,10 +229,20 @@ jobs:
           set -euo pipefail
           kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
-          # DATABASE_URL/REDIS_URL are composed here so the Postgres password has exactly
-          # one source of truth (PROD_POSTGRES_PASSWORD).
+          # The URLs are composed here so each Postgres password has exactly one source of
+          # truth. The api/worker connect as `erp_app` (NOBYPASSRLS): the `erp` bootstrap
+          # superuser bypasses RLS even under FORCE, so connecting as it would switch tenant
+          # isolation off. Migrations and the seed use DATABASE_OWNER_URL (the superuser: 0000
+          # creates extensions and 0013 grants BYPASSRLS), and the migrate Job sets erp_app's
+          # login password from DATABASE_APP_PASSWORD before any pod rolls.
+          if [ -z "${{ secrets.PROD_DB_APP_PASSWORD }}" ]; then
+            echo "::error::PROD_DB_APP_PASSWORD is not set — the api must not connect as the superuser"
+            exit 1
+          fi
           literals=(
-            --from-literal=DATABASE_URL="postgres://erp:${{ secrets.PROD_POSTGRES_PASSWORD }}@erp-postgres:5432/erp"
+            --from-literal=DATABASE_URL="postgres://erp_app:${{ secrets.PROD_DB_APP_PASSWORD }}@erp-postgres:5432/erp"
+            --from-literal=DATABASE_OWNER_URL="postgres://erp:${{ secrets.PROD_POSTGRES_PASSWORD }}@erp-postgres:5432/erp"
+            --from-literal=DATABASE_APP_PASSWORD="${{ secrets.PROD_DB_APP_PASSWORD }}"
             --from-literal=REDIS_URL="redis://erp-redis:6379/0"
             --from-literal=POSTGRES_PASSWORD="${{ secrets.PROD_POSTGRES_PASSWORD }}"
             --from-literal=JWT_ACCESS_SECRET="${{ secrets.PROD_JWT_ACCESS_SECRET }}"
@@ -250,6 +264,16 @@ jobs:
           fi
           if [ -n "${{ secrets.PROD_SMTP_PASS }}" ]; then
             literals+=(--from-literal=SMTP_PASS="${{ secrets.PROD_SMTP_PASS }}")
+          fi
+          # Same rule for the cloud-mode extras. JWT_PLATFORM_SECRET unset falls back to
+          # JWT_ACCESS_SECRET (audience-separated); the Google pair unset makes the OIDC
+          # endpoints refuse cleanly, which switches the public demo sign-in off.
+          if [ -n "${{ secrets.PROD_JWT_PLATFORM_SECRET }}" ]; then
+            literals+=(--from-literal=JWT_PLATFORM_SECRET="${{ secrets.PROD_JWT_PLATFORM_SECRET }}")
+          fi
+          if [ -n "${{ secrets.PROD_GOOGLE_OAUTH_CLIENT_ID }}" ] && [ -n "${{ secrets.PROD_GOOGLE_OAUTH_CLIENT_SECRET }}" ]; then
+            literals+=(--from-literal=GOOGLE_OAUTH_CLIENT_ID="${{ secrets.PROD_GOOGLE_OAUTH_CLIENT_ID }}")
+            literals+=(--from-literal=GOOGLE_OAUTH_CLIENT_SECRET="${{ secrets.PROD_GOOGLE_OAUTH_CLIENT_SECRET }}")
           fi
 
           kubectl create secret generic erp-secrets \
@@ -323,6 +347,26 @@ jobs:
             exit 1
           fi
           kubectl -n "$NAMESPACE" logs "job/$job" --tail=50
+
+      # Cloud mode resolves the tenant from the Host header, and password login on a host with
+      # no `tenant_domain` row is refused. Nothing in the migrations maps the pre-existing
+      # default tenant (0012 created it for self-hosted mode), so insert the mapping here —
+      # after the migrations, before any pod rolls — and switching the ConfigMap to cloud
+      # never opens a window where production logins fail. Idempotent: an existing row for
+      # this hostname (whatever tenant it names) is left alone. tenant_domain is RLS-exempt;
+      # this runs as the bootstrap superuser over the Postgres pod's local socket.
+      - name: Map the production hostname
+        run: |
+          set -euo pipefail
+          kubectl -n "$NAMESPACE" exec -i sts/erp-postgres -- \
+            psql -v ON_ERROR_STOP=1 -U erp -d erp -v host="$PUBLIC_HOST" <<'SQL'
+          INSERT INTO tenant_domain (hostname, tenant_id, resolution_mode)
+          SELECT :'host', id, 'TENANT' FROM tenant WHERE slug = 'default'
+          ON CONFLICT (hostname) DO NOTHING;
+          SELECT d.hostname, t.slug, d.resolution_mode
+            FROM tenant_domain d JOIN tenant t ON t.id = d.tenant_id
+           ORDER BY d.hostname;
+          SQL
 
       - name: Apply manifests
         run: |
@@ -416,7 +460,7 @@ jobs:
       - name: Smoke test public ingress
         run: |
           set -euo pipefail
-          url=https://garment-erp.keenlab.io/
+          url="https://$PUBLIC_HOST/"
           code=000
           for attempt in 1 2 3 4 5; do
             code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$url" || echo 000)

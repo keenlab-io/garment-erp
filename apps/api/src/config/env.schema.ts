@@ -16,6 +16,12 @@ export const envSchema = z.object({
   // this entry is what makes a typo fail fast instead of silently degrading to `all`.
   APP_ROLE: z.enum(["api", "worker", "all"]).default("all"),
 
+  // How many reverse proxies in front of the api append to X-Forwarded-For (Express `trust
+  // proxy` hop count). 0 (the default) trusts none, so `req.ip` is the socket peer. Behind the
+  // production edge that peer is always the in-pod nginx, which collapses the per-IP demo signup
+  // limit (DEMO_SIGNUP_RATE_PER_IP) onto one shared address — prod sets the real count.
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
+
   // Postgres (postgres.js) — numeric columns return as strings.
   DATABASE_URL: z.string().url(),
   DB_POOL_MAX: z.coerce.number().int().positive().default(10),
