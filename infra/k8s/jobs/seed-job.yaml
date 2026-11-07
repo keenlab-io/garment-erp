@@ -1,0 +1,92 @@
+# One-off seed Job — run by hand, never by the deploy (see "Cloud go-live" in
+# infra/k8s/README.md). Like the migrate Job it lives OUTSIDE the kustomize base.
+#
+# Why a Job and not `kubectl exec deploy/erp-api -- node …seed.js`: the seed writes across
+# tenants, so it needs DATABASE_OWNER_URL (the superuser), and that credential is
+# deliberately absent from the app pods. This Job is the only other place besides the
+# migrate Job that loads `erp-db-owner`.
+#
+# The admin credentials come from a short-lived `erp-seed` secret you create just before
+# and delete right after, so they are never stored in git or in a long-lived secret:
+#
+#   kubectl -n erp create secret generic erp-seed \
+#     --from-literal=SEED_PLATFORM_ADMIN_EMAIL='ops@keenlab.io' \
+#     --from-literal=SEED_PLATFORM_ADMIN_PASSWORD="$(openssl rand -base64 24)"
+#   IMAGE=$(kubectl -n erp get deploy/erp-api -o jsonpath='{.spec.template.spec.containers[0].image}')
+#   sed "s|__IMAGE__|$IMAGE|" infra/k8s/jobs/seed-job.yaml | kubectl apply -f -
+#   kubectl -n erp wait --for=condition=complete job/erp-seed --timeout=300s
+#   kubectl -n erp logs job/erp-seed
+#   kubectl -n erp get secret erp-seed -o jsonpath='{.data.SEED_PLATFORM_ADMIN_PASSWORD}' | base64 -d
+#   kubectl -n erp delete job/erp-seed secret/erp-seed
+#
+# The seed is idempotent (`onConflictDoNothing`): re-running never resets a password and
+# never duplicates plans, the platform admin, or the demo template. It refuses to start
+# without SEED_PLATFORM_ADMIN_PASSWORD so a forgotten secret can't create the admin with
+# the `changeme` default. SEED_TEST_DATA is never set here.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: erp-seed
+  namespace: erp
+  labels:
+    app.kubernetes.io/name: erp-seed
+    app.kubernetes.io/part-of: erp
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        # The NetworkPolicy's documented escape hatch for one-off tooling — admits this pod
+        # to Postgres without widening the policy.
+        app.kubernetes.io/name: erp-admin
+    spec:
+      restartPolicy: Never
+      serviceAccountName: erp-app
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: seed
+          # The image currently deployed, so the seed matches the live schema.
+          image: __IMAGE__
+          command:
+            - sh
+            - -c
+            - |
+              if [ -z "${SEED_PLATFORM_ADMIN_PASSWORD:-}" ]; then
+                echo "SEED_PLATFORM_ADMIN_PASSWORD is not set (create the erp-seed secret first)" >&2
+                exit 1
+              fi
+              exec node packages/db/dist/seed/seed.js
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          # erp-config carries DEMO_HOST (→ demo template + DEMO_POOL row) and the tenancy
+          # settings; erp-db-owner the superuser URL; erp-seed the admin credentials.
+          envFrom:
+            - configMapRef:
+                name: erp-config
+            - secretRef:
+                name: erp-db-owner
+            - secretRef:
+                name: erp-seed
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

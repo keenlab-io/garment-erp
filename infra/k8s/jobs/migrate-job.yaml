@@ -54,10 +54,11 @@ spec:
             capabilities:
               drop: [ALL]
           # migrate.ts connects with DATABASE_OWNER_URL (the superuser) and sets erp_app's
-          # login password from DATABASE_APP_PASSWORD — both come from erp-secrets.
+          # login password from DATABASE_APP_PASSWORD. It reads nothing else, so it gets only
+          # erp-db-owner — the one secret the app pods never see.
           envFrom:
             - secretRef:
-                name: erp-secrets
+                name: erp-db-owner
           resources:
             requests:
               cpu: 100m

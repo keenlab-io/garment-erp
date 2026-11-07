@@ -232,19 +232,32 @@ jobs:
           # The URLs are composed here so each Postgres password has exactly one source of
           # truth. The api/worker connect as `erp_app` (NOBYPASSRLS): the `erp` bootstrap
           # superuser bypasses RLS even under FORCE, so connecting as it would switch tenant
-          # isolation off. Migrations and the seed use DATABASE_OWNER_URL (the superuser: 0000
-          # creates extensions and 0013 grants BYPASSRLS), and the migrate Job sets erp_app's
-          # login password from DATABASE_APP_PASSWORD before any pod rolls.
+          # isolation off.
           if [ -z "${{ secrets.PROD_DB_APP_PASSWORD }}" ]; then
             echo "::error::PROD_DB_APP_PASSWORD is not set — the api must not connect as the superuser"
             exit 1
           fi
+
+          # Superuser material lives in its OWN secret, `erp-db-owner`, which only the
+          # Postgres StatefulSet (POSTGRES_PASSWORD, read at initdb), the migrate Job and the
+          # seed Job reference. erp-secrets is envFrom'd wholesale into every api/worker pod,
+          # so anything in it is readable by a compromised app pod — and the superuser
+          # credential would hand that pod a way around RLS. Migrations and the seed need it
+          # (0000 creates extensions, 0013 grants BYPASSRLS); the migrate Job also sets
+          # erp_app's login password from DATABASE_APP_PASSWORD before any pod rolls.
+          kubectl create secret generic erp-db-owner \
+            --namespace "$NAMESPACE" \
+            --from-literal=POSTGRES_PASSWORD="${{ secrets.PROD_POSTGRES_PASSWORD }}" \
+            --from-literal=DATABASE_OWNER_URL="postgres://erp:${{ secrets.PROD_POSTGRES_PASSWORD }}@erp-postgres:5432/erp" \
+            --from-literal=DATABASE_APP_PASSWORD="${{ secrets.PROD_DB_APP_PASSWORD }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # `apply` prunes keys dropped from a previously-applied secret, so the superuser
+          # keys this secret used to carry (POSTGRES_PASSWORD, DATABASE_OWNER_URL) disappear
+          # from erp-secrets on the first deploy after the split.
           literals=(
             --from-literal=DATABASE_URL="postgres://erp_app:${{ secrets.PROD_DB_APP_PASSWORD }}@erp-postgres:5432/erp"
-            --from-literal=DATABASE_OWNER_URL="postgres://erp:${{ secrets.PROD_POSTGRES_PASSWORD }}@erp-postgres:5432/erp"
-            --from-literal=DATABASE_APP_PASSWORD="${{ secrets.PROD_DB_APP_PASSWORD }}"
             --from-literal=REDIS_URL="redis://erp-redis:6379/0"
-            --from-literal=POSTGRES_PASSWORD="${{ secrets.PROD_POSTGRES_PASSWORD }}"
             --from-literal=JWT_ACCESS_SECRET="${{ secrets.PROD_JWT_ACCESS_SECRET }}"
             --from-literal=JWT_REFRESH_SECRET="${{ secrets.PROD_JWT_REFRESH_SECRET }}"
             --from-literal=ENCRYPTION_KEY="${{ secrets.PROD_ENCRYPTION_KEY }}"
