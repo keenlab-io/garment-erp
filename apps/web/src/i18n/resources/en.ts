@@ -16,6 +16,7 @@ export const shellEn = {
     notifications: "Notifications",
     account: "Account",
     signOut: "Sign out",
+    userGuide: "User guide",
     theme: "Theme",
     themeToLight: "Switch to light",
     themeToDark: "Switch to dark",

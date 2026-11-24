@@ -44,6 +44,10 @@ export function PlatformLayout({ children }: { children: React.ReactNode }) {
           >
             {t("nav.supportSessions")}
           </Link>
+          {/* Static staff guides (docs/admin → /guides/admin/) — a plain link, not a router route. */}
+          <a href="/guides/admin/" target="_blank" rel="noopener" className="text-text-link">
+            {t("nav.staffGuides")}
+          </a>
         </nav>
         <Button variant="ghost" onClick={() => void platformSignOut()}>
           {t("nav.signOut")}

@@ -34,6 +34,7 @@
   },
   "devDependencies": {
     "@erp/config": "workspace:*",
+    "@erp/docs": "workspace:*",
     "@storybook/addon-a11y": "^10.5.0",
     "@storybook/react-vite": "^10.5.0",
     "@tailwindcss/vite": "^4.3.2",

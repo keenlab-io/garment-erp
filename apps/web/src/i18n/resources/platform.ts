@@ -6,6 +6,7 @@ export const platformEn = {
     tenants: "Tenants",
     quotes: "Quotes",
     supportSessions: "Support sessions",
+    staffGuides: "Staff guides",
     signOut: "Sign out",
   },
   login: {
@@ -202,6 +203,7 @@ export const platformTh: PlatformResources = {
     tenants: "ผู้เช่า",
     quotes: "ใบเสนอราคา",
     supportSessions: "เซสชันซัพพอร์ต",
+    staffGuides: "คู่มือสำหรับทีมงาน",
     signOut: "ออกจากระบบ",
   },
   login: {
