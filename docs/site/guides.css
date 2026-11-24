@@ -1,0 +1,390 @@
+/* Guides site styles — semantic design tokens only (tokens.css is copied from
+   @erp/design-tokens at build time, so light/dark is the same attribute flip as the app). */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-padding-top: 4.5rem;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg-app);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--color-text-link);
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+.skip:focus {
+  left: var(--space-4);
+  top: var(--space-2);
+  z-index: 10;
+  background: var(--color-bg-surface);
+  padding: var(--space-2) var(--space-3);
+}
+
+/* ── top bar ─────────────────────────────────────────────── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 3.5rem;
+  padding: 0 var(--space-6);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+.brand-mark {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+}
+.topbar-guide {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+.badge-internal {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius-full);
+  background: var(--color-warning-subtle);
+  color: var(--color-warning);
+}
+.spacer {
+  flex: 1;
+}
+.topbar-link {
+  font-size: 0.9rem;
+}
+.theme-toggle {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  width: 2.25rem;
+  height: 2.25rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.theme-toggle:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+/* ── three-column layout ─────────────────────────────────── */
+.layout {
+  display: grid;
+  grid-template-columns: 16rem minmax(0, 1fr) 14rem;
+  gap: var(--space-8);
+  max-width: 90rem;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6);
+}
+.layout:not(:has(.sidebar)) {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 56rem;
+}
+
+.sidebar,
+.toc {
+  position: sticky;
+  top: 4.5rem;
+  align-self: start;
+  max-height: calc(100vh - 5.5rem);
+  overflow-y: auto;
+  font-size: 0.9rem;
+}
+.nav-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+.nav-audience {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+.nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.nav-list a {
+  display: block;
+  padding: var(--space-1) var(--space-3);
+  border-left: 2px solid var(--color-border);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+.nav-list a:hover {
+  color: var(--color-text-primary);
+  border-left-color: var(--color-border-strong);
+}
+.nav-list a[aria-current="page"] {
+  color: var(--color-accent-text);
+  border-left-color: var(--color-accent);
+  font-weight: 600;
+}
+.toc-title {
+  margin: 0 0 var(--space-2);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.toc ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.toc li {
+  margin: var(--space-1) 0;
+}
+.toc a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+.toc a:hover {
+  color: var(--color-text-link);
+}
+
+/* ── article typography ──────────────────────────────────── */
+.prose {
+  max-width: 48rem;
+}
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  font-family: var(--font-display);
+  line-height: 1.3;
+  position: relative;
+}
+.prose h1 {
+  font-size: 2rem;
+  margin: 0 0 var(--space-4);
+}
+.prose h2 {
+  font-size: 1.45rem;
+  margin: var(--space-12) 0 var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+.prose h3 {
+  font-size: 1.15rem;
+  margin: var(--space-8) 0 var(--space-2);
+}
+.prose h4 {
+  font-size: 1rem;
+  margin: var(--space-6) 0 var(--space-2);
+}
+.anchor {
+  margin-left: var(--space-2);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  opacity: 0;
+}
+.prose :is(h2, h3, h4):hover .anchor {
+  opacity: 1;
+}
+.prose li + li {
+  margin-top: var(--space-1);
+}
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--color-bg-sunken);
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-sm);
+}
+.prose pre {
+  background: var(--color-bg-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  overflow-x: auto;
+  line-height: 1.5;
+}
+.prose pre code {
+  background: none;
+  padding: 0;
+}
+.table-wrap {
+  overflow-x: auto;
+  margin: var(--space-4) 0;
+}
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+.prose th,
+.prose td {
+  border: 1px solid var(--color-border);
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  vertical-align: top;
+}
+.prose th {
+  background: var(--color-bg-sunken);
+  font-weight: 600;
+}
+.prose blockquote {
+  margin: var(--space-4) 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-border-strong);
+  background: var(--color-bg-surface);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+.prose blockquote > :first-child {
+  margin-top: 0;
+}
+.prose blockquote > :last-child {
+  margin-bottom: 0;
+}
+.callout-note {
+  border-left-color: var(--color-info) !important;
+  background: var(--color-info-subtle) !important;
+}
+.callout-tip {
+  border-left-color: var(--color-success) !important;
+  background: var(--color-success-subtle) !important;
+}
+.callout-warning,
+.callout-important {
+  border-left-color: var(--color-warning) !important;
+  background: var(--color-warning-subtle) !important;
+}
+
+/* ── pager, hub cards, footer ────────────────────────────── */
+.pager {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  max-width: 48rem;
+  margin-top: var(--space-12);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+.pager a {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  max-width: 48%;
+}
+.pager a:hover {
+  border-color: var(--color-accent);
+}
+.pager span {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+.pager .next {
+  margin-left: auto;
+  text-align: right;
+}
+.cards {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+.card a {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  text-decoration: none;
+  color: var(--color-text-primary);
+}
+.card a:hover {
+  border-color: var(--color-accent);
+}
+.card span {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+.footer {
+  padding: var(--space-6);
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  border-top: 1px solid var(--color-border);
+}
+
+/* ── responsive & print ──────────────────────────────────── */
+@media (max-width: 75rem) {
+  .layout {
+    grid-template-columns: 15rem minmax(0, 1fr);
+  }
+  .toc {
+    display: none;
+  }
+}
+@media (max-width: 48rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--space-4);
+  }
+  .sidebar {
+    position: static;
+    max-height: none;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: var(--space-4);
+  }
+  .topbar-guide,
+  .topbar-link {
+    display: none;
+  }
+}
+@media print {
+  .topbar,
+  .sidebar,
+  .toc,
+  .pager,
+  .footer,
+  .anchor {
+    display: none !important;
+  }
+  .layout {
+    display: block;
+    padding: 0;
+  }
+  body {
+    background: none;
+  }
+}

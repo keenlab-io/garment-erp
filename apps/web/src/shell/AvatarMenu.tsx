@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { LogOut } from "lucide-react";
+import { BookOpen, LogOut } from "lucide-react";
 import { Avatar, Icon, cn } from "@erp/ui";
 import { useSession } from "../session/session-context";
 
@@ -64,6 +64,22 @@ export function AvatarMenu() {
             <p className="truncate text-body-strong text-text-primary">{user.name}</p>
             <p className="truncate text-caption text-text-muted">{user.email}</p>
           </div>
+          {/* Static guide site (docs/user-guide → /guides/user/), outside the SPA router. */}
+          <a
+            href="/guides/user/"
+            target="_blank"
+            rel="noopener"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className={cn(
+              "flex w-full items-center gap-2.5 px-3 text-body text-text-primary no-underline outline-none",
+              "hover:bg-bg-sunken focus-visible:bg-bg-sunken",
+            )}
+            style={{ minHeight: "var(--density-tap-min)" }}
+          >
+            <Icon icon={BookOpen} />
+            {t("topbar.userGuide")}
+          </a>
           <button
             type="button"
             role="menuitem"

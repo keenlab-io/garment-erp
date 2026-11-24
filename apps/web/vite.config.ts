@@ -1,9 +1,11 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { guidesSite } from "@erp/docs/vite";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  // guidesSite: the static staff/user guides at /guides/ (docs/ → @erp/docs).
+  plugins: [react(), tailwindcss(), guidesSite()],
   server: {
     port: 5173,
     // Bind all interfaces (IPv4 + IPv6), not just the default `localhost` which resolves

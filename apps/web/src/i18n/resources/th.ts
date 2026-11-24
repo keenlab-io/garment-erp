@@ -46,6 +46,7 @@ export const shellTh: ShellResources = {
     notifications: "การแจ้งเตือน",
     account: "บัญชี",
     signOut: "ออกจากระบบ",
+    userGuide: "คู่มือการใช้งาน",
     theme: "ธีม",
     themeToLight: "เปลี่ยนเป็นโหมดสว่าง",
     themeToDark: "เปลี่ยนเป็นโหมดมืด",

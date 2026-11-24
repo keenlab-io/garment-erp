@@ -29,6 +29,9 @@ packages/config/     shared tsconfig base + ESLint preset (dependency-boundary r
 packages/utils/      framework-agnostic helpers (decimal money/qty)
 packages/db/         drizzle schema + Postgres client + migrate/seed (no Nest/contracts)
 packages/design-tokens/ Style Dictionary token source → tokens.css + Tailwind v4 preset (no framework)
+docs/                @erp/docs workspace: admin/ (staff guides) + user-guide/ (customer guide) → static HTML
+                     (docs/dist/guides) served by apps/web at /guides/ via @erp/docs/vite; build fails on
+                     broken links/anchors — update guides with UI/rule changes in the same PR
 infra/               docker-compose.yml (dev Postgres only)
 tooling/             db migrate/seed/codegen scripts (placeholder)
 ```

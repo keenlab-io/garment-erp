@@ -1,0 +1,30 @@
+{
+  "name": "@erp/docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Staff admin guides (docs/admin) + customer user guide (docs/user-guide), rendered to static HTML served by apps/web at /guides/",
+  "exports": {
+    "./package.json": "./package.json",
+    "./vite": {
+      "types": "./vite-plugin.d.ts",
+      "default": "./vite-plugin.mjs"
+    }
+  },
+  "files": [
+    "dist",
+    "vite-plugin.mjs",
+    "vite-plugin.d.ts"
+  ],
+  "scripts": {
+    "build": "node scripts/build-guides.mjs",
+    "test": "node --test scripts/*.test.mjs"
+  },
+  "dependencies": {
+    "@erp/design-tokens": "workspace:*"
+  },
+  "devDependencies": {
+    "marked": "^18.0.0",
+    "vite": "^6.0.3"
+  }
+}
