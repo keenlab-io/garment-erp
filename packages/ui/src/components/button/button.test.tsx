@@ -58,4 +58,22 @@ describe("Button", () => {
     );
     expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "#target");
   });
+
+  // Browser page translation (Chrome/Google Translate) swaps a text node for a <font> wrapper
+  // behind React's back. The loading spinner used to be inserted *before* the bare label text
+  // node, so on submit React's insertBefore referenced a node no longer in the button and threw
+  // "Failed to execute 'insertBefore' on 'Node'" — the platform login crash.
+  it("survives page translation replacing its label text when it starts loading", () => {
+    const { rerender } = render(<Button>Sign in</Button>);
+    const button = screen.getByRole("button");
+    const textNode = [...button.querySelectorAll("*"), button]
+      .flatMap((el) => [...el.childNodes])
+      .find((n) => n.nodeType === Node.TEXT_NODE && n.textContent === "Sign in")!;
+    const font = document.createElement("font");
+    font.textContent = "เข้าสู่ระบบ";
+    textNode.parentNode!.replaceChild(font, textNode);
+
+    expect(() => rerender(<Button loading>Sign in</Button>)).not.toThrow();
+    expect(button).toHaveAttribute("aria-busy", "true");
+  });
 });
