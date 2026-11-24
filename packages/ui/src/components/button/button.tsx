@@ -104,7 +104,12 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
               style={{ width: "var(--density-icon)", height: "var(--density-icon)" }}
             />
           )}
-          {children}
+          {/* The label sits in its own element so the spinner above is inserted before a node
+              React owns. Page translation (Chrome/Google Translate) replaces bare text nodes with
+              <font> wrappers; inserting before a replaced text node threw "Failed to execute
+              'insertBefore' on 'Node'" the moment a button started loading. gap-2 keeps
+              icon + text spacing identical to the button's own. */}
+          <span className="inline-flex items-center justify-center gap-2">{children}</span>
         </>
       )}
     </Comp>
